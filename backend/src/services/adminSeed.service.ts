@@ -11,10 +11,16 @@ export const seedAdminUser = async (): Promise<void> => {
             return;
         }
 
-        // Check if admin already exists
-        const existingAdmin = await User.findOne({ reg_number: adminRegNumber });
+        // Check if admin already exists by reg_number or email
+        const existingAdmin = await User.findOne({
+            $or: [
+                { reg_number: adminRegNumber },
+                { email: 'admin@infogateschools.com' }
+            ]
+        });
+
         if (existingAdmin) {
-            console.log(`✅ Admin user (${adminRegNumber}) already exists in the database. Skipping seeding.`);
+            console.log(`✅ Admin user (${adminRegNumber} or admin@infogateschools.com) already exists in the database. Skipping seeding.`);
             return;
         }
 
