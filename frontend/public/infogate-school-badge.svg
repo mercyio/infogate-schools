@@ -1,0 +1,55 @@
+<svg viewBox="0 0 300 350" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Yellow banner ribbon top left -->
+  <polygon points="40,180 20,200 40,200 60,180" fill="#FFD700"/>
+  
+  <!-- Yellow banner ribbon top right -->
+  <polygon points="260,180 280,200 260,200 240,180" fill="#FFD700"/>
+  
+  <!-- Main shield shape (yellow background) -->
+  <path d="M 75 80 L 225 80 L 225 160 Q 150 220 150 220 Q 75 160 75 160 Z" fill="#FFD700"/>
+  
+  <!-- Navy blue shield overlay (top part) -->
+  <path d="M 85 95 L 215 95 L 215 145 Q 150 190 150 190 Q 85 145 85 145 Z" fill="#001F5C"/>
+  
+  <!-- IGS text at top -->
+  <text x="150" y="85" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#001F5C">
+    IGS
+  </text>
+  
+  <!-- Book icon representation -->
+  <rect x="130" y="105" width="40" height="35" fill="#FFD700" stroke="#001F5C" stroke-width="2" rx="2"/>
+  <line x1="150" y1="105" x2="150" y2="140" stroke="#001F5C" stroke-width="1.5"/>
+  
+  <!-- INFOGATE text (black on yellow) -->
+  <text x="150" y="165" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="900" fill="#000000">
+    INFOGATE
+  </text>
+  
+  <!-- Navy blue banner section -->
+  <rect x="60" y="170" width="180" height="45" fill="#001F5C"/>
+  
+  <!-- SCHOOLS text (yellow on navy) -->
+  <text x="150" y="205" text-anchor="middle" font-family="Arial, sans-serif" font-size="26" font-weight="bold" fill="#FFD700">
+    SCHOOLS
+  </text>
+  
+  <!-- Bottom ribbon banner -->
+  <rect x="50" y="220" width="200" height="35" fill="#FFD700" rx="3"/>
+  
+  <!-- Ribbon flag left -->
+  <polygon points="50,220 30,235 50,250" fill="#FFD700"/>
+  
+  <!-- Ribbon flag right -->
+  <polygon points="250,220 270,235 250,250" fill="#FFD700"/>
+  
+  <!-- Tagline text -->
+  <text x="150" y="245" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#001F5C">
+    ONE WITH GOD IS A MAJORITY
+  </text>
+</svg>

@@ -1,0 +1,269 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Playful School Theme - Light Mode */
+    --background: 45 100% 98%;
+    --foreground: 230 25% 18%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 230 25% 18%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 230 25% 18%;
+
+    /* Sky Blue Primary */
+    --primary: 199 89% 48%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Mint Green Secondary */
+    --secondary: 158 64% 52%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* Sunny Yellow Accent */
+    --accent: 43 96% 56%;
+    --accent-foreground: 230 25% 18%;
+
+    /* Coral for highlights */
+    --coral: 16 100% 66%;
+    --coral-foreground: 0 0% 100%;
+
+    /* Lavender for special elements */
+    --lavender: 270 67% 72%;
+    --lavender-foreground: 0 0% 100%;
+
+    /* Soft Pink */
+    --pink: 340 82% 76%;
+    --pink-foreground: 230 25% 18%;
+
+    /* Muted backgrounds */
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 199 89% 48%;
+
+    --radius: 1rem;
+
+    /* Portal-specific colors */
+    --admin: 262 83% 58%;
+    --admin-foreground: 0 0% 100%;
+    
+    --teacher: 199 89% 48%;
+    --teacher-foreground: 0 0% 100%;
+    
+    --student: 158 64% 52%;
+    --student-foreground: 0 0% 100%;
+    
+    --parent: 16 100% 66%;
+    --parent-foreground: 0 0% 100%;
+
+    /* Gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(199 89% 48%) 0%, hsl(158 64% 52%) 100%);
+    --gradient-warm: linear-gradient(135deg, hsl(43 96% 56%) 0%, hsl(16 100% 66%) 100%);
+    --gradient-cool: linear-gradient(135deg, hsl(199 89% 48%) 0%, hsl(270 67% 72%) 100%);
+    --gradient-nature: linear-gradient(135deg, hsl(158 64% 52%) 0%, hsl(199 89% 48%) 100%);
+    --gradient-sunset: linear-gradient(135deg, hsl(340 82% 76%) 0%, hsl(16 100% 66%) 100%);
+    
+    /* Shadows */
+    --shadow-soft: 0 4px 20px -2px hsl(199 89% 48% / 0.15);
+    --shadow-card: 0 8px 30px -4px hsl(230 25% 18% / 0.1);
+    --shadow-button: 0 4px 14px -2px hsl(199 89% 48% / 0.4);
+    --shadow-float: 0 20px 40px -8px hsl(230 25% 18% / 0.15);
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 230 25% 18%;
+    --sidebar-primary: 199 89% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 45 100% 96%;
+    --sidebar-accent-foreground: 230 25% 18%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 199 89% 48%;
+  }
+
+  .dark {
+    --background: 230 25% 10%;
+    --foreground: 45 100% 98%;
+
+    --card: 230 25% 14%;
+    --card-foreground: 45 100% 98%;
+
+    --popover: 230 25% 14%;
+    --popover-foreground: 45 100% 98%;
+
+    --primary: 199 89% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 158 64% 45%;
+    --secondary-foreground: 0 0% 100%;
+
+    --accent: 43 96% 56%;
+    --accent-foreground: 230 25% 10%;
+
+    --coral: 16 100% 66%;
+    --coral-foreground: 0 0% 100%;
+
+    --lavender: 270 67% 65%;
+    --lavender-foreground: 0 0% 100%;
+
+    --pink: 340 82% 70%;
+    --pink-foreground: 230 25% 10%;
+
+    --muted: 230 25% 20%;
+    --muted-foreground: 215 20% 65%;
+
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 230 25% 20%;
+    --input: 230 25% 20%;
+    --ring: 199 89% 55%;
+
+    --admin: 262 83% 65%;
+    --teacher: 199 89% 55%;
+    --student: 158 64% 50%;
+    --parent: 16 100% 66%;
+
+    --sidebar-background: 230 25% 12%;
+    --sidebar-foreground: 45 100% 98%;
+    --sidebar-primary: 199 89% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 230 25% 18%;
+    --sidebar-accent-foreground: 45 100% 98%;
+    --sidebar-border: 230 25% 20%;
+    --sidebar-ring: 199 89% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-nunito antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight;
+  }
+}
+
+@layer components {
+  .gradient-hero {
+    background: var(--gradient-hero);
+  }
+
+  .gradient-warm {
+    background: var(--gradient-warm);
+  }
+
+  .gradient-cool {
+    background: var(--gradient-cool);
+  }
+
+  .gradient-nature {
+    background: var(--gradient-nature);
+  }
+
+  .gradient-sunset {
+    background: var(--gradient-sunset);
+  }
+
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+
+  .shadow-button {
+    box-shadow: var(--shadow-button);
+  }
+
+  .shadow-float {
+    box-shadow: var(--shadow-float);
+  }
+
+  .playful-card {
+    @apply bg-card rounded-2xl shadow-card border-2 border-transparent 
+           transition-all duration-300 hover:shadow-float hover:-translate-y-1;
+  }
+
+  .blob-shape {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  }
+
+  .wiggle {
+    animation: wiggle 2s ease-in-out infinite;
+  }
+
+  .float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .bounce-slow {
+    animation: bounce-slow 2s ease-in-out infinite;
+  }
+
+  .pulse-soft {
+    animation: pulse-soft 2s ease-in-out infinite;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes wave {
+  0% { transform: rotate(0deg); }
+  10% { transform: rotate(14deg); }
+  20% { transform: rotate(-8deg); }
+  30% { transform: rotate(14deg); }
+  40% { transform: rotate(-4deg); }
+  50% { transform: rotate(10deg); }
+  60% { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.wave-hand {
+  animation: wave 2.5s infinite;
+  transform-origin: 70% 70%;
+  display: inline-block;
+}

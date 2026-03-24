@@ -1,0 +1,51 @@
+<svg viewBox="0 0 300 350" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Laurel wreath left -->
+  <path d="M 60 150 Q 50 120 55 90 Q 65 100 70 130" stroke="#8B3A3A" stroke-width="3" fill="none" stroke-linecap="round"/>
+  
+  <!-- Laurel wreath right -->
+  <path d="M 240 150 Q 250 120 245 90 Q 235 100 230 130" stroke="#8B3A3A" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+  <!-- Shield outline -->
+  <path d="M 90 70 L 210 70 L 210 150 Q 150 200 150 200 Q 90 150 90 150 Z" fill="white" stroke="#8B3A3A" stroke-width="2"/>
+
+  <!-- Shield divide -->
+  <line x1="150" y1="70" x2="150" y2="200" stroke="#8B3A3A" stroke-width="2"/>
+
+  <!-- Left side (yellow/gold) -->
+  <path d="M 90 70 L 150 70 L 150 200 Q 90 150 90 150 Z" fill="#FFE566"/>
+
+  <!-- Right side (navy) -->
+  <path d="M 150 70 L 210 70 L 210 150 Q 150 200 150 200 Z" fill="#2C3E7F"/>
+
+  <!-- Building/College icon left -->
+  <rect x="100" y="90" width="30" height="35" fill="#2C3E7F" stroke="#2C3E7F" stroke-width="1"/>
+  <circle cx="108" cy="100" r="3" fill="#FFE566"/>
+  <circle cx="120" cy="100" r="3" fill="#FFE566"/>
+  <circle cx="108" cy="115" r="3" fill="#FFE566"/>
+  <circle cx="120" cy="115" r="3" fill="#FFE566"/>
+
+  <!-- Building/Book right -->
+  <rect x="160" y="90" width="30" height="35" fill="#FFE566" stroke="#2C3E7F" stroke-width="1"/>
+  <line x1="175" y1="90" x2="175" y2="125" stroke="#2C3E7F" stroke-width="1"/>
+
+  <!-- INFOGATE text -->
+  <text x="150" y="155" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#8B3A3A">
+    INFOGATE
+  </text>
+
+  <!-- COLLEGE text -->
+  <text x="150" y="175" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#2C3E7F">
+    COLLEGE
+  </text>
+
+  <!-- Motto text -->
+  <text x="150" y="225" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="normal" fill="#8B3A3A">
+    One with God is a Majority
+  </text>
+</svg>
