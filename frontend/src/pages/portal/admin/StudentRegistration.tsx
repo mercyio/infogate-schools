@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -17,23 +17,25 @@ import {
   Users,
   GraduationCap
 } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { useToast } from "@/components/ui/use-toast";
 
 const StudentRegistration = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const isEdit = searchParams.get("edit") === "true";
+  const studentId = searchParams.get("id");
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     dateOfBirth: "",
     gender: "",
-    email: "",
-    phone: "",
     address: "",
     program: "",
-    grade: "",
+    class_id: "",
     parentName: "",
     parentEmail: "",
     parentPhone: "",
@@ -41,38 +43,84 @@ const StudentRegistration = () => {
     medicalInfo: "",
   });
 
+  // Fetch student data if in edit mode
+  const { isLoading: isLoadingStudent } = useQuery({
+    queryKey: ['student', studentId],
+    queryFn: async () => {
+      const res = await api.get(`/users/students/${studentId}`);
+      const student = res.data;
+      const [firstName = "", ...lastNameParts] = (student.user_id?.full_name || student.full_name || "").split(" ");
+      
+      setFormData({
+        firstName,
+        lastName: lastNameParts.join(" "),
+        dateOfBirth: student.date_of_birth?.split('T')[0] || "",
+        gender: student.gender || "",
+        address: student.address || "",
+        program: student.program || "",
+        class_id: student.class_id?._id || student.class_id || "",
+        parentName: student.parent_name || "",
+        parentEmail: student.parent_email || "",
+        parentPhone: student.parent_phone || "",
+        emergencyContact: student.emergency_contact || "",
+        medicalInfo: student.medical_info || "",
+      });
+      return student;
+    },
+    enabled: isEdit && !!studentId,
+  });
+
+  const { data: classes = [] } = useQuery({
+    queryKey: ['classes'],
+    queryFn: async () => {
+      const res = await api.get('/classes');
+      return res.data || [];
+    }
+  });
+
   const registerMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const payload = {
         full_name: `${data.firstName} ${data.lastName}`.trim(),
-        email: data.email,
-        phone: data.phone,
         date_of_birth: data.dateOfBirth,
         gender: data.gender,
         address: data.address,
         program: data.program,
-        grade: data.grade,
+        class_id: data.class_id,
         parent_name: data.parentName,
         parent_email: data.parentEmail,
         parent_phone: data.parentPhone,
         emergency_contact: data.emergencyContact,
         medical_info: data.medicalInfo,
       };
-      const res = await api.post('/users/students', payload);
-      return res.data;
+      
+      if (isEdit) {
+        const res = await api.put(`/users/students/${studentId}`, payload);
+        return res.data;
+      } else {
+        const res = await api.post('/users/students', payload);
+        return res.data;
+      }
     },
     onSuccess: (data) => {
-      const creds = data.credentials || data;
-      toast({
-        title: "✅ Student Registered!",
-        description: `Reg No: ${creds.reg_number} | Temp Password: ${creds.password}. Share these login details with the student.`,
-      });
+      if (isEdit) {
+        toast({
+          title: "✅ Student Updated!",
+          description: "The student information has been updated successfully.",
+        });
+      } else {
+        const creds = data.credentials || data;
+        toast({
+          title: "✅ Student Registered!",
+          description: `Reg No: ${creds.reg_number} | Temp Password: ${creds.password}. Share these login details with the student.`,
+        });
+      }
       navigate('/portal/admin/students');
     },
     onError: (error: any) => {
       toast({
-        title: "Registration Failed",
-        description: error.response?.data?.message || "Could not register student. Please try again.",
+        title: isEdit ? "Update Failed" : "Registration Failed",
+        description: error.response?.data?.message || `Could not ${isEdit ? 'update' : 'register'} student. Please try again.`,
         variant: "destructive",
       });
     }
@@ -88,41 +136,17 @@ const StudentRegistration = () => {
   };
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      {/* Header */}
-      <header className="bg-card border-b border-border sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-admin rounded-xl flex items-center justify-center">
-              <Shield className="w-5 h-5 text-admin-foreground" />
-            </div>
-            <div>
-              <h1 className="font-bold">Admin Portal</h1>
-              <p className="text-xs text-muted-foreground">Infogate Schools</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon"><Bell className="w-5 h-5" /></Button>
-            <Link to="/login"><Button variant="ghost" size="icon"><LogOut className="w-5 h-5" /></Button></Link>
-          </div>
-        </div>
-      </header>
+    <div className="py-8 px-4">
 
       <div className="container mx-auto px-4 py-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          {/* Back Button */}
-          <Link to="/portal/admin" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6">
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
-          </Link>
-
-          <div className="flex items-center gap-4 mb-8">
+          <div className="flex items-center gap-4 mb-8 pt-4">
             <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center">
               <User className="w-7 h-7 text-primary-foreground" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold">Register New Student</h2>
-              <p className="text-muted-foreground">Fill in the student details below</p>
+              <h2 className="text-2xl font-bold">{isEdit ? 'Edit Student Details' : 'Register New Student'}</h2>
+              <p className="text-muted-foreground">{isEdit ? 'Update the student information below' : 'Fill in the student details below'}</p>
             </div>
           </div>
 
@@ -183,16 +207,6 @@ const StudentRegistration = () => {
                   </select>
                 </div>
 
-                <div>
-                  <label className="text-sm font-semibold mb-2 block">Phone</label>
-                  <Input
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder="+1 (555) 000-0000"
-                    className="h-12 rounded-xl"
-                  />
-                </div>
                 <div className="sm:col-span-2 lg:col-span-3">
                   <label className="text-sm font-semibold mb-2 block">Address *</label>
                   <Input
@@ -224,38 +238,26 @@ const StudentRegistration = () => {
                     className="w-full h-12 rounded-xl border border-input bg-background px-3 text-sm"
                   >
                     <option value="">Select program</option>
-                    <option value="nursery">Nursery (Ages 2-5)</option>
-                    <option value="primary">Primary School (Ages 6-11)</option>
-                    <option value="secondary">Secondary School (Ages 12-17)</option>
-                    <option value="vocational">Vocational Training (Ages 16+)</option>
+                    <option value="pre-school">Pre-School / Nursery</option>
+                    <option value="primary">Primary School (Basic)</option>
+                    <option value="junior-secondary">Junior Secondary (JSS)</option>
+                    <option value="senior-secondary">Senior Secondary (SS)</option>
+                    <option value="vocational">Vocational Training</option>
                   </select>
                 </div>
                 <div>
                   <label className="text-sm font-semibold mb-2 block">Grade/Class *</label>
                   <select
-                    name="grade"
-                    value={formData.grade}
+                    name="class_id"
+                    value={formData.class_id}
                     onChange={handleChange}
                     required
                     className="w-full h-12 rounded-xl border border-input bg-background px-3 text-sm"
                   >
-                    <option value="">Select grade</option>
-                    <option value="nursery-1">Nursery 1</option>
-                    <option value="nursery-2">Nursery 2</option>
-                    <option value="kg-1">KG 1</option>
-                    <option value="kg-2">KG 2</option>
-                    <option value="grade-1">Grade 1</option>
-                    <option value="grade-2">Grade 2</option>
-                    <option value="grade-3">Grade 3</option>
-                    <option value="grade-4">Grade 4</option>
-                    <option value="grade-5">Grade 5</option>
-                    <option value="grade-6">Grade 6</option>
-                    <option value="grade-7">Grade 7</option>
-                    <option value="grade-8">Grade 8</option>
-                    <option value="grade-9">Grade 9</option>
-                    <option value="grade-10">Grade 10</option>
-                    <option value="grade-11">Grade 11</option>
-                    <option value="grade-12">Grade 12</option>
+                    <option value="">Select class</option>
+                    {classes.map((cls: any) => (
+                      <option key={cls._id} value={cls._id}>{cls.name}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -338,9 +340,9 @@ const StudentRegistration = () => {
               <Link to="/portal/admin">
                 <Button variant="outline" size="lg">Cancel</Button>
               </Link>
-              <Button type="submit" variant="admin" size="lg" className="gap-2" disabled={registerMutation.isPending}>
+              <Button type="submit" variant="admin" size="lg" className="gap-2" disabled={registerMutation.isPending || isLoadingStudent}>
                 <Save className="w-5 h-5" />
-                {registerMutation.isPending ? 'Registering...' : 'Register Student'}
+                {registerMutation.isPending ? (isEdit ? 'Updating...' : 'Registering...') : (isEdit ? 'Update Student' : 'Register Student')}
               </Button>
             </div>
           </form>

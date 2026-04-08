@@ -16,17 +16,17 @@
     --popover: 0 0% 100%;
     --popover-foreground: 230 25% 18%;
 
-    /* Sky Blue Primary */
-    --primary: 199 89% 48%;
+    /* Dark Blue Primary */
+    --primary: 217 91% 21%;
     --primary-foreground: 0 0% 100%;
 
-    /* Mint Green Secondary */
-    --secondary: 158 64% 52%;
+    /* Light Blue Secondary */
+    --secondary: 199 89% 48%;
     --secondary-foreground: 0 0% 100%;
 
-    /* Sunny Yellow Accent */
-    --accent: 43 96% 56%;
-    --accent-foreground: 230 25% 18%;
+    /* Red Accent */
+    --accent: 0 84% 60%;
+    --accent-foreground: 0 0% 100%;
 
     /* Coral for highlights */
     --coral: 16 100% 66%;
@@ -100,14 +100,14 @@
     --popover: 230 25% 14%;
     --popover-foreground: 45 100% 98%;
 
-    --primary: 199 89% 55%;
+    --primary: 217 91% 30%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 158 64% 45%;
+    --secondary: 199 89% 55%;
     --secondary-foreground: 0 0% 100%;
 
-    --accent: 43 96% 56%;
-    --accent-foreground: 230 25% 10%;
+    --accent: 0 84% 65%;
+    --accent-foreground: 0 0% 100%;
 
     --coral: 16 100% 66%;
     --coral-foreground: 0 0% 100%;
@@ -249,6 +249,16 @@
 @keyframes pulse-soft {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.8; }
+}
+
+@keyframes animate-gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-gradient {
+  animation: animate-gradient 3s ease infinite;
 }
 
 @keyframes wave {

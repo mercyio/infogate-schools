@@ -38,300 +38,9 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-
-// Mock data - in real app, this would come from database
-const classesData: Record<
-  string,
-  {
-    id: number;
-    name: string;
-    level: string;
-    teacher: { name: string; phone: string; email: string; avatar: string };
-    subjects: string[];
-    students: Array<{
-      id: string;
-      name: string;
-      admissionNo: string;
-      gender: string;
-      attendanceRate: number;
-      feesStatus: "paid" | "partial" | "unpaid";
-      totalFees: number;
-      paidFees: number;
-    }>;
-  }
-> = {
-  "1": {
-    id: 1,
-    name: "Nursery 1",
-    level: "Nursery",
-    teacher: {
-      name: "Mrs. Adebayo",
-      phone: "+234 801 234 5678",
-      email: "adebayo@infogate.edu",
-      avatar: "A",
-    },
-    subjects: [
-      "Numeracy",
-      "Literacy",
-      "Creative Arts",
-      "Physical Education",
-      "Social Habits",
-      "Rhymes & Songs",
-    ],
-    students: [
-      {
-        id: "N1-001",
-        name: "Adaeze Okonkwo",
-        admissionNo: "IG/2024/N001",
-        gender: "Female",
-        attendanceRate: 95,
-        feesStatus: "paid",
-        totalFees: 75000,
-        paidFees: 75000,
-      },
-      {
-        id: "N1-002",
-        name: "Chinedu Eze",
-        admissionNo: "IG/2024/N002",
-        gender: "Male",
-        attendanceRate: 88,
-        feesStatus: "partial",
-        totalFees: 75000,
-        paidFees: 50000,
-      },
-      {
-        id: "N1-003",
-        name: "Fatima Ibrahim",
-        admissionNo: "IG/2024/N003",
-        gender: "Female",
-        attendanceRate: 92,
-        feesStatus: "paid",
-        totalFees: 75000,
-        paidFees: 75000,
-      },
-      {
-        id: "N1-004",
-        name: "Emeka Nwosu",
-        admissionNo: "IG/2024/N004",
-        gender: "Male",
-        attendanceRate: 78,
-        feesStatus: "unpaid",
-        totalFees: 75000,
-        paidFees: 0,
-      },
-      {
-        id: "N1-005",
-        name: "Amara Okafor",
-        admissionNo: "IG/2024/N005",
-        gender: "Female",
-        attendanceRate: 98,
-        feesStatus: "paid",
-        totalFees: 75000,
-        paidFees: 75000,
-      },
-    ],
-  },
-  "2": {
-    id: 2,
-    name: "Nursery 2",
-    level: "Nursery",
-    teacher: {
-      name: "Mrs. Okonkwo",
-      phone: "+234 802 345 6789",
-      email: "okonkwo@infogate.edu",
-      avatar: "O",
-    },
-    subjects: [
-      "Numeracy",
-      "Literacy",
-      "Creative Arts",
-      "Physical Education",
-      "Social Habits",
-      "Rhymes & Songs",
-    ],
-    students: [
-      {
-        id: "N2-001",
-        name: "Ngozi Adeleke",
-        admissionNo: "IG/2023/N101",
-        gender: "Female",
-        attendanceRate: 91,
-        feesStatus: "paid",
-        totalFees: 80000,
-        paidFees: 80000,
-      },
-      {
-        id: "N2-002",
-        name: "Tunde Bakare",
-        admissionNo: "IG/2023/N102",
-        gender: "Male",
-        attendanceRate: 85,
-        feesStatus: "partial",
-        totalFees: 80000,
-        paidFees: 40000,
-      },
-    ],
-  },
-  "3": {
-    id: 3,
-    name: "Primary 1",
-    level: "Primary",
-    teacher: {
-      name: "Mr. Ibrahim",
-      phone: "+234 803 456 7890",
-      email: "ibrahim@infogate.edu",
-      avatar: "I",
-    },
-    subjects: [
-      "Mathematics",
-      "English Language",
-      "Basic Science",
-      "Social Studies",
-      "Civic Education",
-      "Computer Studies",
-      "Creative Arts",
-      "Physical Education",
-    ],
-    students: [
-      {
-        id: "P1-001",
-        name: "Oluwaseun Adeyemi",
-        admissionNo: "IG/2024/P001",
-        gender: "Male",
-        attendanceRate: 94,
-        feesStatus: "paid",
-        totalFees: 95000,
-        paidFees: 95000,
-      },
-      {
-        id: "P1-002",
-        name: "Chioma Ugwu",
-        admissionNo: "IG/2024/P002",
-        gender: "Female",
-        attendanceRate: 89,
-        feesStatus: "partial",
-        totalFees: 95000,
-        paidFees: 60000,
-      },
-      {
-        id: "P1-003",
-        name: "Abubakar Sani",
-        admissionNo: "IG/2024/P003",
-        gender: "Male",
-        attendanceRate: 96,
-        feesStatus: "paid",
-        totalFees: 95000,
-        paidFees: 95000,
-      },
-    ],
-  },
-  "6": {
-    id: 6,
-    name: "JSS 1",
-    level: "Secondary",
-    teacher: {
-      name: "Mr. Okafor",
-      phone: "+234 804 567 8901",
-      email: "okafor@infogate.edu",
-      avatar: "O",
-    },
-    subjects: [
-      "Mathematics",
-      "English Language",
-      "Basic Science",
-      "Basic Technology",
-      "Social Studies",
-      "Civic Education",
-      "Computer Studies",
-      "French",
-      "Yoruba",
-      "Agricultural Science",
-      "Home Economics",
-      "Physical Education",
-    ],
-    students: [
-      {
-        id: "J1-001",
-        name: "Kehinde Oladipo",
-        admissionNo: "IG/2024/J001",
-        gender: "Female",
-        attendanceRate: 97,
-        feesStatus: "paid",
-        totalFees: 120000,
-        paidFees: 120000,
-      },
-      {
-        id: "J1-002",
-        name: "Mohammed Bello",
-        admissionNo: "IG/2024/J002",
-        gender: "Male",
-        attendanceRate: 82,
-        feesStatus: "unpaid",
-        totalFees: 120000,
-        paidFees: 0,
-      },
-      {
-        id: "J1-003",
-        name: "Grace Onyeka",
-        admissionNo: "IG/2024/J003",
-        gender: "Female",
-        attendanceRate: 91,
-        feesStatus: "partial",
-        totalFees: 120000,
-        paidFees: 80000,
-      },
-    ],
-  },
-};
-
-// Add default class data for any class ID
-const getClassData = (classId: string) => {
-  if (classesData[classId]) return classesData[classId];
-
-  // Generate mock data for other class IDs
-  const classNames: Record<string, { name: string; level: string }> = {
-    "4": { name: "Primary 2", level: "Primary" },
-    "5": { name: "Primary 3", level: "Primary" },
-    "7": { name: "JSS 2", level: "Secondary" },
-    "8": { name: "SS 1", level: "Secondary" },
-    "9": { name: "Vocational 1", level: "Vocational" },
-  };
-
-  const info = classNames[classId] || {
-    name: `Class ${classId}`,
-    level: "Primary",
-  };
-
-  return {
-    id: parseInt(classId),
-    name: info.name,
-    level: info.level,
-    teacher: {
-      name: "Mr. Teacher",
-      phone: "+234 800 000 0000",
-      email: "teacher@infogate.edu",
-      avatar: "T",
-    },
-    subjects: [
-      "Mathematics",
-      "English Language",
-      "Basic Science",
-      "Social Studies",
-    ],
-    students: [
-      {
-        id: `C${classId}-001`,
-        name: "Sample Student",
-        admissionNo: `IG/2024/C${classId}01`,
-        gender: "Male",
-        attendanceRate: 90,
-        feesStatus: "paid" as const,
-        totalFees: 100000,
-        paidFees: 100000,
-      },
-    ],
-  };
-};
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/api";
+import { toast } from "sonner";
 
 // Class color mapping - unique color per class
 const getClassColor = (classId: string) => {
@@ -415,36 +124,75 @@ const ClassDetail = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
 
-  const classData = getClassData(classId || "1");
+  // 1. Fetch Class Data
+  const { data: classData, isLoading: isLoadingClass } = useQuery({
+    queryKey: ['class', classId],
+    queryFn: async () => {
+      const res = await api.get(`/classes/${classId}`);
+      return res.data;
+    }
+  });
+
+  // 2. Fetch Students
+  const { data: students = [], isLoading: isLoadingStudents } = useQuery({
+    queryKey: ['students', classId],
+    queryFn: async () => {
+      const res = await api.get(`/users/students?class_id=${classId}`);
+      return res.data;
+    }
+  });
+
+  // 3. Fetch Subjects
+  const { data: subjects = [], isLoading: isLoadingSubjects } = useQuery({
+    queryKey: ['subjects', classId],
+    queryFn: async () => {
+      const res = await api.get(`/subjects/class/${classId}`);
+      return res.data;
+    }
+  });
+
+  if (isLoadingClass || isLoadingStudents || isLoadingSubjects) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!classData) return <div>Class not found</div>;
+
   const classColor = getClassColor(classId || "1");
 
-  const filteredStudents = classData.students.filter(
-    (student) =>
-      student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.admissionNo.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredStudents = students.filter(
+    (student: any) =>
+      student.user_id?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.admission_number?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getStatusBadge = (status: "paid" | "partial" | "unpaid") => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "paid":
         return (
-          <Badge className="bg-mint text-mint-foreground">
-            <div className="w-2 h-2 rounded-full bg-current mr-2" />
+          <Badge className="bg-mint/10 text-mint hover:bg-mint/20 border-none">
             Paid
           </Badge>
         );
       case "partial":
         return (
-          <Badge className="bg-sunny text-sunny-foreground">
-            <div className="w-2 h-2 rounded-full bg-current mr-2" />
+          <Badge className="bg-sunny/10 text-sunny hover:bg-sunny/20 border-none">
             Partial
           </Badge>
         );
       case "unpaid":
         return (
-          <Badge className="bg-coral text-coral-foreground">
-            <div className="w-2 h-2 rounded-full bg-current mr-2" />
+          <Badge className="bg-coral/10 text-coral hover:bg-coral/20 border-none">
             Unpaid
+          </Badge>
+        );
+      default:
+        return (
+          <Badge className="bg-slate-100 text-slate-500 border-none">
+            N/A
           </Badge>
         );
     }
@@ -471,61 +219,25 @@ const ClassDetail = () => {
     }
   };
 
-  const totalFeesPaid = classData.students.reduce(
-    (sum, s) => sum + s.paidFees,
+  const totalFeesPaid = students.reduce(
+    (sum: number, s: any) => sum + (s.paid_fees || 0),
     0
   );
-  const totalFeesExpected = classData.students.reduce(
-    (sum, s) => sum + s.totalFees,
+  const totalFeesExpected = students.reduce(
+    (sum: number, s: any) => sum + (s.total_fees || 100000),
     0
   );
-  const feeCollectionRate = Math.round(
+  const feeCollectionRate = totalFeesExpected > 0 ? Math.round(
     (totalFeesPaid / totalFeesExpected) * 100
-  );
-  const avgAttendance = Math.round(
-    classData.students.reduce((sum, s) => sum + s.attendanceRate, 0) /
-      classData.students.length
-  );
+  ) : 0;
+
+  const avgAttendance = students.length > 0 ? Math.round(
+    students.reduce((sum: number, s: any) => sum + (s.attendance_rate || 90), 0) /
+      students.length
+  ) : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted/40 to-background">
-      {/* Header */}
-      <header className="bg-card/80 backdrop-blur-sm border-b border-border sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/portal/admin/classes")}
-              className="hover:bg-muted/50"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{
-                background: `linear-gradient(to br, ${classColor.primary}, ${classColor.primary}cc)`,
-              }}
-            >
-              <BookOpen className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="font-bold text-lg">{classData.name}</h1>
-              <p className="text-xs text-muted-foreground">
-                {classData.level} • {classData.students.length} students
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="hover:bg-muted/50">
-              <Bell className="w-5 h-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="hover:bg-muted/50">
-              <MoreVertical className="w-5 h-5" />
-            </Button>
-          </div>
-        </div>
-      </header>
 
       <div className="container mx-auto px-4 py-8">
         <motion.div
@@ -554,20 +266,20 @@ const ClassDetail = () => {
                   <p className="text-white/80">
                     Managed by{" "}
                     <span className="font-semibold">
-                      {classData.teacher.name}
+                      {classData.class_teacher_id?.user_id?.full_name || classData.class_teacher_id?.full_name || 'Not assigned'}
                     </span>
                   </p>
                 </div>
                 <div className="flex gap-6 text-center">
                   <div className="bg-white/10 backdrop-blur-sm rounded-lg px-6 py-4 border border-white/20">
                     <div className="text-3xl font-bold">
-                      {classData.students.length}
+                      {students.length}
                     </div>
                     <div className="text-sm text-white/80">Students</div>
                   </div>
                   <div className="bg-white/10 backdrop-blur-sm rounded-lg px-6 py-4 border border-white/20">
                     <div className="text-3xl font-bold">
-                      {classData.subjects.length}
+                      {subjects.length}
                     </div>
                     <div className="text-sm text-white/80">Subjects</div>
                   </div>
@@ -592,23 +304,27 @@ const ClassDetail = () => {
                     background: `linear-gradient(to br, ${classColor.primary}, ${classColor.primary}cc)`,
                   }}
                 >
-                  {classData.teacher.avatar}
+                  {(classData.class_teacher_id?.user_id?.full_name || classData.class_teacher_id?.full_name || 'Teacher')
+                    .split(' ')
+                    .slice(0, 2)
+                    .map((n: string) => n.charAt(0).toUpperCase())
+                    .join('')}
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">
                     Class Teacher
                   </p>
-                  <p className="font-bold text-sm">{classData.teacher.name}</p>
+                  <p className="font-bold text-sm">{classData.class_teacher_id?.user_id?.full_name || classData.class_teacher_id?.full_name || 'Not assigned'}</p>
                 </div>
               </div>
               <div className="space-y-2 text-xs text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <Phone className="w-3.5 h-3.5" />
-                  <span>{classData.teacher.phone}</span>
+                  <span>{classData.class_teacher_id?.user_id?.phone || classData.class_teacher_id?.phone || 'N/A'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Mail className="w-3.5 h-3.5" />
-                  <span>{classData.teacher.email}</span>
+                  <span>{classData.class_teacher_id?.user_id?.email || classData.class_teacher_id?.email || 'N/A'}</span>
                 </div>
               </div>
             </motion.div>
@@ -684,7 +400,7 @@ const ClassDetail = () => {
                   <span className="text-muted-foreground">Paid</span>
                   <Badge className="bg-mint text-mint-foreground text-xs">
                     {
-                      classData.students.filter((s) => s.feesStatus === "paid")
+                      students.filter((s: any) => s.status === "active") // Placeholder for fee status
                         .length
                     }
                   </Badge>
@@ -692,11 +408,7 @@ const ClassDetail = () => {
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-muted-foreground">Partial</span>
                   <Badge className="bg-sunny text-sunny-foreground text-xs">
-                    {
-                      classData.students.filter(
-                        (s) => s.feesStatus === "partial"
-                      ).length
-                    }
+                    0
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center text-xs">
@@ -709,11 +421,7 @@ const ClassDetail = () => {
                       border: `1px solid ${classColor.primary}40`,
                     }}
                   >
-                    {
-                      classData.students.filter(
-                        (s) => s.feesStatus === "unpaid"
-                      ).length
-                    }
+                    0
                   </Badge>
                 </div>
               </div>
@@ -735,13 +443,13 @@ const ClassDetail = () => {
               Curriculum
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              {classData.subjects.map((subject) => (
+              {subjects.map((subject: any) => (
                 <motion.div
-                  key={subject}
+                  key={subject._id}
                   whileHover={{ translateY: -2 }}
                   className="px-4 py-3 bg-gradient-to-br from-muted to-muted/50 rounded-xl text-sm font-medium text-center border border-muted hover:border-primary/50 transition-colors"
                 >
-                  {subject}
+                  {subject.name}
                 </motion.div>
               ))}
             </div>
@@ -777,7 +485,7 @@ const ClassDetail = () => {
                       border: `1px solid ${classColor.primary}40`,
                     }}
                   >
-                    {classData.students.length}
+                    {students.length}
                   </Badge>
                 </h3>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -821,21 +529,19 @@ const ClassDetail = () => {
 
             {filteredStudents.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredStudents.map((student, index) => {
-                  const outstanding = student.totalFees - student.paidFees;
+                {filteredStudents.map((student: any, index: number) => {
+                  const totalFees = student.total_fees || 100000;
+                  const paidFees = student.paid_fees || 0;
+                  const outstanding = totalFees - paidFees;
                   const feePercentage = Math.round(
-                    (student.paidFees / student.totalFees) * 100
+                    (paidFees / totalFees) * 100
                   );
-                  const statusColor =
-                    student.feesStatus === "paid"
-                      ? "from-mint/10 to-mint/5 border-mint/20"
-                      : student.feesStatus === "partial"
-                      ? "from-sunny/10 to-sunny/5 border-sunny/20"
-                      : "from-coral/10 to-coral/5 border-coral/20";
+                  const feesStatus = paidFees >= totalFees ? "paid" : paidFees > 0 ? "partial" : "unpaid";
+                  const attendanceRate = student.attendance_rate || 90;
 
                   return (
                     <motion.div
-                      key={student.id}
+                      key={student._id}
                       initial={{ opacity: 0, y: 30 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{
@@ -846,7 +552,7 @@ const ClassDetail = () => {
                       whileHover={{ translateY: -8 }}
                       onClick={() =>
                         navigate(
-                          `/portal/admin/classes/${classId}/students/${student.id}`
+                          `/portal/admin/classes/${classId}/students/${student._id}`
                         )
                       }
                       className="group relative cursor-pointer"
@@ -889,11 +595,11 @@ const ClassDetail = () => {
                                   lineHeight: "1",
                                 }}
                               >
-                                {student.name
-                                  .split(" ")
+                                {student.user_id?.full_name
+                                  ?.split(" ")
                                   .slice(0, 2)
-                                  .map((n) => n.charAt(0).toUpperCase())
-                                  .join("")}
+                                  .map((n: string) => n.charAt(0).toUpperCase())
+                                  .join("") || 'S'}
                               </motion.div>
                               <div className="min-w-0 flex-1">
                                 <h3
@@ -912,10 +618,10 @@ const ClassDetail = () => {
                                     ).style.color = "currentColor";
                                   }}
                                 >
-                                  {student.name}
+                                  {student.user_id?.full_name}
                                 </h3>
                                 <p className="text-xs text-muted-foreground font-medium truncate mt-0.5">
-                                  {student.admissionNo}
+                                  {student.admission_number}
                                 </p>
                               </div>
                             </div>
@@ -923,7 +629,7 @@ const ClassDetail = () => {
                               whileHover={{ scale: 1.1, rotate: 8 }}
                               className="flex-shrink-0"
                             >
-                              {getStatusBadge(student.feesStatus)}
+                              {getStatusBadge(feesStatus)}
                             </motion.div>
                           </div>
 
@@ -944,7 +650,7 @@ const ClassDetail = () => {
                                   color: classColor.primary,
                                 }}
                               >
-                                {student.gender}
+                                {student.user_id?.gender || 'N/A'}
                               </p>
                             </div>
                             <div className="bg-muted/40 rounded-lg p-4 text-center">
@@ -953,10 +659,10 @@ const ClassDetail = () => {
                               </p>
                               <p
                                 className={`text-lg font-bold ${getAttendanceColor(
-                                  student.attendanceRate
+                                  attendanceRate
                                 )}`}
                               >
-                                {student.attendanceRate}%
+                                {attendanceRate}%
                               </p>
                             </div>
                           </div>
@@ -968,7 +674,7 @@ const ClassDetail = () => {
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(
-                                `/portal/admin/classes/${classId}/students/${student.id}`
+                                `/portal/admin/classes/${classId}/students/${student._id}`
                               );
                             }}
                             className="w-full py-2.5 px-4 rounded-lg font-semibold text-sm text-white shadow-lg transition-all duration-200 border-0"

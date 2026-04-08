@@ -4,8 +4,11 @@ import { Button } from "@/components/ui/button";
 import { BookOpen, Users, Calendar, ClipboardCheck, Bell, Settings, LogOut, FileText, Clock } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
+import { format } from "date-fns";
+import { toast } from "sonner";
+import { CheckCircle2 } from "lucide-react";
 
 const TeacherDashboard = () => {
   const { user, logout } = useAuth();
@@ -28,6 +31,30 @@ const TeacherDashboard = () => {
           todaysClasses: classes.slice(0, 3) // mock schedule using their actual classes
         };
       }
+  });
+
+  const { data: teacherProfile } = useQuery({
+    queryKey: ['teacher-profile'],
+    queryFn: async () => {
+      const res = await api.get('/users/me/teacher');
+      return res.data;
+    }
+  });
+
+  const queryClient = useQueryClient();
+  const clockInMutation = useMutation({
+    mutationFn: () => api.post('/attendance/teachers', {
+      records: [{
+        teacher_id: teacherProfile?._id,
+        date: format(new Date(), 'yyyy-MM-dd'),
+        status: 'present'
+      }]
+    }),
+    onSuccess: () => {
+      toast.success("Attendance marked for today!");
+      queryClient.invalidateQueries({ queryKey: ['teacher-attendance'] });
+    },
+    onError: () => toast.error("Failed to mark attendance")
   });
 
   const stats = [
@@ -56,7 +83,22 @@ const TeacherDashboard = () => {
 
       <div className="container mx-auto px-4 py-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <h2 className="text-2xl font-bold mb-6">Good morning, {user?.name || 'Teacher'}! 📚</h2>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+            <div>
+              <h2 className="text-3xl font-bold mb-1">Good morning, {user?.name || 'Teacher'}! 📚</h2>
+              <p className="text-muted-foreground">{format(new Date(), 'EEEE, MMMM do, yyyy')}</p>
+            </div>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button 
+                onClick={() => clockInMutation.mutate()} 
+                disabled={clockInMutation.isPending || !teacherProfile}
+                className="h-14 px-8 bg-gradient-to-r from-teacher to-teacher/80 hover:from-teacher/90 hover:to-teacher/70 rounded-2xl shadow-lg border-2 border-teacher/20 flex items-center gap-3 text-lg font-bold"
+              >
+                <CheckCircle2 className="w-6 h-6" />
+                {clockInMutation.isPending ? "Clocking In..." : "Clock In for Today"}
+              </Button>
+            </motion.div>
+          </div>
           
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {isLoading ? (
@@ -91,7 +133,10 @@ const TeacherDashboard = () => {
             <div className="playful-card p-6">
               <h3 className="font-bold text-lg mb-4">Quick Actions</h3>
               <div className="grid grid-cols-2 gap-3">
-                {["Mark Attendance", "Create Assignment", "View Timetable", "Grade Submissions"].map((action) => (
+                <Link to="/portal/teacher/attendance">
+                  <Button variant="outline" className="h-auto py-3 w-full">Mark Attendance</Button>
+                </Link>
+                {["Create Assignment", "View Timetable", "Grade Submissions"].map((action) => (
                   <Button key={action} variant="outline" className="h-auto py-3">{action}</Button>
                 ))}
               </div>

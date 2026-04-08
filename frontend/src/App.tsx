@@ -34,6 +34,7 @@ import FeedbackReview from "./pages/portal/admin/FeedbackReview";
 import TeacherMonitoring from "./pages/portal/admin/TeacherMonitoring";
 import TeacherDetail from "./pages/portal/admin/TeacherDetail";
 import EnrollmentReport from "./pages/portal/admin/EnrollmentReport";
+import AdminLayout from "./components/layout/AdminLayout";
 import AcademicReport from "./pages/portal/admin/AcademicReport";
 import AttendanceReport from "./pages/portal/admin/AttendanceReport";
 import FinancialReport from "./pages/portal/admin/FinancialReport";
@@ -45,6 +46,7 @@ import AssignmentManagement from "./pages/portal/teacher/AssignmentManagement";
 import ResourcesManagement from "./pages/portal/teacher/ResourcesManagement";
 import ParentCommunication from "./pages/portal/teacher/ParentCommunication";
 import TeacherReports from "./pages/portal/teacher/TeacherReports";
+import AttendanceMonitor from "./pages/portal/admin/AttendanceMonitor";
 import NotFound from "./pages/NotFound";
 
 const globalErrorHandler = (error: any) => {
@@ -89,27 +91,31 @@ const App = () => (
             <Route path="/register-success" element={<RegisterSuccessPage />} />
             {/* Admin Portal */}
             <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
-              <Route path="/portal/admin" element={<AdminDashboard />} />
-              <Route path="/portal/admin/students" element={<ManageStudents />} />
-              <Route path="/portal/admin/students/register" element={<StudentRegistration />} />
-              <Route path="/portal/admin/teachers" element={<ManageTeachers />} />
-              <Route path="/portal/admin/teachers/:teacherId" element={<TeacherDetail />} />
-              <Route path="/portal/admin/reports" element={<Reports />} />
-              <Route path="/portal/admin/enrollment-report" element={<EnrollmentReport />} />
-              <Route path="/portal/admin/academic-report" element={<AcademicReport />} />
-              <Route path="/portal/admin/attendance-report" element={<AttendanceReport />} />
-              <Route path="/portal/admin/financial-report" element={<FinancialReport />} />
-              <Route path="/portal/admin/teacher-performance-report" element={<TeacherPerformanceReport />} />
-              <Route path="/portal/admin/custom-report" element={<CustomReport />} />
-              <Route path="/portal/admin/announcements" element={<Announcements />} />
-              <Route path="/portal/admin/fees" element={<FeesManagement />} />
-              <Route path="/portal/admin/classes" element={<ClassManagement />} />
-              <Route path="/portal/admin/classes/:classId" element={<ClassDetail />} />
-              <Route path="/portal/admin/classes/:classId/students/:studentId" element={<StudentDetail />} />
-              <Route path="/portal/admin/permissions" element={<RolePermissions />} />
-              <Route path="/portal/admin/content" element={<ContentManagement />} />
-              <Route path="/portal/admin/feedback" element={<FeedbackReview />} />
-              <Route path="/portal/admin/teacher-monitoring" element={<TeacherMonitoring />} />
+              <Route element={<AdminLayout />}>
+                <Route path="/portal/admin" element={<AdminDashboard />} />
+                <Route path="/portal/admin/students" element={<ManageStudents />} />
+                <Route path="/portal/admin/students/:studentId" element={<StudentDetail />} />
+                <Route path="/portal/admin/students/register" element={<StudentRegistration />} />
+                <Route path="/portal/admin/teachers" element={<ManageTeachers />} />
+                <Route path="/portal/admin/teachers/:teacherId" element={<TeacherDetail />} />
+                <Route path="/portal/admin/attendance" element={<AttendanceMonitor />} />
+                <Route path="/portal/admin/reports" element={<Reports />} />
+                <Route path="/portal/admin/enrollment-report" element={<EnrollmentReport />} />
+                <Route path="/portal/admin/academic-report" element={<AcademicReport />} />
+                <Route path="/portal/admin/attendance-report" element={<AttendanceReport />} />
+                <Route path="/portal/admin/financial-report" element={<FinancialReport />} />
+                <Route path="/portal/admin/teacher-performance-report" element={<TeacherPerformanceReport />} />
+                <Route path="/portal/admin/custom-report" element={<CustomReport />} />
+                <Route path="/portal/admin/announcements" element={<Announcements />} />
+                <Route path="/portal/admin/fees" element={<FeesManagement />} />
+                <Route path="/portal/admin/classes" element={<ClassManagement />} />
+                <Route path="/portal/admin/classes/:classId" element={<ClassDetail />} />
+                <Route path="/portal/admin/classes/:classId/students/:studentId" element={<StudentDetail />} />
+                <Route path="/portal/admin/permissions" element={<RolePermissions />} />
+                <Route path="/portal/admin/content" element={<ContentManagement />} />
+                <Route path="/portal/admin/feedback" element={<FeedbackReview />} />
+                <Route path="/portal/admin/teacher-monitoring" element={<TeacherMonitoring />} />
+              </Route>
             </Route>
             
             {/* Teacher Portal */}

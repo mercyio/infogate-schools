@@ -34,6 +34,30 @@ import { useState } from "react";
 const classFees = [
   {
     id: 1,
+    className: "Daycare",
+    level: "Pre-School",
+    tuition: 120000,
+    books: 15000,
+    uniform: 10000,
+    development: 10000,
+    sports: 5000,
+    total: 160000,
+    status: "active",
+  },
+  {
+    id: 2,
+    className: "KG 1",
+    level: "Pre-School",
+    tuition: 150000,
+    books: 25000,
+    uniform: 15000,
+    development: 10000,
+    sports: 5000,
+    total: 205000,
+    status: "active",
+  },
+  {
+    id: 3,
     className: "Nursery 1",
     level: "Nursery",
     tuition: 150000,
@@ -45,20 +69,8 @@ const classFees = [
     status: "active",
   },
   {
-    id: 2,
-    className: "Nursery 2",
-    level: "Nursery",
-    tuition: 150000,
-    books: 25000,
-    uniform: 15000,
-    development: 10000,
-    sports: 5000,
-    total: 205000,
-    status: "active",
-  },
-  {
-    id: 3,
-    className: "Grade 1",
+    id: 4,
+    className: "Basic 1",
     level: "Primary",
     tuition: 180000,
     books: 30000,
@@ -69,8 +81,8 @@ const classFees = [
     status: "active",
   },
   {
-    id: 4,
-    className: "Grade 5",
+    id: 5,
+    className: "Basic 5",
     level: "Primary",
     tuition: 200000,
     books: 35000,
@@ -81,9 +93,9 @@ const classFees = [
     status: "active",
   },
   {
-    id: 5,
+    id: 6,
     className: "JSS 1",
-    level: "Secondary",
+    level: "Junior Secondary",
     tuition: 250000,
     books: 40000,
     uniform: 20000,
@@ -93,15 +105,27 @@ const classFees = [
     status: "active",
   },
   {
-    id: 6,
-    className: "SS 3",
-    level: "Secondary",
+    id: 7,
+    className: "SS 1",
+    level: "Senior Secondary",
     tuition: 280000,
     books: 45000,
     uniform: 20000,
     development: 15000,
     sports: 8000,
     total: 368000,
+    status: "active",
+  },
+  {
+    id: 8,
+    className: "Vocational Training",
+    level: "Vocational",
+    tuition: 220000,
+    books: 30000,
+    uniform: 15000,
+    development: 20000,
+    sports: 10000,
+    total: 295000,
     status: "active",
   },
 ];
@@ -197,35 +221,6 @@ const FeesManagement = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-secondary/5">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 border-b border-primary/20 sticky top-0 z-50 backdrop-blur-lg">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <motion.div
-              className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center shadow-lg"
-              whileHover={{ scale: 1.05 }}
-            >
-              <DollarSign className="w-5 h-5 text-white" />
-            </motion.div>
-            <div>
-              <h1 className="font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                Fees Management
-              </h1>
-              <p className="text-xs text-muted-foreground">Infogate Schools</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="w-5 h-5" />
-            </Button>
-            <Link to="/portal/admin">
-              <Button variant="ghost" size="sm">
-                Dashboard
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
 
       <div className="container mx-auto px-4 py-8">
         <motion.div

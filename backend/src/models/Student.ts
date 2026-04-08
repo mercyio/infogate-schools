@@ -7,11 +7,17 @@ export interface IStudent extends Document {
     admission_number: string;
     class_id?: mongoose.Types.ObjectId;
     date_of_birth?: Date;
-    gender?: 'male' | 'female';
+    gender?: 'male' | 'female' | 'other';
     address?: string;
     emergency_contact?: string;
     admission_date: Date;
     status: StudentStatus;
+    program?: string;
+    grade?: string;
+    parent_name?: string;
+    parent_email?: string;
+    parent_phone?: string;
+    medical_info?: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -22,11 +28,17 @@ const StudentSchema: Schema = new Schema(
         admission_number: { type: String, required: true, unique: true },
         class_id: { type: Schema.Types.ObjectId, ref: 'Class' },
         date_of_birth: { type: Date },
-        gender: { type: String, enum: ['male', 'female'] },
+        gender: { type: String, enum: ['male', 'female', 'other'] },
         address: { type: String },
         emergency_contact: { type: String },
         admission_date: { type: Date, required: true, default: Date.now },
         status: { type: String, enum: ['active', 'inactive', 'graduated'], default: 'active' },
+        program: { type: String },
+        grade: { type: String },
+        parent_name: { type: String },
+        parent_email: { type: String },
+        parent_phone: { type: String },
+        medical_info: { type: String },
     },
     { timestamps: true }
 );

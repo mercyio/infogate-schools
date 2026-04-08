@@ -142,7 +142,7 @@ const PRIORITY_STYLES: Record<
   },
 };
 
-const AUDIENCE_COLORS: Record<string, { bg: string; icon: string }> = {
+const AUDIENCE_COLORS: Record<string, string> = {
   All: "bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-700",
   Students: "bg-gradient-to-r from-green-100 to-emerald-100 text-green-700",
   Teachers: "bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700",
@@ -851,7 +851,6 @@ const Announcements = () => {
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-purple-400/10 to-pink-400/10 rounded-full blur-3xl" />
       </div>
 
-      <PageHeader />
 
       <div className="container mx-auto px-4 py-8 relative z-10">
         <motion.div
@@ -859,13 +858,6 @@ const Announcements = () => {
           animate={{ opacity: 1, y: 0 }}
         >
           {/* Back Button */}
-          <Link
-            to="/portal/admin"
-            className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-6 transition-colors group"
-          >
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            Back to Dashboard
-          </Link>
 
           {/* Page Title */}
           <div className="mb-10">

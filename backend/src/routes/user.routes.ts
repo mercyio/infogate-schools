@@ -4,7 +4,8 @@ import {
     createStudent, createTeacher, createParent,
     getStudentById, updateStudent, deleteStudent,
     getTeacherById, updateTeacher, deleteTeacher,
-    getParentById, updateParent, deleteParent
+    getParentById, updateParent, deleteParent,
+    getMeTeacher
 } from '../controllers/user.controller';
 import { protect, authorize } from '../middleware/auth.middleware';
 
@@ -23,6 +24,7 @@ router.post('/teachers', protect, authorize('admin'), createTeacher);
 router.get('/teachers/:id', protect, getTeacherById);
 router.put('/teachers/:id', protect, authorize('admin'), updateTeacher);
 router.delete('/teachers/:id', protect, authorize('admin'), deleteTeacher);
+router.get('/me/teacher', protect, authorize('teacher'), getMeTeacher);
 
 // Parents
 router.get('/parents', protect, authorize('admin', 'teacher'), getParents);

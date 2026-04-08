@@ -20,6 +20,9 @@ import {
   Activity
 } from "lucide-react";
 
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/api";
+
 const reports = [
   { 
     title: "Student Enrollment Report", 
@@ -65,15 +68,43 @@ const reports = [
   },
 ];
 
-const quickStats = [
-  { label: "Total Students", value: "535", change: "+12%", positive: true },
-  { label: "Avg Attendance", value: "93.5%", change: "+2.1%", positive: true },
-  { label: "Total Revenue", value: "₦310.7M", change: "+18%", positive: true },
-  { label: "Total Outstanding", value: "₦3.8M", change: "-8%", positive: true },
-];
-
 const Reports = () => {
   const navigate = useNavigate();
+
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ['admin-dashboard-stats'],
+    queryFn: async () => {
+      const res = await api.get('/reports/admin/dashboard');
+      return res.data;
+    }
+  });
+
+  const quickStats = [
+    { 
+      label: "Total Students", 
+      value: stats?.totalStudents?.toString() || "0", 
+      change: "Live", 
+      positive: true 
+    },
+    { 
+      label: "Avg Attendance", 
+      value: (stats?.attendanceRate || 0) + "%", 
+      change: "Live", 
+      positive: true 
+    },
+    { 
+      label: "Total Teachers", 
+      value: stats?.totalTeachers?.toString() || "0", 
+      change: "Live", 
+      positive: true 
+    },
+    { 
+      label: "Total Revenue", 
+      value: "₦" + (stats?.revenue || 0).toLocaleString(), 
+      change: "Live", 
+      positive: true 
+    },
+  ];
 
   const handleStudentEnrollmentClick = () => {
     navigate('/portal/admin/enrollment-report');
@@ -101,32 +132,9 @@ const Reports = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-primary/5 to-secondary/5">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-slate-200/50 sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-              <Shield className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="font-bold text-slate-900">Admin Portal</h1>
-              <p className="text-xs text-slate-600">Infogate Schools</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon"><Bell className="w-5 h-5" /></Button>
-            <Link to="/login"><Button variant="ghost" size="icon"><LogOut className="w-5 h-5" /></Button></Link>
-          </div>
-        </div>
-      </header>
 
       <div className="container mx-auto px-4 py-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          {/* Back Button */}
-          <Link to="/portal/admin" className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-6 font-medium">
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
-          </Link>
 
           <div className="flex items-center gap-4 mb-8">
             <div className="w-14 h-14 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-2xl flex items-center justify-center">
@@ -150,8 +158,10 @@ const Reports = () => {
               >
                 <p className="text-sm text-slate-600 mb-2">{stat.label}</p>
                 <div className="flex items-end justify-between">
-                  <p className="text-3xl font-bold text-slate-900">{stat.value}</p>
-                  <span className={`text-sm font-semibold px-2 py-1 rounded-lg ${stat.positive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                  <p className="text-3xl font-bold text-slate-900">
+                    {isLoading ? "..." : stat.value}
+                  </p>
+                  <span className={`text-xs font-semibold px-2 py-1 rounded-lg ${stat.positive ? 'bg-primary/10 text-primary' : 'bg-red-50 text-red-700'}`}>
                     {stat.change}
                   </span>
                 </div>

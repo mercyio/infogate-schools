@@ -20,16 +20,15 @@ import { useState } from "react";
 
 // Sample enrollment data by class
 const enrollmentByClass = [
+  { class: "Daycare", male: 12, female: 14, total: 26 },
+  { class: "KG 1", male: 15, female: 13, total: 28 },
   { class: "Nursery 1", male: 18, female: 16, total: 34 },
-  { class: "Nursery 2", male: 20, female: 17, total: 37 },
-  { class: "Grade 1", male: 22, female: 21, total: 43 },
-  { class: "Grade 2", male: 24, female: 19, total: 43 },
-  { class: "Grade 3", male: 26, female: 22, total: 48 },
-  { class: "Grade 4", male: 25, female: 24, total: 49 },
-  { class: "Grade 5", male: 23, female: 25, total: 48 },
+  { class: "Basic 1", male: 22, female: 21, total: 43 },
+  { class: "Basic 5", male: 23, female: 25, total: 48 },
   { class: "JSS 1", male: 21, female: 20, total: 41 },
-  { class: "JSS 2", male: 19, female: 21, total: 40 },
   { class: "JSS 3", male: 18, female: 19, total: 37 },
+  { class: "SS 1", male: 20, female: 22, total: 42 },
+  { class: "Vocational", male: 10, female: 12, total: 22 },
 ];
 
 // Enrollment growth data by month
@@ -44,9 +43,10 @@ const enrollmentGrowth = [
 
 // Enrollment by level
 const enrollmentByLevel = [
-  { level: "Nursery", total: 71, percentage: 13.3 },
-  { level: "Primary (Grades 1-5)", total: 231, percentage: 43.2 },
-  { level: "Secondary (JSS)", total: 118, percentage: 22.1 },
+  { level: "Pre-School / Nursery", total: 88, percentage: 16.4 },
+  { level: "Primary (Basic)", total: 231, percentage: 43.1 },
+  { level: "Secondary (JSS/SS)", total: 194, percentage: 36.3 },
+  { level: "Vocational", total: 22, percentage: 4.2 },
 ];
 
 // Key metrics
@@ -255,9 +255,9 @@ const EnrollmentReport = () => {
                     <div className="w-full bg-slate-200 rounded-full h-4">
                       <div
                         className="h-4 rounded-full transition-all"
-                        style={{
+                         style={{
                           width: `${level.percentage}%`,
-                          background: level.level === "Nursery" ? "#3b82f6" : level.level === "Primary (Grades 1-5)" ? "#10b981" : "#f59e0b",
+                          background: level.level.includes("Pre-School") ? "#3b82f6" : level.level.includes("Primary") ? "#10b981" : level.level.includes("Secondary") ? "#f59e0b" : "#8b5cf6",
                         }}
                       />
                     </div>

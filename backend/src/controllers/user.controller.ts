@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
+import { AuthRequest } from '../middleware/auth.middleware';
 import bcrypt from 'bcrypt';
 import User from '../models/User';
 import Student from '../models/Student';
 import Teacher from '../models/Teacher';
 import Parent from '../models/Parent';
+import Class from '../models/Class';
 
 const generateRegNumber = async (role: string): Promise<string> => {
     const rolePrefix: Record<string, string> = {
@@ -25,8 +27,20 @@ const generateRandomPassword = (): string => {
 
 export const getStudents = async (req: Request, res: Response): Promise<void> => {
     try {
-        const students = await Student.find().populate('user_id', '-passwordHash').populate('class_id');
-        res.json(students);
+        const { class_id } = req.query;
+        const filter: any = {};
+        if (class_id) filter.class_id = class_id;
+
+        const students = await Student.find(filter)
+            .populate({
+                path: 'user_id',
+                select: '-passwordHash',
+                match: { role: 'student' }
+            })
+            .populate('class_id');
+        
+        const realStudents = students.filter(student => student.user_id);
+        res.json(realStudents);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error });
     }
@@ -34,7 +48,9 @@ export const getStudents = async (req: Request, res: Response): Promise<void> =>
 
 export const getTeachers = async (req: Request, res: Response): Promise<void> => {
     try {
-        const teachers = await Teacher.find().populate('user_id', '-passwordHash');
+        const teachers = await Teacher.find()
+            .populate('user_id', '-passwordHash')
+            .populate('assigned_class');
         res.json(teachers);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error });
@@ -52,7 +68,10 @@ export const getParents = async (req: Request, res: Response): Promise<void> => 
 
 export const createStudent = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { full_name, email, phone, class_id, date_of_birth, gender, address, emergency_contact } = req.body;
+        const { 
+            full_name, email, phone, class_id, date_of_birth, gender, address, emergency_contact,
+            program, grade, parent_name, parent_email, parent_phone, medical_info
+        } = req.body;
 
         const reg_number = await generateRegNumber('student');
         const password = generateRandomPassword();
@@ -75,7 +94,13 @@ export const createStudent = async (req: Request, res: Response): Promise<void> 
             date_of_birth,
             gender,
             address,
-            emergency_contact
+            emergency_contact,
+            program,
+            grade,
+            parent_name,
+            parent_email,
+            parent_phone,
+            medical_info
         });
 
         res.status(201).json({
@@ -90,7 +115,7 @@ export const createStudent = async (req: Request, res: Response): Promise<void> 
 
 export const createTeacher = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { full_name, email, phone, specialization, qualification } = req.body;
+        const { full_name, email, phone, role, assigned_class, assigned_subject, experience, address, qualification, specialization } = req.body;
 
         const reg_number = await generateRegNumber('teacher');
         const password = generateRandomPassword();
@@ -109,9 +134,19 @@ export const createTeacher = async (req: Request, res: Response): Promise<void> 
         const teacher = await Teacher.create({
             user_id: user._id,
             employee_id: reg_number,
-            specialization,
-            qualification
+            role,
+            assigned_class: assigned_class || null,
+            assigned_subject,
+            experience,
+            address,
+            qualification,
+            specialization
         });
+
+        // Link class to teacher if assigned
+        if (assigned_class) {
+            await Class.findByIdAndUpdate(assigned_class, { class_teacher_id: teacher._id });
+        }
 
         res.status(201).json({
             message: 'Teacher created successfully',
@@ -172,12 +207,16 @@ export const updateStudent = async (req: Request, res: Response): Promise<void> 
         const student = await Student.findById(req.params.id);
         if (!student) { res.status(404).json({ message: 'Student not found' }); return; }
 
-        const { full_name, email, phone, class_id, date_of_birth, gender, address, emergency_contact, status } = req.body;
+        const { 
+            full_name, email, phone, class_id, date_of_birth, gender, address, emergency_contact, status,
+            program, grade, parent_name, parent_email, parent_phone, medical_info 
+        } = req.body;
 
         await User.findByIdAndUpdate(student.user_id, { full_name, email, phone }, { new: true });
 
         const updatedStudent = await Student.findByIdAndUpdate(req.params.id, {
-            class_id, date_of_birth, gender, address, emergency_contact, status
+            class_id, date_of_birth, gender, address, emergency_contact, status,
+            program, grade, parent_name, parent_email, parent_phone, medical_info
         }, { new: true }).populate('user_id', '-passwordHash').populate('class_id');
 
         res.json(updatedStudent);
@@ -215,13 +254,37 @@ export const updateTeacher = async (req: Request, res: Response): Promise<void> 
         const teacher = await Teacher.findById(req.params.id);
         if (!teacher) { res.status(404).json({ message: 'Teacher not found' }); return; }
 
-        const { full_name, email, phone, specialization, qualification, status } = req.body;
+        const { full_name, email, phone, role, assigned_class, assigned_subject, experience, address, qualification, specialization, status } = req.body;
+
+        const oldAssignedClass = teacher.assigned_class;
 
         await User.findByIdAndUpdate(teacher.user_id, { full_name, email, phone }, { new: true });
 
         const updatedTeacher = await Teacher.findByIdAndUpdate(req.params.id, {
-            specialization, qualification, status
-        }, { new: true }).populate('user_id', '-passwordHash');
+            role, 
+            assigned_class: assigned_class || null, 
+            assigned_subject, 
+            experience, 
+            address, 
+            qualification, 
+            specialization, 
+            status
+        }, { new: true })
+        .populate('user_id', '-passwordHash')
+        .populate('assigned_class');
+
+        // Handing class synchronization
+        if (assigned_class && String(assigned_class) !== String(oldAssignedClass)) {
+            // Unlink old class
+            if (oldAssignedClass) {
+                await Class.findByIdAndUpdate(oldAssignedClass, { class_teacher_id: null });
+            }
+            // Link new class
+            await Class.findByIdAndUpdate(assigned_class, { class_teacher_id: teacher._id });
+        } else if (!assigned_class && oldAssignedClass) {
+            // Unlink if class assignment was removed
+            await Class.findByIdAndUpdate(oldAssignedClass, { class_teacher_id: null });
+        }
 
         res.json(updatedTeacher);
     } catch (error) {
@@ -281,6 +344,19 @@ export const deleteParent = async (req: Request, res: Response): Promise<void> =
         await Parent.findByIdAndDelete(req.params.id);
 
         res.json({ message: 'Parent and associated user account deleted' });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error });
+    }
+};
+
+export const getMeTeacher = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const teacher = await Teacher.findOne({ user_id: req.user.id }).populate('user_id', '-passwordHash');
+        if (!teacher) {
+            res.status(404).json({ message: 'Teacher profile not found' });
+            return;
+        }
+        res.json(teacher);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error });
     }

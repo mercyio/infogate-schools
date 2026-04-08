@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -45,8 +46,9 @@ import {
   Clock,
   CheckCircle,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/components/ui/use-toast";
 import api from "@/lib/api";
 
 
@@ -92,15 +94,55 @@ const ManageStudents = () => {
     }
   });
 
+  const { data: classes = [] } = useQuery({
+    queryKey: ['classes'],
+    queryFn: async () => {
+      const res = await api.get('/classes');
+      return res.data || [];
+    }
+  });
+
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
   // Backend returns Student docs with user data nested under `user_id`
   // This helper reads from both the flat level and the nested user_id
   const sf = (student: any, field: string) =>
     student[field] ?? student.user_id?.[field];
 
   const handleViewStudent = (student: any) => {
-    const id = student.admission_number || sf(student, 'reg_number') || student._id;
-    const classId = student.class_id?._id || student.class_id || '0';
-    navigate(`/portal/admin/classes/${classId}/students/${id}`);
+    navigate(`/portal/admin/students/${student._id}`);
+  };
+
+  const handleEditStudent = (student: any) => {
+    navigate(`/portal/admin/students/register?edit=true&id=${student._id}`);
+  };
+
+  const deactivateMutation = useMutation({
+    mutationFn: async (studentId: string) => {
+      const res = await api.put(`/users/students/${studentId}`, { status: 'inactive' });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      toast({
+        title: "Student Deactivated",
+        description: "The student account has been marked as inactive.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Action Failed",
+        description: error.response?.data?.message || "Could not deactivate student.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleDeactivate = (student: any) => {
+    if (window.confirm(`Are you sure you want to deactivate ${sf(student, 'full_name')}?`)) {
+      deactivateMutation.mutate(student._id);
+    }
   };
 
   const filteredStudents = students.filter((student: any) => {
@@ -109,7 +151,8 @@ const ManageStudents = () => {
     const matchesSearch = !searchQuery ||
       name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       regNum.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesGrade = filterGrade === 'all' || student.grade === filterGrade;
+    const studentClassName = student.class_id?.name || student.grade || "";
+    const matchesGrade = filterGrade === 'all' || studentClassName === filterGrade;
     const matchesProgram = filterProgram === 'all' || student.program === filterProgram;
     return matchesSearch && matchesGrade && matchesProgram;
   });
@@ -124,6 +167,14 @@ const ManageStudents = () => {
     },
   };
 
+  const maleCount = students.filter((s: any) => sf(s, "gender") === "male").length;
+  const femaleCount = students.filter((s: any) => sf(s, "gender") === "female").length;
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const recentCount = students.filter(
+    (s: any) => new Date(s.createdAt) > thirtyDaysAgo
+  ).length;
+
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
@@ -135,52 +186,14 @@ const ManageStudents = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-secondary/5">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-primary/15 via-secondary/15 to-primary/15 border-b border-primary/30 sticky top-0 z-50 backdrop-blur-xl">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <motion.div
-              className="w-10 h-10 bg-gradient-to-br from-student to-student/70 rounded-xl flex items-center justify-center shadow-lg"
-              whileHover={{ scale: 1.05 }}
-            >
-              <Shield className="w-5 h-5 text-student-foreground" />
-            </motion.div>
-            <div>
-              <h1 className="font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                Admin Portal
-              </h1>
-              <p className="text-xs text-muted-foreground">Infogate Schools</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="w-5 h-5" />
-            </Button>
-            <Link to="/login">
-              <Button variant="ghost" size="icon">
-                <LogOut className="w-5 h-5" />
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
 
       <div className="container mx-auto px-4 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          {/* Back Button */}
-          <Link
-            to="/portal/admin"
-            className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors mb-8"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
-          </Link>
-
           {/* Header Section */}
-          <div className="mb-8">
+          <div className="mb-8 pt-4">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -200,7 +213,7 @@ const ManageStudents = () => {
                   <p className="text-muted-foreground mt-1 flex items-center gap-2">
                     <Zap className="w-4 h-4 text-primary" />
                     {filteredStudents.length} students •{" "}
-                    {Math.ceil(filteredStudents.length * 0.95)} active
+                    {filteredStudents.filter((s: any) => sf(s, 'status') === 'active' || !sf(s, 'status')).length} active
                   </p>
                 </div>
               </div>
@@ -225,7 +238,9 @@ const ManageStudents = () => {
           </div>
 
           {isLoading ? (
-            <div className="col-span-4 flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
+            <div className="col-span-4 flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
           ) : (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -234,27 +249,69 @@ const ManageStudents = () => {
               className="grid sm:grid-cols-4 gap-4 mb-8"
             >
               {[
-                { label: "Total Students", value: students.length, icon: Users, color: "primary" },
-                { label: "Showing", value: filteredStudents.length, icon: CheckCircle, color: "secondary" },
-                { label: "With Email", value: students.filter((s: any) => sf(s, 'email')).length, icon: Mail, color: "accent" },
-                { label: "Active", value: students.length, icon: Star, color: "green" },
+                {
+                  label: "Total Students",
+                  value: students.length,
+                  icon: Users,
+                  color: "primary",
+                },
+                {
+                  label: "Male Students",
+                  value: maleCount,
+                  icon: Users,
+                  color: "secondary",
+                },
+                {
+                  label: "Female Students",
+                  value: femaleCount,
+                  icon: Users,
+                  color: "accent",
+                },
+                {
+                  label: "New This Month",
+                  value: recentCount,
+                  icon: Calendar,
+                  color: "green",
+                },
               ].map((stat, index) => {
                 const Icon = stat.icon;
+                // Use standard theme color variables that exist in index.css
+                const themeColors: Record<string, string> = {
+                  primary: "from-primary/20 to-primary/10 border-primary/30 text-primary",
+                  secondary: "from-secondary/20 to-secondary/10 border-secondary/30 text-secondary",
+                  accent: "from-accent/20 to-accent/10 border-accent/30 text-accent",
+                  green: "from-student/20 to-student/10 border-student/30 text-student"
+                };
+                const colorToken = stat.color as keyof typeof themeColors;
+                const colorStyles = themeColors[colorToken] || themeColors.primary;
+
                 return (
                   <motion.div
                     key={index}
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: index * 0.05 }}
-                    className={`playful-card p-6 bg-gradient-to-br from-${stat.color}/15 to-${stat.color}/5 border border-${stat.color}/30 hover:shadow-lg transition-all`}
+                    className={cn(
+                      "playful-card p-6 bg-gradient-to-br transition-all hover:shadow-lg border",
+                      colorStyles.split(' ').slice(0, 3).join(' ')
+                    )}
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-muted-foreground font-medium">{stat.label}</p>
-                        <p className={`text-2xl font-bold mt-2 text-${stat.color}`}>{stat.value}</p>
+                        <p className="text-xs text-muted-foreground font-medium">
+                          {stat.label}
+                        </p>
+                        <p className={cn("text-2xl font-bold mt-2", colorStyles.split(' ').pop())}>
+                          {stat.value}
+                        </p>
                       </div>
-                      <div className={`w-12 h-12 bg-${stat.color}/20 rounded-xl flex items-center justify-center`}>
-                        <Icon className={`w-6 h-6 text-${stat.color}`} />
+                      <div
+                        className={cn(
+                          "w-12 h-12 rounded-xl flex items-center justify-center",
+                          colorStyles.split(' ').slice(0, 1).join(' ').replace('/20', '/10')
+                        )}
+                      >
+                        <Icon className={cn("w-6 h-6", colorStyles.split(' ').pop())} />
                       </div>
                     </div>
                   </motion.div>
@@ -309,15 +366,10 @@ const ManageStudents = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All Grades</SelectItem>
-                          <SelectItem value="KG 2">KG 2</SelectItem>
-                          <SelectItem value="Grade 3">Grade 3</SelectItem>
-                          <SelectItem value="Grade 5">Grade 5</SelectItem>
-                          <SelectItem value="Grade 8">Grade 8</SelectItem>
-                          <SelectItem value="Grade 10">Grade 10</SelectItem>
-                          <SelectItem value="Vocational 1">
-                            Vocational 1
-                          </SelectItem>
+                          <SelectItem value="all">All Classes</SelectItem>
+                          {classes.map((cls: any) => (
+                            <SelectItem key={cls._id} value={cls.name}>{cls.name}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -332,10 +384,11 @@ const ManageStudents = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All Programs</SelectItem>
-                          <SelectItem value="Nursery">Nursery</SelectItem>
-                          <SelectItem value="Primary">Primary</SelectItem>
-                          <SelectItem value="Secondary">Secondary</SelectItem>
-                          <SelectItem value="Vocational">Vocational</SelectItem>
+                          <SelectItem value="pre-school">Pre-School / Nursery</SelectItem>
+                          <SelectItem value="primary">Primary School (Basic)</SelectItem>
+                          <SelectItem value="junior-secondary">Junior Secondary (JSS)</SelectItem>
+                          <SelectItem value="senior-secondary">Senior Secondary (SS)</SelectItem>
+                          <SelectItem value="vocational">Vocational Training</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -402,10 +455,10 @@ const ManageStudents = () => {
                                 <Button className="w-full gap-2 justify-start" variant="outline" onClick={() => handleViewStudent(student)}>
                                   <Eye className="w-4 h-4" /> View Profile
                                 </Button>
-                                <Button className="w-full gap-2 justify-start" variant="outline">
+                                <Button className="w-full gap-2 justify-start" variant="outline" onClick={() => handleEditStudent(student)}>
                                   <Edit className="w-4 h-4" /> Edit Details
                                 </Button>
-                                <Button className="w-full gap-2 justify-start text-destructive" variant="outline">
+                                <Button className="w-full gap-2 justify-start text-destructive" variant="outline" onClick={() => handleDeactivate(student)}>
                                   <Trash2 className="w-4 h-4" /> Deactivate
                                 </Button>
                               </div>
@@ -427,8 +480,8 @@ const ManageStudents = () => {
                         {/* Info Grid */}
                         <div className="grid grid-cols-2 gap-3">
                           <div className="p-3 bg-primary/10 rounded-lg">
-                            <p className="text-xs text-muted-foreground font-medium">Grade</p>
-                            <p className="text-sm font-bold text-primary mt-1">{student.grade || 'N/A'}</p>
+                            <p className="text-xs text-muted-foreground font-medium">Class</p>
+                            <p className="text-sm font-bold text-primary mt-1">{student.class_id?.name || student.grade || 'N/A'}</p>
                           </div>
                           <div className="p-3 bg-secondary/10 rounded-lg">
                             <p className="text-xs text-muted-foreground font-medium">Program</p>
@@ -440,18 +493,17 @@ const ManageStudents = () => {
                           </div>
                         </div>
 
-                        {/* Contact Info */}
                         <div className="space-y-2 text-xs pt-2 border-t border-primary/10">
-                          {sf(student, 'email') && (
+                          {(student.parent_email || sf(student, 'email')) && (
                             <div className="flex items-center gap-2 text-muted-foreground">
                               <Mail className="w-3 h-3" />
-                              <span className="truncate">{sf(student, 'email')}</span>
+                              <span className="truncate">{student.parent_email || sf(student, 'email')}</span>
                             </div>
                           )}
-                          {sf(student, 'phone') && (
+                          {(student.parent_phone || sf(student, 'phone')) && (
                             <div className="flex items-center gap-2 text-muted-foreground">
                               <Phone className="w-3 h-3" />
-                              <span>{sf(student, 'phone')}</span>
+                              <span>{student.parent_phone || sf(student, 'phone')}</span>
                             </div>
                           )}
                         </div>

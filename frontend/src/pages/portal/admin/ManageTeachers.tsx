@@ -36,11 +36,13 @@ import {
   Mail,
   Phone,
   MapPin,
-  Briefcase
+  Briefcase,
+  Users
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
+import { toast } from "sonner";
 
 const ManageTeachers = () => {
   const navigate = useNavigate();
@@ -50,10 +52,10 @@ const ManageTeachers = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingTeacherId, setEditingTeacherId] = useState<string | null>(null);
   const [newTeacher, setNewTeacher] = useState({
-    name: "", email: "", phone: "", role: "", class: "", subject: "", qualification: "", experience: "", address: ""
+    name: "", email: "", phone: "", role: "", class: "", subject: "", qualification: "", specialization: "", experience: "", address: ""
   });
   const [editTeacher, setEditTeacher] = useState({
-    name: "", email: "", phone: "", role: "", class: "", subject: "", qualification: "", experience: "", address: ""
+    name: "", email: "", phone: "", role: "", class: "", subject: "", qualification: "", specialization: "", experience: "", address: ""
   });
 
   const { data: teachers = [], isLoading, isError } = useQuery({
@@ -64,38 +66,124 @@ const ManageTeachers = () => {
     }
   });
 
-  const filteredTeachers = teachers.filter((teacher: any) =>
-    teacher.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    teacher.subject?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const { data: classes = [] } = useQuery({
+    queryKey: ['classes'],
+    queryFn: async () => {
+      const res = await api.get('/classes');
+      return res.data || [];
+    }
+  });
+
+  const filteredTeachers = teachers.filter((teacher: any) => {
+    const fullName = teacher.user_id?.full_name || teacher.full_name || "";
+    const subject = teacher.assigned_subject || teacher.subject || "No subject assigned";
+    const className = teacher.assigned_class?.name || teacher.class || "";
+    return fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           className.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
+  const queryClient = useQueryClient();
+
+  const addTeacherMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const payload = {
+        full_name: data.name,
+        email: data.email,
+        phone: data.phone,
+        role: data.role,
+        assigned_class: data.class,
+        assigned_subject: data.subject,
+        qualification: data.qualification,
+        specialization: data.specialization,
+        experience: data.experience,
+        address: data.address
+      };
+      return api.post('/users/teachers', payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teachers'] });
+      toast.success("Teacher added successfully!");
+      setIsAddDialogOpen(false);
+      setNewTeacher({ name: "", email: "", phone: "", role: "", class: "", subject: "", qualification: "", specialization: "", experience: "", address: "" });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to add teacher");
+    }
+  });
+
+  const updateTeacherMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string, data: any }) => {
+      const payload = {
+        full_name: data.name,
+        email: data.email,
+        phone: data.phone,
+        role: data.role,
+        assigned_class: data.class,
+        assigned_subject: data.subject,
+        qualification: data.qualification,
+        specialization: data.specialization,
+        experience: data.experience,
+        address: data.address
+      };
+      return api.put(`/users/teachers/${id}`, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teachers'] });
+      toast.success("Teacher updated successfully!");
+      setIsEditDialogOpen(false);
+      setEditingTeacherId(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to update teacher");
+    }
+  });
+
+  const deleteTeacherMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/users/teachers/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teachers'] });
+      toast.success("Teacher deleted successfully!");
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to delete teacher");
+    }
+  });
 
   const handleAddTeacher = () => {
-    console.log("Adding new teacher:", newTeacher);
-    setIsAddDialogOpen(false);
-    setNewTeacher({ name: "", email: "", phone: "", role: "", class: "", subject: "", qualification: "", experience: "", address: "" });
+    if (!newTeacher.name || !newTeacher.email || !newTeacher.phone || !newTeacher.role) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+    addTeacherMutation.mutate(newTeacher);
   };
 
   const handleEditTeacher = (teacher: any) => {
     setEditingTeacherId(teacher._id);
     setEditTeacher({
-      name: teacher.full_name || "",
-      email: teacher.email || "",
-      phone: teacher.phone || "",
-      role: "",
-      class: "",
-      subject: teacher.subject || "",
-      qualification: "",
+      name: teacher.user_id?.full_name || teacher.full_name || "",
+      email: teacher.user_id?.email || teacher.email || "",
+      phone: teacher.user_id?.phone || teacher.phone || "",
+      role: teacher.role || "",
+      class: teacher.assigned_class?._id || teacher.assigned_class || "",
+      subject: teacher.assigned_subject || "",
+      qualification: teacher.qualification || "",
+      specialization: teacher.specialization || "",
       experience: teacher.experience || "",
-      address: ""
+      address: teacher.address || ""
     });
     setIsEditDialogOpen(true);
   };
 
   const handleSaveTeacher = () => {
-    console.log("Saving teacher:", editingTeacherId, editTeacher);
-    setIsEditDialogOpen(false);
-    setEditTeacher({ name: "", email: "", phone: "", role: "", class: "", subject: "", qualification: "", experience: "", address: "" });
-    setEditingTeacherId(null);
+    if (!editingTeacherId) return;
+    updateTeacherMutation.mutate({ id: editingTeacherId, data: editTeacher });
+  };
+
+  const handleDeleteTeacher = (id: string) => {
+    if (window.confirm("Are you sure you want to delete this teacher? This action cannot be undone.")) {
+      deleteTeacherMutation.mutate(id);
+    }
   };
 
   const handleViewTeacher = (teacherId: string) => {
@@ -103,36 +191,10 @@ const ManageTeachers = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-secondary/10 via-primary/10 to-secondary/10 border-b border-primary/20 sticky top-0 z-50 backdrop-blur-lg">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <motion.div 
-              className="w-10 h-10 bg-gradient-to-br from-admin to-admin/70 rounded-xl flex items-center justify-center shadow-lg"
-              whileHover={{ scale: 1.05 }}
-            >
-              <Shield className="w-5 h-5 text-admin-foreground" />
-            </motion.div>
-            <div>
-              <h1 className="font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Admin Portal</h1>
-              <p className="text-xs text-muted-foreground">Infogate Schools</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon"><Bell className="w-5 h-5" /></Button>
-            <Link to="/login"><Button variant="ghost" size="icon"><LogOut className="w-5 h-5" /></Button></Link>
-          </div>
-        </div>
-      </header>
+    <div className="py-8 px-4">
 
       <div className="container mx-auto px-4 py-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          {/* Back Button */}
-          <Link to="/portal/admin" className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors mb-8">
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
-          </Link>
 
           {/* Header Section */}
           <div className="mb-8">
@@ -197,6 +259,7 @@ const ManageTeachers = () => {
                               value={newTeacher.name}
                               onChange={(e) => setNewTeacher({ ...newTeacher, name: e.target.value })}
                               className="h-11 rounded-lg border-primary/30 focus:border-primary bg-background/50"
+                              placeholder="John Doe"
                             />
                           </div>
                           <div className="space-y-2">
@@ -209,6 +272,7 @@ const ManageTeachers = () => {
                               value={newTeacher.email}
                               onChange={(e) => setNewTeacher({ ...newTeacher, email: e.target.value })}
                               className="h-11 rounded-lg border-primary/30 focus:border-primary bg-background/50"
+                              placeholder="john@example.com"
                             />
                           </div>
                         </div>
@@ -222,6 +286,7 @@ const ManageTeachers = () => {
                               value={newTeacher.phone}
                               onChange={(e) => setNewTeacher({ ...newTeacher, phone: e.target.value })}
                               className="h-11 rounded-lg border-primary/30 focus:border-primary bg-background/50"
+                              placeholder="080XXXXXXXX"
                             />
                           </div>
                           <div className="space-y-2">
@@ -233,6 +298,7 @@ const ManageTeachers = () => {
                               value={newTeacher.address}
                               onChange={(e) => setNewTeacher({ ...newTeacher, address: e.target.value })}
                               className="h-11 rounded-lg border-primary/30 focus:border-primary bg-background/50"
+                              placeholder="Residential Address"
                             />
                           </div>
                         </div>
@@ -244,101 +310,68 @@ const ManageTeachers = () => {
                           <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center">
                             <span className="text-sm">👨‍🏫</span>
                           </div>
-                          Teacher Role
+                          Assignment
                         </h3>
-                        <div className="space-y-2">
-                          <Label htmlFor="role" className="font-semibold flex items-center gap-1">
-                            <Briefcase className="w-4 h-4" /> Select Role <span className="text-destructive">*</span>
-                          </Label>
-                          <Select
-                            value={newTeacher.role}
-                            onValueChange={(value) => setNewTeacher({ ...newTeacher, role: value, class: "", subject: "" })}
-                          >
-                            <SelectTrigger className="h-11 rounded-lg border-secondary/30 focus:border-secondary">
-                              <SelectValue placeholder="Choose a role" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="classTeacher">Class Teacher</SelectItem>
-                              <SelectItem value="subjectTeacher">Subject Teacher</SelectItem>
-                              <SelectItem value="both">Class & Subject Teacher</SelectItem>
-                            </SelectContent>
-                          </Select>
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="role" className="font-semibold flex items-center gap-1">
+                              <Briefcase className="w-4 h-4" /> Teacher Role <span className="text-destructive">*</span>
+                            </Label>
+                            <Select
+                              value={newTeacher.role}
+                              onValueChange={(value) => setNewTeacher({ ...newTeacher, role: value, class: "", subject: "" })}
+                            >
+                              <SelectTrigger className="h-11 rounded-lg border-secondary/30 focus:border-secondary">
+                                <SelectValue placeholder="Choose a role" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="classTeacher">Class Teacher</SelectItem>
+                                <SelectItem value="subjectTeacher">Subject Teacher</SelectItem>
+                                <SelectItem value="both">Class & Subject Teacher</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            {(newTeacher.role === 'subjectTeacher' || newTeacher.role === 'both') && (
+                              <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="space-y-2">
+                                <Label htmlFor="subject" className="font-semibold flex items-center gap-2">
+                                  <BookOpen className="w-4 h-4 text-primary" />
+                                  Assigned Subject
+                                </Label>
+                                <Input
+                                  id="subject"
+                                  value={newTeacher.subject}
+                                  onChange={(e) => setNewTeacher({ ...newTeacher, subject: e.target.value })}
+                                  className="h-11 rounded-lg border-primary/30 focus:border-primary bg-background/50"
+                                  placeholder="e.g. Mathematics"
+                                />
+                              </motion.div>
+                            )}
+                            
+                            {(newTeacher.role === 'classTeacher' || newTeacher.role === 'both') && (
+                              <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-2">
+                                <Label htmlFor="class" className="font-semibold flex items-center gap-2">
+                                  <Users className="w-4 h-4 text-secondary" />
+                                  Assigned Class
+                                </Label>
+                                <Select
+                                  value={newTeacher.class}
+                                  onValueChange={(value) => setNewTeacher({ ...newTeacher, class: value })}
+                                >
+                                  <SelectTrigger className="h-11 rounded-lg border-secondary/30 focus:border-secondary bg-background/50">
+                                    <SelectValue placeholder="Select Class" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {classes.map((cls: any) => (
+                                      <SelectItem key={cls._id} value={cls._id}>{cls.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </motion.div>
+                            )}
+                          </div>
                         </div>
-
-                        {/* Class Assignment - Show for Class Teacher and Both */}
-                        {(newTeacher.role === "classTeacher" || newTeacher.role === "both") && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="space-y-2 p-4 bg-gradient-to-br from-primary/8 to-primary/5 rounded-lg border border-primary/30"
-                          >
-                            <Label htmlFor="class" className="font-semibold flex items-center gap-2">
-                              <BookOpen className="w-4 h-4 text-primary" />
-                              Assign to Class <span className="text-destructive">*</span>
-                            </Label>
-                            <Select
-                              value={newTeacher.class}
-                              onValueChange={(value) => setNewTeacher({ ...newTeacher, class: value })}
-                            >
-                              <SelectTrigger className="h-11 rounded-lg border-primary/30 focus:border-primary bg-background/50">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="nursery">Nursery</SelectItem>
-                                <SelectItem value="kg">Kindergarten</SelectItem>
-                                <SelectItem value="class1">Class 1</SelectItem>
-                                <SelectItem value="class2">Class 2</SelectItem>
-                                <SelectItem value="class3">Class 3</SelectItem>
-                                <SelectItem value="class4">Class 4</SelectItem>
-                                <SelectItem value="class5">Class 5</SelectItem>
-                                <SelectItem value="class6">Class 6</SelectItem>
-                                <SelectItem value="jss1">JSS 1</SelectItem>
-                                <SelectItem value="jss2">JSS 2</SelectItem>
-                                <SelectItem value="jss3">JSS 3</SelectItem>
-                                <SelectItem value="ss1">SS 1</SelectItem>
-                                <SelectItem value="ss2">SS 2</SelectItem>
-                                <SelectItem value="ss3">SS 3</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </motion.div>
-                        )}
-
-                        {/* Subject Assignment - Show for Subject Teacher and Both */}
-                        {(newTeacher.role === "subjectTeacher" || newTeacher.role === "both") && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="space-y-2 p-4 bg-gradient-to-br from-secondary/8 to-secondary/5 rounded-lg border border-secondary/30"
-                          >
-                            <Label htmlFor="subject" className="font-semibold flex items-center gap-2">
-                              <BookOpen className="w-4 h-4 text-secondary" />
-                              Assign Subject <span className="text-destructive">*</span>
-                            </Label>
-                            <Select
-                              value={newTeacher.subject}
-                              onValueChange={(value) => setNewTeacher({ ...newTeacher, subject: value })}
-                            >
-                              <SelectTrigger className="h-11 rounded-lg border-secondary/30 focus:border-secondary bg-background/50">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Mathematics">Mathematics</SelectItem>
-                                <SelectItem value="English">English</SelectItem>
-                                <SelectItem value="Science">Science</SelectItem>
-                                <SelectItem value="Arts">Arts</SelectItem>
-                                <SelectItem value="History">History</SelectItem>
-                                <SelectItem value="Physical Ed">Physical Education</SelectItem>
-                                <SelectItem value="Music">Music</SelectItem>
-                                <SelectItem value="Computer">Computer Science</SelectItem>
-                                <SelectItem value="French">French</SelectItem>
-                                <SelectItem value="Arabic">Arabic</SelectItem>
-                                <SelectItem value="Biology">Biology</SelectItem>
-                                <SelectItem value="Chemistry">Chemistry</SelectItem>
-                                <SelectItem value="Physics">Physics</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </motion.div>
-                        )}
                       </div>
 
                       {/* Qualifications Section */}
@@ -359,8 +392,23 @@ const ManageTeachers = () => {
                               value={newTeacher.qualification}
                               onChange={(e) => setNewTeacher({ ...newTeacher, qualification: e.target.value })}
                               className="h-11 rounded-lg border-accent/30 focus:border-accent bg-background/50"
+                              placeholder="e.g. B.Sc. Education"
                             />
                           </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="specialization" className="font-semibold flex items-center gap-1">
+                              🎯 Specialization
+                            </Label>
+                            <Input
+                              id="specialization"
+                              value={newTeacher.specialization}
+                              onChange={(e) => setNewTeacher({ ...newTeacher, specialization: e.target.value })}
+                              className="h-11 rounded-lg border-accent/30 focus:border-accent bg-background/50"
+                              placeholder="e.g. Mathematics, Science"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 mt-4">
                           <div className="space-y-2">
                             <Label htmlFor="experience" className="font-semibold flex items-center gap-1">
                               ⭐ Years of Experience <span className="text-destructive">*</span>
@@ -370,6 +418,7 @@ const ManageTeachers = () => {
                               value={newTeacher.experience}
                               onChange={(e) => setNewTeacher({ ...newTeacher, experience: e.target.value })}
                               className="h-11 rounded-lg border-accent/30 focus:border-accent bg-background/50"
+                              placeholder="e.g. 5 years"
                             />
                           </div>
                         </div>
@@ -389,10 +438,15 @@ const ManageTeachers = () => {
                       <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                         <Button 
                           onClick={handleAddTeacher} 
+                          disabled={addTeacherMutation.isPending}
                           className="gap-2 h-11 px-6 bg-gradient-to-r from-secondary to-secondary/80 hover:from-secondary/90 hover:to-secondary/70 rounded-lg shadow-lg"
                         >
-                          <Save className="w-4 h-4" />
-                          Add Teacher
+                          {addTeacherMutation.isPending ? "Adding..." : (
+                            <>
+                              <Save className="w-4 h-4" />
+                              Add Teacher
+                            </>
+                          )}
                         </Button>
                       </motion.div>
                     </div>
@@ -475,101 +529,67 @@ const ManageTeachers = () => {
                           <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center">
                             <span className="text-sm">👨‍🏫</span>
                           </div>
-                          Teacher Role
+                          Assignment
                         </h3>
-                        <div className="space-y-2">
-                          <Label htmlFor="edit-role" className="font-semibold flex items-center gap-1">
-                            <Briefcase className="w-4 h-4" /> Select Role <span className="text-destructive">*</span>
-                          </Label>
-                          <Select
-                            value={editTeacher.role}
-                            onValueChange={(value) => setEditTeacher({ ...editTeacher, role: value, class: "", subject: "" })}
-                          >
-                            <SelectTrigger className="h-11 rounded-lg border-secondary/30 focus:border-secondary">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="classTeacher">Class Teacher</SelectItem>
-                              <SelectItem value="subjectTeacher">Subject Teacher</SelectItem>
-                              <SelectItem value="both">Class & Subject Teacher</SelectItem>
-                            </SelectContent>
-                          </Select>
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="edit-role" className="font-semibold flex items-center gap-1">
+                              <Briefcase className="w-4 h-4" /> Teacher Role <span className="text-destructive">*</span>
+                            </Label>
+                            <Select
+                              value={editTeacher.role}
+                              onValueChange={(value) => setEditTeacher({ ...editTeacher, role: value, class: "", subject: "" })}
+                            >
+                              <SelectTrigger className="h-11 rounded-lg border-secondary/30 focus:border-secondary">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="classTeacher">Class Teacher</SelectItem>
+                                <SelectItem value="subjectTeacher">Subject Teacher</SelectItem>
+                                <SelectItem value="both">Class & Subject Teacher</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            {(editTeacher.role === 'subjectTeacher' || editTeacher.role === 'both') && (
+                              <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="space-y-2">
+                                <Label htmlFor="edit-subject" className="font-semibold flex items-center gap-2">
+                                  <BookOpen className="w-4 h-4 text-primary" />
+                                  Assigned Subject
+                                </Label>
+                                <Input
+                                  id="edit-subject"
+                                  value={editTeacher.subject}
+                                  onChange={(e) => setEditTeacher({ ...editTeacher, subject: e.target.value })}
+                                  className="h-11 rounded-lg border-primary/30 focus:border-primary bg-background/50"
+                                />
+                              </motion.div>
+                            )}
+                            
+                            {(editTeacher.role === 'classTeacher' || editTeacher.role === 'both') && (
+                              <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-2">
+                                <Label htmlFor="edit-class" className="font-semibold flex items-center gap-2">
+                                  <Users className="w-4 h-4 text-secondary" />
+                                  Assigned Class
+                                </Label>
+                                <Select
+                                  value={editTeacher.class}
+                                  onValueChange={(value) => setEditTeacher({ ...editTeacher, class: value })}
+                                >
+                                  <SelectTrigger className="h-11 rounded-lg border-secondary/30 focus:border-secondary bg-background/50">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {classes.map((cls: any) => (
+                                      <SelectItem key={cls._id} value={cls._id}>{cls.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </motion.div>
+                            )}
+                          </div>
                         </div>
-
-                        {/* Class Assignment - Show for Class Teacher and Both */}
-                        {(editTeacher.role === "classTeacher" || editTeacher.role === "both") && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="space-y-2 p-4 bg-gradient-to-br from-primary/8 to-primary/5 rounded-lg border border-primary/30"
-                          >
-                            <Label htmlFor="edit-class" className="font-semibold flex items-center gap-2">
-                              <BookOpen className="w-4 h-4 text-primary" />
-                              Assign to Class <span className="text-destructive">*</span>
-                            </Label>
-                            <Select
-                              value={editTeacher.class}
-                              onValueChange={(value) => setEditTeacher({ ...editTeacher, class: value })}
-                            >
-                              <SelectTrigger className="h-11 rounded-lg border-primary/30 focus:border-primary bg-background/50">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="nursery">Nursery</SelectItem>
-                                <SelectItem value="kg">Kindergarten</SelectItem>
-                                <SelectItem value="class1">Class 1</SelectItem>
-                                <SelectItem value="class2">Class 2</SelectItem>
-                                <SelectItem value="class3">Class 3</SelectItem>
-                                <SelectItem value="class4">Class 4</SelectItem>
-                                <SelectItem value="class5">Class 5</SelectItem>
-                                <SelectItem value="class6">Class 6</SelectItem>
-                                <SelectItem value="jss1">JSS 1</SelectItem>
-                                <SelectItem value="jss2">JSS 2</SelectItem>
-                                <SelectItem value="jss3">JSS 3</SelectItem>
-                                <SelectItem value="ss1">SS 1</SelectItem>
-                                <SelectItem value="ss2">SS 2</SelectItem>
-                                <SelectItem value="ss3">SS 3</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </motion.div>
-                        )}
-
-                        {/* Subject Assignment - Show for Subject Teacher and Both */}
-                        {(editTeacher.role === "subjectTeacher" || editTeacher.role === "both") && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="space-y-2 p-4 bg-gradient-to-br from-secondary/8 to-secondary/5 rounded-lg border border-secondary/30"
-                          >
-                            <Label htmlFor="edit-subject" className="font-semibold flex items-center gap-2">
-                              <BookOpen className="w-4 h-4 text-secondary" />
-                              Assign Subject <span className="text-destructive">*</span>
-                            </Label>
-                            <Select
-                              value={editTeacher.subject}
-                              onValueChange={(value) => setEditTeacher({ ...editTeacher, subject: value })}
-                            >
-                              <SelectTrigger className="h-11 rounded-lg border-secondary/30 focus:border-secondary bg-background/50">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Mathematics">Mathematics</SelectItem>
-                                <SelectItem value="English">English</SelectItem>
-                                <SelectItem value="Science">Science</SelectItem>
-                                <SelectItem value="Arts">Arts</SelectItem>
-                                <SelectItem value="History">History</SelectItem>
-                                <SelectItem value="Physical Ed">Physical Education</SelectItem>
-                                <SelectItem value="Music">Music</SelectItem>
-                                <SelectItem value="Computer">Computer Science</SelectItem>
-                                <SelectItem value="French">French</SelectItem>
-                                <SelectItem value="Arabic">Arabic</SelectItem>
-                                <SelectItem value="Biology">Biology</SelectItem>
-                                <SelectItem value="Chemistry">Chemistry</SelectItem>
-                                <SelectItem value="Physics">Physics</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </motion.div>
-                        )}
                       </div>
 
                       {/* Qualifications Section */}
@@ -583,7 +603,7 @@ const ManageTeachers = () => {
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label htmlFor="edit-qualification" className="font-semibold flex items-center gap-1">
-                              <Award className="w-4 h-4" /> Qualification <span className="text-destructive">*</span>
+                              <Award className="w-4 h-4" /> Qualification
                             </Label>
                             <Input
                               id="edit-qualification"
@@ -592,6 +612,19 @@ const ManageTeachers = () => {
                               className="h-11 rounded-lg border-accent/30 focus:border-accent bg-background/50"
                             />
                           </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="edit-specialization" className="font-semibold flex items-center gap-1">
+                              🎯 Specialization
+                            </Label>
+                            <Input
+                              id="edit-specialization"
+                              value={editTeacher.specialization}
+                              onChange={(e) => setEditTeacher({ ...editTeacher, specialization: e.target.value })}
+                              className="h-11 rounded-lg border-accent/30 focus:border-accent bg-background/50"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 mt-4">
                           <div className="space-y-2">
                             <Label htmlFor="edit-experience" className="font-semibold flex items-center gap-1">
                               ⭐ Years of Experience <span className="text-destructive">*</span>
@@ -620,10 +653,15 @@ const ManageTeachers = () => {
                       <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                         <Button 
                           onClick={handleSaveTeacher} 
+                          disabled={updateTeacherMutation.isPending}
                           className="gap-2 h-11 px-6 bg-gradient-to-r from-secondary to-secondary/80 hover:from-secondary/90 hover:to-secondary/70 rounded-lg shadow-lg"
                         >
-                          <Save className="w-4 h-4" />
-                          Save Changes
+                          {updateTeacherMutation.isPending ? "Saving..." : (
+                            <>
+                              <Save className="w-4 h-4" />
+                              Save Changes
+                            </>
+                          )}
                         </Button>
                       </motion.div>
                     </div>
@@ -688,23 +726,42 @@ const ManageTeachers = () => {
                           className="w-14 h-14 bg-gradient-to-br from-secondary to-secondary/60 rounded-2xl flex items-center justify-center text-card font-bold text-lg shadow-lg flex-shrink-0"
                           whileHover={{ scale: 1.1 }}
                         >
-                          {(teacher.full_name || 'N A').split(' ').map((n: string) => n[0]).join('')}
+                          {(teacher.user_id?.full_name || teacher.full_name || 'N A').split(' ').map((n: string) => n[0]).join('')}
                         </motion.div>
                         <div className="flex-1">
-                          <h3 className="text-lg font-bold text-foreground group-hover:text-secondary transition-colors">{teacher.full_name}</h3>
+                          <h3 className="text-lg font-bold text-foreground group-hover:text-secondary transition-colors">
+                            {teacher.user_id?.full_name || teacher.full_name}
+                          </h3>
                           <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1 bg-primary/10 px-3 py-1 rounded-full">
-                              <BookOpen className="w-4 h-4 text-primary" />
-                              {teacher.subject || 'No subject assigned'}
+                            {(teacher.assigned_class || teacher.assigned_subject) ? (
+                              <>
+                                {teacher.assigned_class && (
+                                  <span className="flex items-center gap-1 bg-secondary/10 px-3 py-1 rounded-full border border-secondary/20">
+                                    <Users className="w-4 h-4 text-secondary" />
+                                    {teacher.assigned_class.name || teacher.assigned_class}
+                                  </span>
+                                )}
+                                {teacher.assigned_subject && (
+                                  <span className="flex items-center gap-1 bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
+                                    <BookOpen className="w-4 h-4 text-primary" />
+                                    {teacher.assigned_subject}
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <span className="flex items-center gap-1 bg-muted/30 px-3 py-1 rounded-full border border-muted/50 italic">
+                                <Briefcase className="w-4 h-4 text-muted-foreground" />
+                                No Assignment
+                              </span>
+                            )}
+                            <span className="flex items-center gap-1 bg-accent/5 px-3 py-1 rounded-full border border-accent/20">
+                              <Award className="w-4 h-4 text-accent-foreground" />
+                              {teacher.employee_id || teacher.reg_number}
                             </span>
-                            <span className="flex items-center gap-1 bg-secondary/10 px-3 py-1 rounded-full">
-                              <Award className="w-4 h-4 text-secondary" />
-                              {teacher.reg_number}
-                            </span>
-                            {teacher.email && (
+                            {(teacher.user_id?.email || teacher.email) && (
                               <span className="flex items-center gap-1 bg-accent/10 px-3 py-1 rounded-full">
                                 <Mail className="w-4 h-4 text-accent" />
-                                {teacher.email}
+                                {teacher.user_id?.email || teacher.email}
                               </span>
                             )}
                           </div>
@@ -721,6 +778,11 @@ const ManageTeachers = () => {
                           onClick={(e) => { e.stopPropagation(); handleEditTeacher(teacher); }}
                         >
                           <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:bg-destructive/10"
+                          onClick={(e) => { e.stopPropagation(); handleDeleteTeacher(teacher._id); }}
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>

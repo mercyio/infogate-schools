@@ -16,6 +16,9 @@ import {
   X,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "@/lib/api";
+import { toast } from "sonner";
 
 // Class color mapping - unique color per class
 const getClassColor = (classId: number) => {
@@ -114,9 +117,9 @@ const ClassMenu = ({ classId }: { classId: number }) => {
 interface AddClassModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (classData: Class) => void;
-  availableSubjects: string[];
-  availableTeachers: Teacher[];
+  onAdd: (classData: any) => void;
+  availableSubjects: any[];
+  availableTeachers: any[];
 }
 
 const AddClassModal = ({
@@ -137,14 +140,13 @@ const AddClassModal = ({
     e.preventDefault();
 
     if (formData.name && selectedSubjects.length > 0) {
-      const newClass: Class = {
-        id: Date.now(),
+      const newClass = {
         name: formData.name,
-        level: formData.level,
-        teacherId: 0,
-        teacherName: "To be assigned",
-        students: 0,
-        subjectIds: selectedSubjects,
+        level: formData.level.toLowerCase(),
+        capacity: 40, // default
+        academic_year: "2023/2024", // default or dynamic
+        class_teacher_id: "", // Will be handled by backend or kept empty
+        subjects: selectedSubjects // Now sending subjects!
       };
       onAdd(newClass);
       setFormData({ name: "", level: "Nursery" });
@@ -275,20 +277,20 @@ const AddClassModal = ({
 
                 <div className="space-y-2 bg-gradient-to-br from-slate-50 to-slate-100 p-5 rounded-xl border-2 border-slate-200">
                   {availableSubjects.length > 0 ? (
-                    availableSubjects.map((subject) => (
+                    availableSubjects.map((subject: any) => (
                       <motion.label
-                        key={subject}
+                        key={subject._id}
                         whileHover={{ x: 4 }}
                         className="flex items-center gap-3 cursor-pointer hover:bg-white p-3 rounded-lg transition-all group"
                       >
                         <input
                           type="checkbox"
-                          checked={selectedSubjects.includes(subject)}
-                          onChange={() => toggleSubject(subject)}
+                          checked={selectedSubjects.includes(subject._id)}
+                          onChange={() => toggleSubject(subject._id)}
                           className="w-5 h-5 rounded-lg border-2 border-slate-300 text-cyan-500 cursor-pointer accent-cyan-500 transition-all"
                         />
                         <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">
-                          {subject}
+                          {subject.name}
                         </span>
                       </motion.label>
                     ))
@@ -423,296 +425,87 @@ const AddSubjectModal = ({ isOpen, onClose, onAdd }: AddSubjectModalProps) => {
 };
 
 const ClassManagement = () => {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeLevel, setActiveLevel] = useState("All");
   const [showAddClassModal, setShowAddClassModal] = useState(false);
   const [showAddSubjectModal, setShowAddSubjectModal] = useState(false);
 
-  // Mock teacher data - In a real app, this would come from teacher management
-  const [teacherList] = useState<Teacher[]>([
-    {
-      id: 1,
-      name: "Mrs. Adebayo",
-      isClassTeacher: true,
-      subjectSpecialty: "Mathematics",
-    },
-    {
-      id: 2,
-      name: "Mr. Ibrahim",
-      isClassTeacher: true,
-      subjectSpecialty: "English",
-    },
-    {
-      id: 3,
-      name: "Mrs. Johnson",
-      isClassTeacher: true,
-      subjectSpecialty: "Science",
-    },
-    {
-      id: 4,
-      name: "Mr. Okafor",
-      isClassTeacher: true,
-      subjectSpecialty: "Social Studies",
-    },
-    {
-      id: 5,
-      name: "Mrs. Bello",
-      isClassTeacher: true,
-      subjectSpecialty: "Civic Education",
-    },
-    {
-      id: 6,
-      name: "Mr. Eze",
-      isClassTeacher: false,
-      subjectSpecialty: "Computer Studies",
-    },
-    {
-      id: 7,
-      name: "Mrs. Okonkwo",
-      isClassTeacher: true,
-      subjectSpecialty: "Creative Arts",
-    },
-    {
-      id: 8,
-      name: "Mr. Adeleke",
-      isClassTeacher: true,
-      subjectSpecialty: "Physics",
-    },
-    {
-      id: 9,
-      name: "Mr. Adamu",
-      isClassTeacher: true,
-      subjectSpecialty: "Agriculture",
-    },
-  ]);
+  // 1. Fetch Classes
+  const { data: classes = [], isLoading: isLoadingClasses } = useQuery({
+    queryKey: ['classes'],
+    queryFn: async () => {
+      const res = await api.get('/classes');
+      return res.data;
+    }
+  });
 
-  const [classList, setClassList] = useState<Class[]>([
-    {
-      id: 1,
-      name: "Nursery 1",
-      level: "Nursery",
-      students: 25,
-      teacherId: 1,
-      teacherName: "Mrs. Adebayo",
-      subjectIds: [
-        "Mathematics",
-        "English Language",
-        "Basic Science",
-        "Social Studies",
-        "Creative Arts",
-        "Physical Education",
-      ],
-    },
-    {
-      id: 2,
-      name: "Nursery 2",
-      level: "Nursery",
-      students: 28,
-      teacherId: 7,
-      teacherName: "Mrs. Okonkwo",
-      subjectIds: [
-        "Mathematics",
-        "English Language",
-        "Basic Science",
-        "Social Studies",
-        "Creative Arts",
-        "Physical Education",
-      ],
-    },
-    {
-      id: 3,
-      name: "Primary 1",
-      level: "Primary",
-      students: 32,
-      teacherId: 2,
-      teacherName: "Mr. Ibrahim",
-      subjectIds: [
-        "Mathematics",
-        "English Language",
-        "Basic Science",
-        "Social Studies",
-        "Civic Education",
-        "Computer Studies",
-        "Creative Arts",
-        "Physical Education",
-      ],
-    },
-    {
-      id: 4,
-      name: "Primary 2",
-      level: "Primary",
-      students: 30,
-      teacherId: 3,
-      teacherName: "Mrs. Johnson",
-      subjectIds: [
-        "Mathematics",
-        "English Language",
-        "Basic Science",
-        "Social Studies",
-        "Civic Education",
-        "Computer Studies",
-        "Creative Arts",
-        "Physical Education",
-      ],
-    },
-    {
-      id: 5,
-      name: "Primary 3",
-      level: "Primary",
-      students: 35,
-      teacherId: 8,
-      teacherName: "Mr. Adeleke",
-      subjectIds: [
-        "Mathematics",
-        "English Language",
-        "Basic Science",
-        "Social Studies",
-        "Civic Education",
-        "Computer Studies",
-        "Agriculture",
-        "Creative Arts",
-        "Physical Education",
-      ],
-    },
-    {
-      id: 6,
-      name: "JSS 1",
-      level: "Secondary",
-      students: 40,
-      teacherId: 4,
-      teacherName: "Mr. Okafor",
-      subjectIds: [
-        "Mathematics",
-        "English Language",
-        "Basic Science",
-        "Social Studies",
-        "Civic Education",
-        "Computer Studies",
-        "Physical Education",
-        "Creative Arts",
-        "Agriculture",
-        "Home Economics",
-        "Physics",
-        "Chemistry",
-      ],
-    },
-    {
-      id: 7,
-      name: "JSS 2",
-      level: "Secondary",
-      students: 38,
-      teacherId: 5,
-      teacherName: "Mrs. Bello",
-      subjectIds: [
-        "Mathematics",
-        "English Language",
-        "Basic Science",
-        "Social Studies",
-        "Civic Education",
-        "Computer Studies",
-        "Physical Education",
-        "Creative Arts",
-        "Agriculture",
-        "Home Economics",
-        "Physics",
-        "Chemistry",
-      ],
-    },
-    {
-      id: 8,
-      name: "SS 1",
-      level: "Secondary",
-      students: 42,
-      teacherId: 6,
-      teacherName: "Mr. Eze",
-      subjectIds: [
-        "Mathematics",
-        "English Language",
-        "Basic Science",
-        "Social Studies",
-        "Computer Studies",
-        "Physical Education",
-        "Creative Arts",
-        "Agriculture",
-        "Physics",
-        "Chemistry",
-      ],
-    },
-    {
-      id: 9,
-      name: "Vocational 1",
-      level: "Vocational",
-      students: 20,
-      teacherId: 9,
-      teacherName: "Mr. Adamu",
-      subjectIds: [
-        "Computer Studies",
-        "Creative Arts",
-        "Agriculture",
-        "Home Economics",
-        "Physical Education",
-        "Mathematics",
-        "English Language",
-        "Basic Science",
-      ],
-    },
-  ]);
+  // 2. Fetch Subjects
+  const { data: subjects = [], isLoading: isLoadingSubjects } = useQuery({
+    queryKey: ['subjects'],
+    queryFn: async () => {
+      const res = await api.get('/subjects');
+      return res.data;
+    }
+  });
 
-  const [subjectList, setSubjectList] = useState([
-    "Mathematics",
-    "English Language",
-    "Basic Science",
-    "Social Studies",
-    "Civic Education",
-    "Computer Studies",
-    "Physical Education",
-    "Creative Arts",
-    "Agriculture",
-    "Home Economics",
-  ]);
+  // 3. Fetch Teachers
+  const { data: teachers = [] } = useQuery({
+    queryKey: ['teachers'],
+    queryFn: async () => {
+      const res = await api.get('/users/teachers');
+      return res.data;
+    }
+  });
 
-  const filteredClasses = classList.filter(
-    (cls) =>
-      (activeLevel === "All" || cls.level === activeLevel) &&
-      (cls.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        cls.teacher.toLowerCase().includes(searchTerm.toLowerCase()))
+  const addClassMutation = useMutation({
+    mutationFn: (newClass: any) => api.post('/classes', newClass),
+    onSuccess: () => {
+      toast.success("Class created successfully!");
+      queryClient.invalidateQueries({ queryKey: ['classes'] });
+      setShowAddClassModal(false);
+    },
+    onError: () => toast.error("Failed to create class")
+  });
+
+  const addSubjectMutation = useMutation({
+    mutationFn: (name: string) => api.post('/subjects', { 
+      name, 
+      code: name.substring(0, 3).toUpperCase() + Math.floor(Math.random() * 1000), 
+      level: 'primary' 
+    }),
+    onSuccess: () => {
+      toast.success("Subject added successfully!");
+      queryClient.invalidateQueries({ queryKey: ['subjects'] });
+      setShowAddSubjectModal(false);
+    },
+    onError: () => toast.error("Failed to add subject")
+  });
+
+  const deleteSubjectMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/subjects/${id}`),
+    onSuccess: () => {
+      toast.success("Subject deleted");
+      queryClient.invalidateQueries({ queryKey: ['subjects'] });
+    }
+  });
+
+  const filteredClasses = classes.filter(
+    (cls: any) =>
+      (activeLevel === "All" || cls.level.toLowerCase() === activeLevel.toLowerCase()) &&
+      (cls.name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const handleAddClass = (newClass: Class) => {
-    setClassList([...classList, newClass]);
+  const handleAddClass = (newClass: any) => {
+    addClassMutation.mutate(newClass);
   };
 
   const handleAddSubject = (newSubject: string) => {
-    if (!subjectList.includes(newSubject)) {
-      setSubjectList([...subjectList, newSubject]);
-    }
+    addSubjectMutation.mutate(newSubject);
   };
 
   return (
     <div className="min-h-screen bg-muted/30">
-      <header className="bg-card border-b border-border sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-admin rounded-xl flex items-center justify-center">
-              <Shield className="w-5 h-5 text-admin-foreground" />
-            </div>
-            <div>
-              <h1 className="font-bold">Class Management</h1>
-              <p className="text-xs text-muted-foreground">Infogate Schools</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="w-5 h-5" />
-            </Button>
-            <Link to="/portal/admin">
-              <Button variant="ghost" size="sm">
-                Dashboard
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
 
       <div className="container mx-auto px-4 py-8">
         <motion.div
@@ -753,15 +546,15 @@ const ClassManagement = () => {
 
           {/* Classes Grid */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {filteredClasses.map((cls, i) => (
+            {filteredClasses.map((cls: any, i: number) => (
               <motion.div
-                key={cls.id}
+                key={cls._id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
                 className="playful-card p-6 cursor-pointer hover:shadow-lg transition-shadow"
                 onClick={() =>
-                  (window.location.href = `/portal/admin/classes/${cls.id}`)
+                  (window.location.href = `/portal/admin/classes/${cls._id}`)
                 }
               >
                 <div className="flex items-start justify-between mb-4">
@@ -774,23 +567,22 @@ const ClassManagement = () => {
                     <BookOpen className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-1 bg-muted rounded-full text-xs font-semibold">
+                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-bold uppercase tracking-wide">
                       {cls.level}
                     </span>
-                    <ClassMenu classId={cls.id} />
+                    <ClassMenu classId={cls._id} />
                   </div>
                 </div>
-                <h3 className="font-bold text-lg mb-2">{cls.name}</h3>
+                <h3 className="font-bold text-xl mb-1">{cls.name}</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Class Teacher: {cls.teacherName}
+                  Teacher: {cls.class_teacher_id?.user_id?.full_name || cls.class_teacher_id?.full_name || 'Not assigned'}
                 </p>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                  <span className="flex items-center gap-1">
-                    <Users className="w-4 h-4" /> {cls.students}
+                <div className="flex items-center gap-4 text-sm font-semibold text-muted-foreground mb-4">
+                  <span className="flex items-center gap-1.5 p-2 bg-muted rounded-xl">
+                    <Users className="w-4 h-4" /> {cls.capacity} Capacity
                   </span>
-                  <span className="flex items-center gap-1">
-                    <BookOpen className="w-4 h-4" /> {cls.subjectIds.length}{" "}
-                    subjects
+                  <span className="flex items-center gap-1.5 p-2 bg-muted rounded-xl">
+                    <BookOpen className="w-4 h-4" /> {cls.academic_year}
                   </span>
                 </div>
               </motion.div>
@@ -808,21 +600,23 @@ const ClassManagement = () => {
               </Button>
             </div>
             <div className="flex flex-wrap gap-2">
-              {subjectList.map((subject) => (
+              {subjects.map((subject: any) => (
                 <motion.div
-                  key={subject}
+                  key={subject._id}
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
                   className="group relative px-4 py-2 bg-muted rounded-xl text-sm font-medium hover:bg-primary hover:text-card cursor-pointer transition-colors"
                 >
-                  {subject}
+                  {subject.name}
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setSubjectList(subjectList.filter((s) => s !== subject));
+                      if (window.confirm("Are you sure you want to delete this subject?")) {
+                        deleteSubjectMutation.mutate(subject._id);
+                      }
                     }}
                     className="absolute -top-2 -right-2 hidden group-hover:flex items-center justify-center w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full transition-all"
                     title="Delete subject"
@@ -841,8 +635,8 @@ const ClassManagement = () => {
         isOpen={showAddClassModal}
         onClose={() => setShowAddClassModal(false)}
         onAdd={handleAddClass}
-        availableSubjects={subjectList}
-        availableTeachers={teacherList}
+        availableSubjects={subjects}
+        availableTeachers={teachers}
       />
       <AddSubjectModal
         isOpen={showAddSubjectModal}
