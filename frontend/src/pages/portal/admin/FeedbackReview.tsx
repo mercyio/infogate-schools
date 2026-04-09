@@ -1,93 +1,45 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import api from "@/lib/api";
 import {
   MessageSquare,
   Calendar,
-  Bell,
-  ArrowLeft,
   ThumbsUp,
   AlertTriangle,
   Lightbulb,
   AlertCircle,
   X,
   Filter,
-  Sparkles,
-  CheckCircle,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
-// Types
+type FeedbackCategory = "Appreciation" | "Suggestion" | "Complaint" | "Concern";
+type FeedbackStatus = "read" | "unread" | "actioned";
+
 interface Feedback {
-  id: number;
+  id: string;
   message: string;
-  category: "Appreciation" | "Suggestion" | "Complaint" | "Concern";
+  category: FeedbackCategory;
   date: string;
-  status: "read" | "unread" | "actioned";
+  status: FeedbackStatus;
 }
 
-// Constants
-const FEEDBACK_ITEMS: Feedback[] = [
-  {
-    id: 1,
-    message:
-      "The new cafeteria menu is excellent! My child loves the healthy options and the variety available.",
-    category: "Appreciation",
-    date: "2024-01-15",
-    status: "read",
-  },
-  {
-    id: 2,
-    message:
-      "Please consider adding more extracurricular activities in the afternoons, especially sports programs.",
-    category: "Suggestion",
-    date: "2024-01-14",
-    status: "unread",
-  },
-  {
-    id: 3,
-    message:
-      "The school bus was late three times this week. Please look into this urgently.",
-    category: "Complaint",
-    date: "2024-01-13",
-    status: "actioned",
-  },
-  {
-    id: 4,
-    message:
-      "Thank you for the wonderful science fair! The students worked so hard and it was inspiring.",
-    category: "Appreciation",
-    date: "2024-01-12",
-    status: "read",
-  },
-  {
-    id: 5,
-    message:
-      "Could we have parent-teacher meetings in the evenings for working parents? This would help many.",
-    category: "Suggestion",
-    date: "2024-01-11",
-    status: "unread",
-  },
-  {
-    id: 6,
-    message:
-      "The homework load seems too much for Primary 3 students. They are stressed every evening.",
-    category: "Concern",
-    date: "2024-01-10",
-    status: "actioned",
-  },
-  {
-    id: 7,
-    message:
-      "Great job on the Christmas concert! The children performed beautifully and looked very happy.",
-    category: "Appreciation",
-    date: "2024-01-08",
-    status: "read",
-  },
-];
+interface AnnouncementApiItem {
+  _id: string;
+  message: string;
+  category: FeedbackCategory;
+  status: FeedbackStatus;
+  createdAt: string;
+  submitted_by?: {
+    _id: string;
+    full_name?: string;
+    email?: string;
+    role?: string;
+  };
+}
 
 const CATEGORY_CONFIG: Record<
-  string,
+  FeedbackCategory,
   {
     icon: React.ComponentType<{ className?: string }>;
     color: string;
@@ -115,43 +67,6 @@ const CATEGORY_CONFIG: Record<
     bgColor: "bg-white border-l-4 border-slate-300",
   },
 };
-
-// Components
-const PageHeader = () => (
-  <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/90 border-b border-slate-200/50 shadow-sm">
-    <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
-          <MessageSquare className="w-6 h-6 text-white" />
-        </div>
-        <div>
-          <h1 className="font-bold text-slate-900">Feedback Review</h1>
-          <p className="text-xs text-slate-500">
-            Anonymous feedback from community
-          </p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="hover:bg-blue-50 text-slate-600 hover:text-blue-600 transition-all"
-        >
-          <Bell className="w-5 h-5" />
-        </Button>
-        <Link to="/portal/admin">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-all"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-        </Link>
-      </div>
-    </div>
-  </header>
-);
 
 interface FilterTabsProps {
   activeFilter: string;
@@ -181,8 +96,8 @@ const FilterTabs = ({ activeFilter, onFilterChange }: FilterTabsProps) => (
 interface FeedbackDetailModalProps {
   feedback: Feedback | null;
   onClose: () => void;
-  onMarkAsRead: (id: number) => void;
-  onTakeAction: (id: number) => void;
+  onMarkAsRead: (id: string) => void;
+  onTakeAction: (id: string) => void;
 }
 
 const FeedbackDetailModal = ({
@@ -206,16 +121,13 @@ const FeedbackDetailModal = ({
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-200/50"
           >
-            {/* Header */}
             <div className="flex items-start justify-between p-6 border-b border-slate-200">
               <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-lg bg-slate-100`}>
+                <div className="p-3 rounded-lg bg-slate-100">
                   <CategoryIcon className="w-5 h-5 text-slate-600" />
                 </div>
                 <div>
-                  <h2 className="font-bold text-slate-900">
-                    {feedback.category}
-                  </h2>
+                  <h2 className="font-bold text-slate-900">{feedback.category}</h2>
                   <p className="text-xs text-slate-500">{feedback.date}</p>
                 </div>
               </div>
@@ -228,28 +140,16 @@ const FeedbackDetailModal = ({
               </motion.button>
             </div>
 
-            {/* Content */}
             <div className="p-8 space-y-6">
-              <div>
-                <p className="text-slate-700 leading-relaxed text-base">
-                  {feedback.message}
-                </p>
-              </div>
+              <p className="text-slate-700 leading-relaxed text-base">{feedback.message}</p>
 
-              {/* Status */}
               <div className="flex items-center gap-2 pt-4 border-t border-slate-200">
-                <span className="text-sm font-semibold text-slate-600">
-                  Status:
-                </span>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700`}
-                >
-                  {feedback.status.charAt(0).toUpperCase() +
-                    feedback.status.slice(1)}
+                <span className="text-sm font-semibold text-slate-600">Status:</span>
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                  {feedback.status.charAt(0).toUpperCase() + feedback.status.slice(1)}
                 </span>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex items-center gap-3 pt-4">
                 {feedback.status === "unread" && (
                   <motion.button
@@ -318,7 +218,7 @@ const FeedbackCard = ({ feedback, index, onView }: FeedbackCardProps) => {
     >
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex items-center gap-3 flex-1">
-          <div className={`p-2 rounded-lg bg-slate-100`}>
+          <div className="p-2 rounded-lg bg-slate-100">
             <CategoryIcon className="w-5 h-5 text-slate-600" />
           </div>
           <div>
@@ -333,8 +233,6 @@ const FeedbackCard = ({ feedback, index, onView }: FeedbackCardProps) => {
           className={`px-2 py-1 rounded text-xs font-semibold flex-shrink-0 ${
             feedback.status === "unread"
               ? "bg-slate-200 text-slate-700"
-              : feedback.status === "actioned"
-              ? "bg-slate-100 text-slate-600"
               : "bg-slate-100 text-slate-600"
           }`}
         >
@@ -346,9 +244,7 @@ const FeedbackCard = ({ feedback, index, onView }: FeedbackCardProps) => {
         </span>
       </div>
 
-      <p className="text-slate-700 text-sm leading-relaxed line-clamp-2 mb-3">
-        {feedback.message}
-      </p>
+      <p className="text-slate-700 text-sm leading-relaxed line-clamp-2 mb-3">{feedback.message}</p>
 
       <div className="flex items-center text-xs text-slate-500 group-hover:text-blue-600 transition-colors">
         <MessageSquare className="w-3 h-3 mr-1" />
@@ -358,42 +254,50 @@ const FeedbackCard = ({ feedback, index, onView }: FeedbackCardProps) => {
   );
 };
 
-// Main Component
 const FeedbackReview = () => {
+  const queryClient = useQueryClient();
   const [activeFilter, setActiveFilter] = useState("all");
-  const [feedbacks, setFeedbacks] = useState<Feedback[]>(FEEDBACK_ITEMS);
-  const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(
-    null
-  );
+  const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(null);
+
+  const { data: feedbacks = [], isLoading, isError } = useQuery<Feedback[]>({
+    queryKey: ["admin-feedback-review"],
+    queryFn: async () => {
+      const res = await api.get("/feedback");
+      const records: AnnouncementApiItem[] = res.data || [];
+      return records.map((record) => ({
+        id: record._id,
+        message: record.message,
+        category: record.category,
+        date: new Date(record.createdAt).toLocaleDateString(),
+        status: record.status,
+      }));
+    },
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: FeedbackStatus }) => {
+      const res = await api.put(`/feedback/${id}/status`, { status });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-feedback-review"] });
+    },
+  });
 
   const filteredFeedback =
     activeFilter === "all"
       ? feedbacks
       : feedbacks.filter((item) => item.status === activeFilter);
 
-  const handleMarkAsRead = (id: number) => {
-    setFeedbacks(
-      feedbacks.map((f) => (f.id === id ? { ...f, status: "read" } : f))
-    );
+  const handleMarkAsRead = (id: string) => {
+    updateStatusMutation.mutate({ id, status: "read" });
+    setSelectedFeedback((prev) => (prev && prev.id === id ? { ...prev, status: "read" } : prev));
   };
 
-  const handleTakeAction = (id: number) => {
-    setFeedbacks(
-      feedbacks.map((f) => (f.id === id ? { ...f, status: "actioned" } : f))
-    );
+  const handleTakeAction = (id: string) => {
+    updateStatusMutation.mutate({ id, status: "actioned" });
+    setSelectedFeedback((prev) => (prev && prev.id === id ? { ...prev, status: "actioned" } : prev));
   };
-
-  const stats = [
-    { label: "Total", value: feedbacks.length },
-    {
-      label: "Unread",
-      value: feedbacks.filter((f) => f.status === "unread").length,
-    },
-    {
-      label: "Actioned",
-      value: feedbacks.filter((f) => f.status === "actioned").length,
-    },
-  ];
 
   const feelings = [
     {
@@ -428,24 +332,13 @@ const FeedbackReview = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <PageHeader />
-
       <div className="container mx-auto px-4 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          {/* Page Title */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
-              Feedback & Reviews
-            </h2>
-            <p className="text-slate-600 mt-1">
-              Review and manage feedback from parents and community members
-            </p>
+            <h2 className="text-3xl font-bold text-slate-900 flex items-center gap-2">Feedback & Reviews</h2>
+            <p className="text-slate-600 mt-1">Review and manage feedback from live database records</p>
           </div>
 
-          {/* Feelings Section */}
           <div className="mb-10">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {feelings.map((feeling, index) => (
@@ -457,37 +350,33 @@ const FeedbackReview = () => {
                   className={`rounded-lg p-4 border ${feeling.color} hover:shadow-md transition-all`}
                 >
                   <div className="text-3xl mb-2">{feeling.emoji}</div>
-                  <p className={`text-sm font-semibold ${feeling.textColor}`}>
-                    {feeling.name}
-                  </p>
-                  <p className="text-2xl font-bold text-slate-900 mt-1">
-                    {feeling.count}
-                  </p>
+                  <p className={`text-sm font-semibold ${feeling.textColor}`}>{feeling.name}</p>
+                  <p className="text-2xl font-bold text-slate-900 mt-1">{feeling.count}</p>
                 </motion.div>
               ))}
             </div>
           </div>
 
-          {/* Filter */}
           <div className="mb-8 space-y-4">
             <div className="flex items-center gap-3">
               <Filter className="w-5 h-5 text-slate-600" />
-              <span className="font-semibold text-slate-900 text-sm">
-                Filter by Status
-              </span>
+              <span className="font-semibold text-slate-900 text-sm">Filter by Status</span>
             </div>
-            <FilterTabs
-              activeFilter={activeFilter}
-              onFilterChange={setActiveFilter}
-            />
+            <FilterTabs activeFilter={activeFilter} onFilterChange={setActiveFilter} />
           </div>
 
-          {/* Feedback Cards */}
-          {filteredFeedback.length > 0 ? (
-            <motion.div
-              layout
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-            >
+          {isLoading ? (
+            <div className="bg-white border border-slate-200 rounded-xl p-12 text-center">
+              <MessageSquare className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+              <p className="text-slate-700 font-semibold">Loading feedback records...</p>
+            </div>
+          ) : isError ? (
+            <div className="bg-white border border-slate-200 rounded-xl p-12 text-center">
+              <MessageSquare className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+              <p className="text-slate-700 font-semibold">Could not load feedback from the database</p>
+            </div>
+          ) : filteredFeedback.length > 0 ? (
+            <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <AnimatePresence mode="popLayout">
                 {filteredFeedback.map((feedback, index) => (
                   <FeedbackCard
@@ -507,15 +396,12 @@ const FeedbackReview = () => {
             >
               <MessageSquare className="w-12 h-12 text-slate-300 mx-auto mb-4" />
               <p className="text-slate-700 font-semibold">No feedback found</p>
-              <p className="text-slate-500 text-sm">
-                Try adjusting your filters
-              </p>
+              <p className="text-slate-500 text-sm">There are no database records for this filter yet</p>
             </motion.div>
           )}
         </motion.div>
       </div>
 
-      {/* Feedback Detail Modal */}
       <FeedbackDetailModal
         feedback={selectedFeedback}
         onClose={() => setSelectedFeedback(null)}

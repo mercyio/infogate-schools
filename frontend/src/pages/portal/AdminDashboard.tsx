@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Shield, Users, GraduationCap, BookOpen, Calendar, TrendingUp, Bell, Settings, LogOut, DollarSign, ClipboardList, BarChart3, Lock, FileText, Eye, Zap } from "lucide-react";
+import { Users, GraduationCap, BookOpen, TrendingUp, Bell, DollarSign, BarChart3, Eye, ClipboardList } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -14,23 +14,26 @@ const AdminDashboard = () => {
     queryKey: ['admin-dashboard-stats'],
     queryFn: async () => {
       // Temporarily fetching generic users/classes counts since there is no /admin/stats endpoint yet.
-      const [studentsRes, teachersRes, classesRes, announcementsRes] = await Promise.all([
+      const [studentsRes, teachersRes, classesRes, announcementsRes, assignmentsRes] = await Promise.all([
         api.get('/users/students'),
         api.get('/users/teachers'),
         api.get('/classes'),
-        api.get('/announcements')
+        api.get('/announcements'),
+        api.get('/assignments/admin/feed')
       ]);
       
       const students = studentsRes.data?.length || 0;
       const teachers = teachersRes.data?.length || 0;
       const classes = classesRes.data.data?.length || 0;
       const announcements = announcementsRes.data?.data || announcementsRes.data || [];
+      const assignments = assignmentsRes.data?.data || [];
       
       return {
         students,
         teachers,
         classes,
-        announcements
+        announcements,
+        assignments
       };
     }
   });
@@ -77,7 +80,7 @@ const AdminDashboard = () => {
               { label: "Fees Management", icon: DollarSign, color: "bg-accent", path: "/portal/admin/fees" },
               { label: "Class Management", icon: BookOpen, color: "bg-pink", path: "/portal/admin/classes" },
               { label: "Feedback Review", icon: Eye, color: "bg-secondary", path: "/portal/admin/feedback" },
-              { label: "Teacher Monitoring", icon: Zap, color: "bg-coral", path: "/portal/admin/teacher-monitoring" },
+              { label: "Assignments", icon: ClipboardList, color: "bg-coral", path: "/portal/admin/assignments" },
             ].map((action) => (
               <Link key={action.label} to={action.path}>
                 <Button variant="outline" className="h-auto py-4 flex-col gap-2 w-full">
@@ -105,6 +108,34 @@ const AdminDashboard = () => {
                 ))
               ) : (
                 <p className="text-sm text-muted-foreground px-2">No recent activity.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="playful-card p-6 mt-8">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                <ClipboardList className="w-5 h-5 text-coral" /> Assignments
+              </h3>
+              <Link to="/portal/admin/assignments">
+                <Button size="sm" variant="outline">Open Feed</Button>
+              </Link>
+            </div>
+            <div className="space-y-3">
+              {statsData?.assignments?.length > 0 ? (
+                statsData.assignments.slice(0, 3).map((assignment: any) => (
+                  <div key={assignment._id} className="flex flex-col gap-1 p-3 bg-muted/50 rounded-xl">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold">{assignment.title}</span>
+                      <span className="text-xs text-muted-foreground">{assignment.submission_count || 0} submissions</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {assignment.teacher?.name || 'Unknown Teacher'} • {assignment.subject_name} • {assignment.class_name}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground px-2">No assignments posted yet.</p>
               )}
             </div>
           </div>

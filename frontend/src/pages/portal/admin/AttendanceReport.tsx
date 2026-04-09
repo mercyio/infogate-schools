@@ -34,30 +34,11 @@ const AttendanceReport = () => {
 
   const attendanceRate = stats?.attendanceRate || 0;
 
-  const handlePrint = () => {
+  const handleDownloadPDF = () => {
+    const originalTitle = document.title;
+    document.title = `Attendance_Report_${new Date().getFullYear()}`;
     window.print();
-  };
-
-  const handleDownload = () => {
-    const csvContent = [
-      ["ATTENDANCE REPORT"],
-      ["Generated: " + new Date().toLocaleDateString()],
-      [],
-      ["METRIC", "VALUE"],
-      ["Overall Attendance Rate", attendanceRate + "%"],
-      ["Total Students", stats?.totalStudents || 0],
-      ["Total Staff", stats?.totalTeachers || 0],
-    ]
-      .map((row) => row.join(","))
-      .join("\n");
-
-    const element = document.createElement("a");
-    element.setAttribute("href", "data:text/csv;charset=utf-8," + encodeURIComponent(csvContent));
-    element.setAttribute("download", `attendance-report-${new Date().getTime()}.csv`);
-    element.style.display = "none";
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
+    document.title = originalTitle;
   };
 
   const metrics = [
@@ -72,30 +53,28 @@ const AttendanceReport = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-cyan-50/30 to-primary/5">
-      {/* Header */}
-      <header className="bg-white/90 backdrop-blur-sm border-b border-slate-200/50 sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-              <Shield className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="font-bold text-slate-900">Admin Portal</h1>
-              <p className="text-xs text-slate-600">Infogate Schools</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon"><Bell className="w-5 h-5" /></Button>
-            <Link to="/login"><Button variant="ghost" size="icon"><LogOut className="w-5 h-5" /></Button></Link>
-          </div>
-        </div>
-      </header>
-
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          .shadow-sm, .shadow-md, .shadow-lg, .hover\\:shadow-md { 
+            box-shadow: none !important; 
+            transition: none !important;
+          }
+          body { background: white !important; }
+          .container { max-width: 100% !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+          .bg-white { border: 1px solid #e2e8f0 !important; }
+          .bg-slate-50 { background-color: #f8fafc !important; }
+          .bg-green-500, .bg-blue-500, .bg-orange-500, .bg-purple-500 { 
+            -webkit-print-color-adjust: exact; 
+            print-color-adjust: exact; 
+          }
+        }
+      `}</style>
+      <div className="max-w-7xl mx-auto">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           {/* Back Button */}
-          <Link to="/portal/admin/reports" className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-6 font-medium">
+          <Link to="/portal/admin/reports" className="no-print inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-6 font-medium">
             <ArrowLeft className="w-4 h-4" />
             Back to Reports
           </Link>
@@ -112,9 +91,9 @@ const AttendanceReport = () => {
                   <p className="text-slate-600 mt-1">Real-time attendance statistics from the school database</p>
                 </div>
               </div>
-              <div className="flex gap-3">
+              <div className="no-print flex gap-3">
                 <Button
-                  onClick={handlePrint}
+                  onClick={handleDownloadPDF}
                   variant="outline"
                   className="gap-2 border-slate-300 text-slate-700 hover:bg-slate-50"
                 >
@@ -122,11 +101,11 @@ const AttendanceReport = () => {
                   Print
                 </Button>
                 <Button
-                  onClick={handleDownload}
-                  className="gap-2 bg-cyan-600 hover:bg-cyan-700 text-white"
+                  onClick={handleDownloadPDF}
+                  className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-100 border-none"
                 >
                   <Download className="w-4 h-4" />
-                  Download CSV
+                  Download PDF
                 </Button>
               </div>
             </div>
@@ -164,35 +143,24 @@ const AttendanceReport = () => {
           {/* Detailed Stats Section (Empty for now until backend provides individual records) */}
           <div className="grid lg:grid-cols-3 gap-8 mb-8">
             <div className="lg:col-span-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-                    <PieChart className="w-5 h-5 text-cyan-600" />
-                    Attendance Distribution
-                </h3>
-                <div className="flex flex-col items-center justify-center py-12 text-center text-slate-500">
-                    <Activity className="w-12 h-12 mb-4 opacity-20" />
-                    <p className="italic">Class-wise distribution data currently unavailable from database.</p>
-                </div>
+              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                <PieChart className="w-5 h-5 text-cyan-600" />
+                Attendance Distribution
+              </h3>
+              <div className="flex flex-col items-center justify-center py-12 text-center text-slate-500">
+                <Activity className="w-12 h-12 mb-4 opacity-20" />
+                <p className="italic">Class-wise distribution data currently unavailable from database.</p>
+              </div>
             </div>
-            
-            <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5 text-blue-600" />
-                    Attendance Trends
-                </h3>
-                <div className="flex flex-col items-center justify-center py-12 text-center text-slate-500">
-                    <TrendingUp className="w-12 h-12 mb-4 opacity-20" />
-                    <p className="italic">Historical trend data currently unavailable from database.</p>
-                </div>
-            </div>
-          </div>
 
-          {/* Database Verification Note */}
-          <div className="bg-blue-50/50 p-6 rounded-xl border border-blue-200">
-            <div className="flex gap-3">
-              <CheckCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold text-blue-900">Database Consistency Check</p>
-                <p className="text-sm text-blue-700">All metrics shown above are calculated from live records in the database. Demo data has been purged from this report as requested.</p>
+            <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-blue-600" />
+                Attendance Trends
+              </h3>
+              <div className="flex flex-col items-center justify-center py-12 text-center text-slate-500">
+                <TrendingUp className="w-12 h-12 mb-4 opacity-20" />
+                <p className="italic">Historical trend data currently unavailable from database.</p>
               </div>
             </div>
           </div>

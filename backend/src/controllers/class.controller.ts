@@ -38,7 +38,7 @@ export const getClassById = async (req: Request, res: Response): Promise<void> =
 
 export const createClass = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { name, level, capacity, academic_year, class_teacher_id, subjects } = req.body;
+        const { name, level, capacity, academic_year, class_teacher_id, subjects, fee_structure } = req.body;
         
         // Ensure class_teacher_id is null if empty string
         const teacherId = class_teacher_id === "" ? null : class_teacher_id;
@@ -48,7 +48,8 @@ export const createClass = async (req: Request, res: Response): Promise<void> =>
             level,
             capacity,
             academic_year,
-            class_teacher_id: teacherId
+            class_teacher_id: teacherId,
+            fee_structure
         });
 
         // Link subjects if provided

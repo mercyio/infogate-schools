@@ -4,7 +4,8 @@ import {
     getAnnouncementById,
     createAnnouncement,
     updateAnnouncement,
-    deleteAnnouncement
+    deleteAnnouncement,
+    likeAnnouncement
 } from '../controllers/announcement.controller';
 import { protect, authorize } from '../middleware/auth.middleware';
 
@@ -17,5 +18,6 @@ router.get('/:id', protect, getAnnouncementById);
 router.post('/', protect, authorize('admin', 'teacher'), createAnnouncement);
 router.put('/:id', protect, authorize('admin', 'teacher'), updateAnnouncement);
 router.delete('/:id', protect, authorize('admin', 'teacher'), deleteAnnouncement);
+router.post('/:id/like', protect, likeAnnouncement);
 
 export default router;

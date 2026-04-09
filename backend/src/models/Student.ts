@@ -18,6 +18,15 @@ export interface IStudent extends Document {
     parent_email?: string;
     parent_phone?: string;
     medical_info?: string;
+    paid_fees?: number;
+    payment_history?: {
+        id: string;
+        date: Date;
+        amount: number;
+        method: string;
+        reference: string;
+        description: string;
+    }[];
     createdAt: Date;
     updatedAt: Date;
 }
@@ -39,6 +48,17 @@ const StudentSchema: Schema = new Schema(
         parent_email: { type: String },
         parent_phone: { type: String },
         medical_info: { type: String },
+        paid_fees: { type: Number, default: 0 },
+        payment_history: [
+            {
+                id: { type: String },
+                date: { type: Date, default: Date.now },
+                amount: { type: Number, required: true },
+                method: { type: String, required: true },
+                reference: { type: String },
+                description: { type: String },
+            }
+        ],
     },
     { timestamps: true }
 );

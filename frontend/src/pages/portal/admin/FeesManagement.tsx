@@ -11,6 +11,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Shield,
   DollarSign,
   Plus,
@@ -30,198 +37,150 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { useState } from "react";
-
-const classFees = [
-  {
-    id: 1,
-    className: "Daycare",
-    level: "Pre-School",
-    tuition: 120000,
-    books: 15000,
-    uniform: 10000,
-    development: 10000,
-    sports: 5000,
-    total: 160000,
-    status: "active",
-  },
-  {
-    id: 2,
-    className: "KG 1",
-    level: "Pre-School",
-    tuition: 150000,
-    books: 25000,
-    uniform: 15000,
-    development: 10000,
-    sports: 5000,
-    total: 205000,
-    status: "active",
-  },
-  {
-    id: 3,
-    className: "Nursery 1",
-    level: "Nursery",
-    tuition: 150000,
-    books: 25000,
-    uniform: 15000,
-    development: 10000,
-    sports: 5000,
-    total: 205000,
-    status: "active",
-  },
-  {
-    id: 4,
-    className: "Basic 1",
-    level: "Primary",
-    tuition: 180000,
-    books: 30000,
-    uniform: 18000,
-    development: 12000,
-    sports: 6000,
-    total: 246000,
-    status: "active",
-  },
-  {
-    id: 5,
-    className: "Basic 5",
-    level: "Primary",
-    tuition: 200000,
-    books: 35000,
-    uniform: 18000,
-    development: 12000,
-    sports: 6000,
-    total: 271000,
-    status: "active",
-  },
-  {
-    id: 6,
-    className: "JSS 1",
-    level: "Junior Secondary",
-    tuition: 250000,
-    books: 40000,
-    uniform: 20000,
-    development: 15000,
-    sports: 8000,
-    total: 333000,
-    status: "active",
-  },
-  {
-    id: 7,
-    className: "SS 1",
-    level: "Senior Secondary",
-    tuition: 280000,
-    books: 45000,
-    uniform: 20000,
-    development: 15000,
-    sports: 8000,
-    total: 368000,
-    status: "active",
-  },
-  {
-    id: 8,
-    className: "Vocational Training",
-    level: "Vocational",
-    tuition: 220000,
-    books: 30000,
-    uniform: 15000,
-    development: 20000,
-    sports: 10000,
-    total: 295000,
-    status: "active",
-  },
-];
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "@/lib/api";
+import { toast } from "sonner";
 
 const FeesManagement = () => {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingFeeId, setEditingFeeId] = useState<number | null>(null);
+  const [editingFeeId, setEditingFeeId] = useState<string | null>(null);
+
+  const { data: classFees = [], isLoading } = useQuery({
+    queryKey: ['classes'],
+    queryFn: async () => {
+      const res = await api.get('/classes');
+      return res.data.map((c: any) => ({
+        id: c._id,
+        className: c.name,
+        level: c.level,
+        termly_fees: c.fee_structure?.termly_fees || [],
+        books: c.fee_structure?.books || [],
+        total_termly: c.fee_structure?.total_termly || 0,
+        total_books: c.fee_structure?.total_books || 0,
+        total: c.fee_structure?.total || 0,
+        status: "active",
+      }));
+    }
+  });
+
   const [newFee, setNewFee] = useState({
     className: "",
     level: "",
-    tuition: "",
-    books: "",
-    uniform: "",
-    development: "",
-    sports: "",
+    termly_fees: [] as { name: string, amount: string }[],
+    books: [] as { name: string, price: string }[],
   });
   const [editFee, setEditFee] = useState({
     className: "",
     level: "",
-    tuition: "",
-    books: "",
-    uniform: "",
-    development: "",
-    sports: "",
+    termly_fees: [] as { name: string, amount: string }[],
+    books: [] as { name: string, price: string }[],
   });
 
   const filteredClasses = classFees.filter(
-    (fee) =>
+    (fee: any) =>
       fee.className.toLowerCase().includes(searchTerm.toLowerCase()) ||
       fee.level.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const updateClassMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      return api.put(`/classes/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      toast.success("Fee structure updated successfully");
+      setIsEditDialogOpen(false);
+      setIsAddDialogOpen(false);
+      setEditingFeeId(null);
+      setNewFee({ className: "", level: "", termly_fees: [], books: [] });
+    },
+    onError: () => {
+      toast.error("Failed to update fee structure");
+    },
+  });
+
   const handleAddFee = () => {
-    console.log("Adding new fee:", newFee);
-    setIsAddDialogOpen(false);
-    setNewFee({
-      className: "",
-      level: "",
-      tuition: "",
-      books: "",
-      uniform: "",
-      development: "",
-      sports: "",
+    const selectedClass = classFees.find((c: any) => c.className === newFee.className);
+    if (!selectedClass) {
+      toast.error("Please select a valid class");
+      return;
+    }
+
+    const termly = newFee.termly_fees.map(f => ({ name: f.name, amount: parseInt(f.amount) || 0 }));
+    const total_termly = termly.reduce((sum, f) => sum + f.amount, 0);
+
+    const books = newFee.books.map(f => ({ name: f.name, price: parseInt(f.price) || 0 }));
+    const total_books = books.reduce((sum, f) => sum + f.price, 0);
+
+    const total = total_termly + total_books;
+
+    updateClassMutation.mutate({
+      id: selectedClass.id,
+      data: {
+        fee_structure: {
+          termly_fees: termly,
+          books: books,
+          total_termly,
+          total_books,
+          total,
+        },
+      },
     });
   };
 
-  const handleEditFee = (feeId: number) => {
-    const fee = classFees.find((f) => f.id === feeId);
+  const handleEditFee = (feeId: string) => {
+    const fee = classFees.find((f: any) => f.id === feeId);
     if (fee) {
       setEditingFeeId(feeId);
       setEditFee({
         className: fee.className,
         level: fee.level,
-        tuition: fee.tuition.toString(),
-        books: fee.books.toString(),
-        uniform: fee.uniform.toString(),
-        development: fee.development.toString(),
-        sports: fee.sports.toString(),
+        termly_fees: fee.termly_fees.map((f: any) => ({ name: f.name, amount: f.amount.toString() })),
+        books: fee.books.map((f: any) => ({ name: f.name, price: f.price.toString() })),
       });
       setIsEditDialogOpen(true);
     }
   };
 
   const handleSaveFee = () => {
-    console.log("Saving fee:", editingFeeId, editFee);
-    setIsEditDialogOpen(false);
-    setEditFee({
-      className: "",
-      level: "",
-      tuition: "",
-      books: "",
-      uniform: "",
-      development: "",
-      sports: "",
+    if (!editingFeeId) return;
+    const termly = editFee.termly_fees.map(f => ({ name: f.name, amount: parseInt(f.amount) || 0 }));
+    const total_termly = termly.reduce((sum, f) => sum + f.amount, 0);
+
+    const books = editFee.books.map(f => ({ name: f.name, price: parseInt(f.price) || 0 }));
+    const total_books = books.reduce((sum, f) => sum + f.price, 0);
+
+    const total = total_termly + total_books;
+
+    updateClassMutation.mutate({
+      id: editingFeeId,
+      data: {
+        fee_structure: {
+          termly_fees: termly,
+          books: books,
+          total_termly,
+          total_books,
+          total,
+        },
+      },
     });
-    setEditingFeeId(null);
   };
 
-  const handleDuplicateFee = (fee: (typeof classFees)[0]) => {
+  const handleDuplicateFee = (fee: any) => {
     setNewFee({
-      className: `${fee.className} (Copy)`,
+      className: fee.className,
       level: fee.level,
-      tuition: fee.tuition.toString(),
-      books: fee.books.toString(),
-      uniform: fee.uniform.toString(),
-      development: fee.development.toString(),
-      sports: fee.sports.toString(),
+      termly_fees: fee.termly_fees.map((f: any) => ({ name: f.name, amount: f.amount.toString() })),
+      books: fee.books.map((f: any) => ({ name: f.name, price: f.price.toString() })),
     });
     setIsAddDialogOpen(true);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-secondary/5">
-
       <div className="container mx-auto px-4 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -243,7 +202,7 @@ const FeesManagement = () => {
               </h2>
               <p className="text-muted-foreground text-lg">
                 Create and manage fee structures for each class. Set tuition,
-                books, uniform, and other fees per class level.
+                books, and other termly components.
               </p>
             </div>
           </motion.div>
@@ -287,562 +246,308 @@ const FeesManagement = () => {
                   </motion.div>
                 </DialogTrigger>
                 <DialogContent className="max-w-5xl w-full max-h-[95vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
-                   <DialogHeader className="bg-gradient-to-r from-primary/95 to-secondary/95 -m-6 mb-0 px-8 py-8 rounded-t-2xl border-0">
-                     <div className="flex items-center gap-4">
-                       <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                         <DollarSign className="w-7 h-7 text-white" />
-                       </div>
-                       <div>
-                         <DialogTitle className="text-3xl font-bold text-white">
-                           Add New Class Fee
-                         </DialogTitle>
-                         <p className="text-sm text-white/90 mt-1">Create and configure fee structure</p>
-                       </div>
-                     </div>
-                   </DialogHeader>
+                  <DialogHeader className="bg-gradient-to-r from-primary/95 to-secondary/95 -m-6 mb-0 px-8 py-8 rounded-t-2xl border-0">
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                        <DollarSign className="w-7 h-7 text-white" />
+                      </div>
+                      <div>
+                        <DialogTitle className="text-3xl font-bold text-white">
+                          Add New Class Fee
+                        </DialogTitle>
+                        <p className="text-sm text-white/90 mt-1">Configure fee structure for a specific class</p>
+                      </div>
+                    </div>
+                  </DialogHeader>
 
-                   <div className="space-y-6 py-8 px-8">
-                     {/* Class Information Card */}
-                     <div className="space-y-4">
-                       <div className="flex items-center gap-3">
-                         <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center">
-                           <Shield className="w-3 h-3 text-primary" />
-                         </div>
-                         <h3 className="text-lg font-semibold text-slate-900">Class Information</h3>
-                       </div>
-                       <div className="grid grid-cols-2 gap-6 p-6 bg-slate-50/50 rounded-xl border border-slate-200/50">
-                         <div className="space-y-2">
-                           <Label className="text-sm font-semibold text-slate-800">Class Name</Label>
-                           <Input
-                             placeholder="e.g., Grade 5A"
-                             value={newFee.className}
-                             onChange={(e) =>
-                               setNewFee({ ...newFee, className: e.target.value })
-                             }
-                             className="h-11 rounded-lg border border-slate-300 focus:border-primary focus:ring-2 focus:ring-primary/20 bg-white"
-                           />
-                         </div>
-                         <div className="space-y-2">
-                           <Label className="text-sm font-semibold text-slate-800">Education Level</Label>
-                           <Input
-                             placeholder="e.g., Primary"
-                             value={newFee.level}
-                             onChange={(e) =>
-                               setNewFee({ ...newFee, level: e.target.value })
-                             }
-                             className="h-11 rounded-lg border border-slate-300 focus:border-primary focus:ring-2 focus:ring-primary/20 bg-white"
-                           />
-                         </div>
-                       </div>
-                     </div>
+                  <div className="space-y-6 py-8 px-8">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center">
+                          <Shield className="w-3 h-3 text-primary" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-slate-900">Class Information</h3>
+                      </div>
+                      <div className="grid grid-cols-2 gap-6 p-6 bg-slate-50/50 rounded-xl border border-slate-200/50">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold text-slate-800">Select Class</Label>
+                          <Select 
+                            value={newFee.className} 
+                            onValueChange={(val) => {
+                              const selected = classFees.find((c: any) => c.className === val);
+                              setNewFee({ ...newFee, className: val, level: selected?.level || "" });
+                            }}
+                          >
+                            <SelectTrigger className="h-11 rounded-lg border border-slate-300">
+                              <SelectValue placeholder="Select a class" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {classFees.map((c: any) => (
+                                <SelectItem key={c.id} value={c.className}>{c.className}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold text-slate-800">Level</Label>
+                          <Input readOnly value={newFee.level} className="h-11 bg-slate-100 italic" />
+                        </div>
+                      </div>
+                    </div>
 
-                     {/* Fee Components Grid */}
-                     <div className="space-y-4">
-                       <div className="flex items-center gap-3">
-                         <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center">
-                           <DollarSign className="w-3 h-3 text-primary" />
-                         </div>
-                         <h3 className="text-lg font-semibold text-slate-900">Fee Breakdown</h3>
-                       </div>
-                       <div className="grid grid-cols-5 gap-4">
-                         {/* Tuition Fee Card */}
-                         <div className="space-y-3 p-5 rounded-xl bg-gradient-to-br from-blue-50 to-blue-50/30 border border-blue-200/40 hover:border-blue-300/60 transition-all">
-                           <div className="flex items-center gap-2">
-                             <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                               <Zap className="w-4 h-4 text-blue-700" />
-                             </div>
-                             <Label className="text-xs font-bold text-blue-900">TUITION</Label>
-                           </div>
-                           <Input
-                             type="number"
-                             placeholder="0"
-                             value={newFee.tuition}
-                             onChange={(e) =>
-                               setNewFee({ ...newFee, tuition: e.target.value })
-                             }
-                             className="h-10 rounded-lg border border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 font-semibold text-blue-900 bg-white"
-                           />
-                           <p className="text-xs text-blue-700/70 font-medium">Annual charges</p>
-                         </div>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center">
+                            <Zap className="w-3 h-3 text-primary" />
+                          </div>
+                          <h3 className="text-lg font-semibold text-slate-900">Termly Fees</h3>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => setNewFee({ ...newFee, termly_fees: [...newFee.termly_fees, { name: "", amount: "" }] })}>+ Add Row</Button>
+                      </div>
+                      <div className="space-y-3">
+                        {newFee.termly_fees.map((tf, index) => (
+                          <div key={`tf-${index}`} className="flex gap-2 items-center">
+                            <Input placeholder="Description (e.g. Tuition)" value={tf.name} onChange={(e) => {
+                              const updated = [...newFee.termly_fees];
+                              updated[index].name = e.target.value;
+                              setNewFee({ ...newFee, termly_fees: updated });
+                            }} />
+                            <Input type="number" placeholder="Amount" value={tf.amount} onChange={(e) => {
+                              const updated = [...newFee.termly_fees];
+                              updated[index].amount = e.target.value;
+                              setNewFee({ ...newFee, termly_fees: updated });
+                            }} />
+                            <Button variant="ghost" size="icon" onClick={() => {
+                              const updated = newFee.termly_fees.filter((_, i) => i !== index);
+                              setNewFee({ ...newFee, termly_fees: updated });
+                            }}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                          </div>
+                        ))}
+                      </div>
 
-                         {/* Books Card */}
-                         <div className="space-y-3 p-5 rounded-xl bg-gradient-to-br from-green-50 to-green-50/30 border border-green-200/40 hover:border-green-300/60 transition-all">
-                           <div className="flex items-center gap-2">
-                             <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                               <BookOpen className="w-4 h-4 text-green-700" />
-                             </div>
-                             <Label className="text-xs font-bold text-green-900">BOOKS</Label>
-                           </div>
-                           <Input
-                             type="number"
-                             placeholder="0"
-                             value={newFee.books}
-                             onChange={(e) =>
-                               setNewFee({ ...newFee, books: e.target.value })
-                             }
-                             className="h-10 rounded-lg border border-green-200 focus:border-green-400 focus:ring-2 focus:ring-green-100 font-semibold text-green-900 bg-white"
-                           />
-                           <p className="text-xs text-green-700/70 font-medium">Learning materials</p>
-                         </div>
+                      <div className="flex items-center justify-between pt-4 border-t">
+                        <div className="flex items-center gap-3">
+                          <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center">
+                            <BookOpen className="w-3 h-3 text-primary" />
+                          </div>
+                          <h3 className="text-lg font-semibold text-slate-900">Books & Stationary</h3>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => setNewFee({ ...newFee, books: [...newFee.books, { name: "", price: "" }] })}>+ Add Row</Button>
+                      </div>
+                      <div className="space-y-3">
+                        {newFee.books.map((b, index) => (
+                          <div key={`b-${index}`} className="flex gap-2 items-center">
+                            <Input placeholder="Item (e.g. Math Set)" value={b.name} onChange={(e) => {
+                              const updated = [...newFee.books];
+                              updated[index].name = e.target.value;
+                              setNewFee({ ...newFee, books: updated });
+                            }} />
+                            <Input type="number" placeholder="Price" value={b.price} onChange={(e) => {
+                              const updated = [...newFee.books];
+                              updated[index].price = e.target.value;
+                              setNewFee({ ...newFee, books: updated });
+                            }} />
+                            <Button variant="ghost" size="icon" onClick={() => {
+                              const updated = newFee.books.filter((_, i) => i !== index);
+                              setNewFee({ ...newFee, books: updated });
+                            }}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
 
-                         {/* Uniform Card */}
-                         <div className="space-y-3 p-5 rounded-xl bg-gradient-to-br from-purple-50 to-purple-50/30 border border-purple-200/40 hover:border-purple-300/60 transition-all">
-                           <div className="flex items-center gap-2">
-                             <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                               <Shirt className="w-4 h-4 text-purple-700" />
-                             </div>
-                             <Label className="text-xs font-bold text-purple-900">UNIFORM</Label>
-                           </div>
-                           <Input
-                             type="number"
-                             placeholder="0"
-                             value={newFee.uniform}
-                             onChange={(e) =>
-                               setNewFee({ ...newFee, uniform: e.target.value })
-                             }
-                             className="h-10 rounded-lg border border-purple-200 focus:border-purple-400 focus:ring-2 focus:ring-purple-100 font-semibold text-purple-900 bg-white"
-                           />
-                           <p className="text-xs text-purple-700/70 font-medium">School attire</p>
-                         </div>
+                    <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-700 underline underline-offset-4">TOTAL ESTIMATED FEE</span>
+                        <span className="text-3xl font-bold text-primary">
+                          ₦{(
+                            newFee.termly_fees.reduce((sum, f) => sum + (parseInt(f.amount) || 0), 0) +
+                            newFee.books.reduce((sum, b) => sum + (parseInt(b.price) || 0), 0)
+                          ).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
 
-                         {/* Development Card */}
-                         <div className="space-y-3 p-5 rounded-xl bg-gradient-to-br from-amber-50 to-amber-50/30 border border-amber-200/40 hover:border-amber-300/60 transition-all">
-                           <div className="flex items-center gap-2">
-                             <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
-                               <TrendingUp className="w-4 h-4 text-amber-700" />
-                             </div>
-                             <Label className="text-xs font-bold text-amber-900">DEVELOPMENT</Label>
-                           </div>
-                           <Input
-                             type="number"
-                             placeholder="0"
-                             value={newFee.development}
-                             onChange={(e) =>
-                               setNewFee({
-                                 ...newFee,
-                                 development: e.target.value,
-                               })
-                             }
-                             className="h-10 rounded-lg border border-amber-200 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 font-semibold text-amber-900 bg-white"
-                           />
-                           <p className="text-xs text-amber-700/70 font-medium">Infrastructure</p>
-                         </div>
-
-                         {/* Sports Card */}
-                         <div className="space-y-3 p-5 rounded-xl bg-gradient-to-br from-red-50 to-red-50/30 border border-red-200/40 hover:border-red-300/60 transition-all">
-                           <div className="flex items-center gap-2">
-                             <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
-                               <Zap className="w-4 h-4 text-red-700" />
-                             </div>
-                             <Label className="text-xs font-bold text-red-900">SPORTS</Label>
-                           </div>
-                           <Input
-                             type="number"
-                             placeholder="0"
-                             value={newFee.sports}
-                             onChange={(e) =>
-                               setNewFee({ ...newFee, sports: e.target.value })
-                             }
-                             className="h-10 rounded-lg border border-red-200 focus:border-red-400 focus:ring-2 focus:ring-red-100 font-semibold text-red-900 bg-white"
-                           />
-                           <p className="text-xs text-red-700/70 font-medium">Activities</p>
-                         </div>
-                       </div>
-                     </div>
-
-                     {/* Total Summary Card */}
-                     <div className="bg-gradient-to-r from-primary/10 via-secondary/5 to-primary/10 p-6 rounded-xl border border-primary/20 backdrop-blur-sm">
-                       <div className="flex items-center justify-between gap-4">
-                         <div className="flex items-center gap-3">
-                           <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                             <CheckCircle className="w-5 h-5 text-primary" />
-                           </div>
-                           <div>
-                             <p className="text-xs font-semibold text-slate-600">TOTAL ANNUAL FEE</p>
-                             <p className="text-xs text-slate-500">Sum of all components</p>
-                           </div>
-                         </div>
-                         <span className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                           ₦{(
-                             (parseInt(newFee.tuition) || 0) +
-                             (parseInt(newFee.books) || 0) +
-                             (parseInt(newFee.uniform) || 0) +
-                             (parseInt(newFee.development) || 0) +
-                             (parseInt(newFee.sports) || 0)
-                           ).toLocaleString()}
-                         </span>
-                       </div>
-                     </div>
-
-                     {/* Action Buttons */}
-                     <div className="flex justify-end gap-3 pt-4">
-                       <Button
-                         variant="outline"
-                         onClick={() => setIsAddDialogOpen(false)}
-                         className="h-11 px-6 rounded-lg font-semibold text-slate-700 border-slate-300 hover:bg-slate-50"
-                       >
-                         Cancel
-                       </Button>
-                       <Button
-                         onClick={handleAddFee}
-                         className="h-11 px-8 rounded-lg bg-gradient-to-r from-primary to-secondary hover:shadow-lg transition-all font-semibold text-white"
-                       >
-                         <Save className="w-4 h-4 mr-2" />
-                         Save Fee Structure
-                       </Button>
-                     </div>
-                   </div>
-                 </DialogContent>
+                    <div className="flex justify-end gap-3">
+                      <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
+                      <Button 
+                        onClick={handleAddFee} 
+                        disabled={!newFee.className}
+                        className="bg-primary hover:bg-primary/90"
+                      >
+                        Save Fee Structure
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
               </Dialog>
             </div>
           </motion.div>
 
-          {/* Classes Grid */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
             className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
-            {filteredClasses.length > 0 ? (
-              filteredClasses.map((fee, idx) => (
+            {isLoading ? (
+              <div className="col-span-full py-20 flex justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
+            ) : filteredClasses.length > 0 ? (
+              filteredClasses.map((fee: any) => (
                 <motion.div
                   key={fee.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: idx * 0.05 }}
-                  whileHover={{ y: -4 }}
-                  className="playful-card p-6 bg-gradient-to-br from-card to-card/80 border border-primary/20 hover:border-primary/50 shadow-lg hover:shadow-2xl transition-all"
+                  className="playful-card p-6 bg-white border border-primary/10 hover:border-primary/30 shadow-sm hover:shadow-xl transition-all group"
                 >
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-foreground">
-                        {fee.className}
-                      </h3>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {fee.level}
-                      </p>
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-900 group-hover:text-primary transition-colors">{fee.className}</h3>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{fee.level}</p>
                     </div>
-                    <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                      <DollarSign className="w-4 h-4 text-primary" />
+                    <div className="p-2 rounded-lg bg-primary/5 text-primary"><DollarSign className="w-5 h-5" /></div>
+                  </div>
+                  
+                  <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 mb-6">
+                    <p className="text-xs text-slate-500 font-bold mb-1 uppercase">Total Termly Fee</p>
+                    <p className="text-3xl font-black text-primary">₦{fee.total.toLocaleString()}</p>
+                  </div>
+
+                  <div className="space-y-4 mb-8">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-700 border-b pb-1 mb-2">Termly Components</h4>
+                      {fee.termly_fees?.map((tf: any, i: number) => (
+                        <div key={i} className="flex justify-between text-sm py-0.5">
+                          <span className="text-slate-600">{tf.name}</span>
+                          <span className="font-semibold text-slate-800">₦{tf.amount.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-700 border-b pb-1 mb-2">Books & Stationary</h4>
+                      {fee.books?.map((b: any, i: number) => (
+                        <div key={i} className="flex justify-between text-sm py-0.5">
+                          <span className="text-slate-600">{b.name}</span>
+                          <span className="font-semibold text-slate-800">₦{b.price.toLocaleString()}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
-                  {/* Total */}
-                  <div className="p-4 bg-primary/10 rounded-xl border border-primary/20 mb-4">
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Total Annual Fee
-                    </p>
-                    <p className="text-2xl font-bold text-primary">
-                      ₦{fee.total.toLocaleString()}
-                    </p>
-                  </div>
-
-                  {/* Breakdown */}
-                  <div className="space-y-2 mb-6">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Tuition</span>
-                      <span className="font-semibold">
-                        ₦{fee.tuition.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Books</span>
-                      <span className="font-semibold">
-                        ₦{fee.books.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Uniform</span>
-                      <span className="font-semibold">
-                        ₦{fee.uniform.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Development</span>
-                      <span className="font-semibold">
-                        ₦{fee.development.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Sports</span>
-                      <span className="font-semibold">
-                        ₦{fee.sports.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-2 pt-4 border-t border-primary/10">
-                    <Dialog
-                      open={
-                        isEditDialogOpen && editingFeeId === fee.id
-                      }
-                      onOpenChange={(open) => {
-                        if (!open) setIsEditDialogOpen(false);
-                      }}
+                  <div className="flex gap-2 pt-4 border-t">
+                    <Button 
+                      variant="ghost" 
+                      className="flex-1 gap-2 text-primary hover:bg-primary/10"
+                      onClick={() => handleEditFee(fee.id)}
                     >
-                      <DialogTrigger asChild>
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => handleEditFee(fee.id)}
-                          className="flex-1 flex items-center justify-center gap-1 h-9 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary font-medium text-sm transition-colors"
-                        >
-                          <Edit className="w-3 h-3" />
-                          Edit
-                        </motion.button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-5xl w-full max-h-[95vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
-                         <DialogHeader className="bg-gradient-to-r from-primary/95 to-secondary/95 -m-6 mb-0 px-8 py-8 rounded-t-2xl border-0">
-                           <div className="flex items-center gap-4">
-                             <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                               <Edit className="w-7 h-7 text-white" />
-                             </div>
-                             <div>
-                               <DialogTitle className="text-3xl font-bold text-white">
-                                 Edit Class Fee
-                               </DialogTitle>
-                               <p className="text-sm text-white/90 mt-1">Update fee structure for {editFee.className}</p>
-                             </div>
-                           </div>
-                         </DialogHeader>
-
-                         <div className="space-y-6 py-8 px-8">
-                           {/* Class Information Card */}
-                           <div className="space-y-4">
-                             <div className="flex items-center gap-3">
-                               <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center">
-                                 <Shield className="w-3 h-3 text-primary" />
-                               </div>
-                               <h3 className="text-lg font-semibold text-slate-900">Class Information</h3>
-                             </div>
-                             <div className="grid grid-cols-2 gap-6 p-6 bg-slate-50/50 rounded-xl border border-slate-200/50">
-                               <div className="space-y-2">
-                                 <Label className="text-sm font-semibold text-slate-800">Class Name</Label>
-                                 <Input
-                                   placeholder="e.g., Grade 5A"
-                                   value={editFee.className}
-                                   onChange={(e) =>
-                                     setEditFee({
-                                       ...editFee,
-                                       className: e.target.value,
-                                     })
-                                   }
-                                   className="h-11 rounded-lg border border-slate-300 focus:border-primary focus:ring-2 focus:ring-primary/20 bg-white"
-                                 />
-                               </div>
-                               <div className="space-y-2">
-                                 <Label className="text-sm font-semibold text-slate-800">Education Level</Label>
-                                 <Input
-                                   placeholder="e.g., Primary"
-                                   value={editFee.level}
-                                   onChange={(e) =>
-                                     setEditFee({
-                                       ...editFee,
-                                       level: e.target.value,
-                                     })
-                                   }
-                                   className="h-11 rounded-lg border border-slate-300 focus:border-primary focus:ring-2 focus:ring-primary/20 bg-white"
-                                 />
-                               </div>
-                             </div>
-                           </div>
-
-                           {/* Fee Components Grid */}
-                           <div className="space-y-4">
-                             <div className="flex items-center gap-3">
-                               <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center">
-                                 <DollarSign className="w-3 h-3 text-primary" />
-                               </div>
-                               <h3 className="text-lg font-semibold text-slate-900">Fee Breakdown</h3>
-                             </div>
-                             <div className="grid grid-cols-5 gap-4">
-                               {/* Tuition Fee Card */}
-                               <div className="space-y-3 p-5 rounded-xl bg-gradient-to-br from-blue-50 to-blue-50/30 border border-blue-200/40 hover:border-blue-300/60 transition-all">
-                                 <div className="flex items-center gap-2">
-                                   <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                                     <Zap className="w-4 h-4 text-blue-700" />
-                                   </div>
-                                   <Label className="text-xs font-bold text-blue-900">TUITION</Label>
-                                 </div>
-                                 <Input
-                                   type="number"
-                                   placeholder="0"
-                                   value={editFee.tuition}
-                                   onChange={(e) =>
-                                     setEditFee({
-                                       ...editFee,
-                                       tuition: e.target.value,
-                                     })
-                                   }
-                                   className="h-10 rounded-lg border border-blue-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 font-semibold text-blue-900 bg-white"
-                                 />
-                                 <p className="text-xs text-blue-700/70 font-medium">Annual charges</p>
-                               </div>
-
-                               {/* Books Card */}
-                               <div className="space-y-3 p-5 rounded-xl bg-gradient-to-br from-green-50 to-green-50/30 border border-green-200/40 hover:border-green-300/60 transition-all">
-                                 <div className="flex items-center gap-2">
-                                   <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                                     <BookOpen className="w-4 h-4 text-green-700" />
-                                   </div>
-                                   <Label className="text-xs font-bold text-green-900">BOOKS</Label>
-                                 </div>
-                                 <Input
-                                   type="number"
-                                   placeholder="0"
-                                   value={editFee.books}
-                                   onChange={(e) =>
-                                     setEditFee({
-                                       ...editFee,
-                                       books: e.target.value,
-                                     })
-                                   }
-                                   className="h-10 rounded-lg border border-green-200 focus:border-green-400 focus:ring-2 focus:ring-green-100 font-semibold text-green-900 bg-white"
-                                 />
-                                 <p className="text-xs text-green-700/70 font-medium">Learning materials</p>
-                               </div>
-
-                               {/* Uniform Card */}
-                               <div className="space-y-3 p-5 rounded-xl bg-gradient-to-br from-purple-50 to-purple-50/30 border border-purple-200/40 hover:border-purple-300/60 transition-all">
-                                 <div className="flex items-center gap-2">
-                                   <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                                     <Shirt className="w-4 h-4 text-purple-700" />
-                                   </div>
-                                   <Label className="text-xs font-bold text-purple-900">UNIFORM</Label>
-                                 </div>
-                                 <Input
-                                   type="number"
-                                   placeholder="0"
-                                   value={editFee.uniform}
-                                   onChange={(e) =>
-                                     setEditFee({
-                                       ...editFee,
-                                       uniform: e.target.value,
-                                     })
-                                   }
-                                   className="h-10 rounded-lg border border-purple-200 focus:border-purple-400 focus:ring-2 focus:ring-purple-100 font-semibold text-purple-900 bg-white"
-                                 />
-                                 <p className="text-xs text-purple-700/70 font-medium">School attire</p>
-                               </div>
-
-                               {/* Development Card */}
-                               <div className="space-y-3 p-5 rounded-xl bg-gradient-to-br from-amber-50 to-amber-50/30 border border-amber-200/40 hover:border-amber-300/60 transition-all">
-                                 <div className="flex items-center gap-2">
-                                   <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
-                                     <TrendingUp className="w-4 h-4 text-amber-700" />
-                                   </div>
-                                   <Label className="text-xs font-bold text-amber-900">DEVELOPMENT</Label>
-                                 </div>
-                                 <Input
-                                   type="number"
-                                   placeholder="0"
-                                   value={editFee.development}
-                                   onChange={(e) =>
-                                     setEditFee({
-                                       ...editFee,
-                                       development: e.target.value,
-                                     })
-                                   }
-                                   className="h-10 rounded-lg border border-amber-200 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 font-semibold text-amber-900 bg-white"
-                                 />
-                                 <p className="text-xs text-amber-700/70 font-medium">Infrastructure</p>
-                               </div>
-
-                               {/* Sports Card */}
-                               <div className="space-y-3 p-5 rounded-xl bg-gradient-to-br from-red-50 to-red-50/30 border border-red-200/40 hover:border-red-300/60 transition-all">
-                                 <div className="flex items-center gap-2">
-                                   <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
-                                     <Zap className="w-4 h-4 text-red-700" />
-                                   </div>
-                                   <Label className="text-xs font-bold text-red-900">SPORTS</Label>
-                                 </div>
-                                 <Input
-                                   type="number"
-                                   placeholder="0"
-                                   value={editFee.sports}
-                                   onChange={(e) =>
-                                     setEditFee({
-                                       ...editFee,
-                                       sports: e.target.value,
-                                     })
-                                   }
-                                   className="h-10 rounded-lg border border-red-200 focus:border-red-400 focus:ring-2 focus:ring-red-100 font-semibold text-red-900 bg-white"
-                                 />
-                                 <p className="text-xs text-red-700/70 font-medium">Activities</p>
-                               </div>
-                             </div>
-                           </div>
-
-                           {/* Total Summary Card */}
-                           <div className="bg-gradient-to-r from-primary/10 via-secondary/5 to-primary/10 p-6 rounded-xl border border-primary/20 backdrop-blur-sm">
-                             <div className="flex items-center justify-between gap-4">
-                               <div className="flex items-center gap-3">
-                                 <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                                   <CheckCircle className="w-5 h-5 text-primary" />
-                                 </div>
-                                 <div>
-                                   <p className="text-xs font-semibold text-slate-600">TOTAL ANNUAL FEE</p>
-                                   <p className="text-xs text-slate-500">Sum of all components</p>
-                                 </div>
-                               </div>
-                               <span className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                                 ₦{(
-                                   (parseInt(editFee.tuition) || 0) +
-                                   (parseInt(editFee.books) || 0) +
-                                   (parseInt(editFee.uniform) || 0) +
-                                   (parseInt(editFee.development) || 0) +
-                                   (parseInt(editFee.sports) || 0)
-                                 ).toLocaleString()}
-                               </span>
-                             </div>
-                           </div>
-
-                           {/* Action Buttons */}
-                           <div className="flex justify-end gap-3 pt-4">
-                             <Button
-                               variant="outline"
-                               onClick={() => setIsEditDialogOpen(false)}
-                               className="h-11 px-6 rounded-lg font-semibold text-slate-700 border-slate-300 hover:bg-slate-50"
-                             >
-                               Cancel
-                             </Button>
-                             <Button
-                               onClick={handleSaveFee}
-                               className="h-11 px-8 rounded-lg bg-gradient-to-r from-primary to-secondary hover:shadow-lg transition-all font-semibold text-white"
-                             >
-                               <Save className="w-4 h-4 mr-2" />
-                               Save Changes
-                             </Button>
-                           </div>
-                         </div>
-                       </DialogContent>
-                    </Dialog>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
+                      <Edit className="w-4 h-4" /> Edit
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      className="flex-1 gap-2 text-secondary hover:bg-secondary/10"
                       onClick={() => handleDuplicateFee(fee)}
-                      className="flex-1 flex items-center justify-center gap-1 h-9 rounded-lg bg-secondary/10 hover:bg-secondary/20 text-secondary font-medium text-sm transition-colors"
                     >
-                      <Copy className="w-3 h-3" />
-                      Duplicate
-                    </motion.button>
+                      <Copy className="w-4 h-4" /> Duplicate
+                    </Button>
                   </div>
                 </motion.div>
               ))
             ) : (
-              <div className="col-span-full text-center py-12">
-                <DollarSign className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                <p className="text-muted-foreground text-lg">
-                  No classes match your search
-                </p>
+              <div className="col-span-full text-center py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                <p className="text-slate-400 italic font-medium">No fee structures found matching your search</p>
               </div>
             )}
           </motion.div>
         </motion.div>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-5xl w-full max-h-[95vh] overflow-y-auto">
+          <DialogHeader className="bg-primary/10 -m-6 mb-6 p-8 border-b border-primary/20">
+            <DialogTitle className="text-3xl font-bold text-primary">Edit Fee Structure</DialogTitle>
+            <p className="text-slate-500">Updating fees for {editFee.className}</p>
+          </DialogHeader>
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-6 p-6 bg-slate-50 rounded-xl">
+              <div className="space-y-2">
+                <Label>Class Name</Label>
+                <Input readOnly value={editFee.className} className="bg-slate-100" />
+              </div>
+              <div className="space-y-2">
+                <Label>Level</Label>
+                <Input readOnly value={editFee.level} className="bg-slate-100" />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+               <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold flex items-center gap-2"><Zap className="w-5 h-5 text-primary" /> Termly Fees</h3>
+                <Button variant="outline" size="sm" onClick={() => setEditFee({ ...editFee, termly_fees: [...editFee.termly_fees, { name: "", amount: "" }] })}>+ Add</Button>
+              </div>
+              <div className="space-y-3">
+                {editFee.termly_fees.map((tf, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input placeholder="Component" value={tf.name} onChange={(e) => {
+                      const updated = [...editFee.termly_fees];
+                      updated[index].name = e.target.value;
+                      setEditFee({ ...editFee, termly_fees: updated });
+                    }} />
+                    <Input type="number" placeholder="Amount" value={tf.amount} onChange={(e) => {
+                      const updated = [...editFee.termly_fees];
+                      updated[index].amount = e.target.value;
+                      setEditFee({ ...editFee, termly_fees: updated });
+                    }} />
+                    <Button variant="ghost" size="icon" onClick={() => {
+                      const updated = editFee.termly_fees.filter((_, i) => i !== index);
+                      setEditFee({ ...editFee, termly_fees: updated });
+                    }}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t">
+                <h3 className="text-lg font-bold flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary" /> Books & Supplies</h3>
+                <Button variant="outline" size="sm" onClick={() => setEditFee({ ...editFee, books: [...editFee.books, { name: "", price: "" }] })}>+ Add</Button>
+              </div>
+              <div className="space-y-3">
+                {editFee.books.map((b, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input placeholder="Item" value={b.name} onChange={(e) => {
+                      const updated = [...editFee.books];
+                      updated[index].name = e.target.value;
+                      setEditFee({ ...editFee, books: updated });
+                    }} />
+                    <Input type="number" placeholder="Price" value={b.price} onChange={(e) => {
+                      const updated = [...editFee.books];
+                      updated[index].price = e.target.value;
+                      setEditFee({ ...editFee, books: updated });
+                    }} />
+                    <Button variant="ghost" size="icon" onClick={() => {
+                      const updated = editFee.books.filter((_, i) => i !== index);
+                      setEditFee({ ...editFee, books: updated });
+                    }}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-6 bg-primary/5 rounded-xl border border-primary/20 flex justify-between items-center">
+              <span className="font-bold text-slate-700">UPDATED TOTAL</span>
+              <span className="text-3xl font-black text-primary">
+                ₦{(
+                  editFee.termly_fees.reduce((sum, f) => sum + (parseInt(f.amount) || 0), 0) +
+                  editFee.books.reduce((sum, b) => sum + (parseInt(b.price) || 0), 0)
+                ).toLocaleString()}
+              </span>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleSaveFee} className="bg-primary hover:bg-primary/90 px-8">Save Changes</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

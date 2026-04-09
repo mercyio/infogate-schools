@@ -72,9 +72,17 @@ const AttendanceMonitor = () => {
     }
   });
 
-  const markedClasses = Array.from(new Set(studentRecords.map((r: any) => r.class_id?.name || r.class_id)));
-  const allAvailableClasses = ["Daycare", "Preparatory", "KG 1", "KG 2", "Nursery 1", "Nursery 2", "Basic 1", "Basic 2", "Basic 3", "Basic 4", "Basic 5", "JSS 1", "JSS 2", "JSS 3", "SS 1", "SS 2", "SS 3", "Vocational Training"];
+  // 4. Fetch All Classes from DB
+  const { data: dbClasses = [] } = useQuery({
+    queryKey: ['classes'],
+    queryFn: async () => {
+      const res = await api.get('/classes');
+      return res.data;
+    }
+  });
 
+  const markedClassIds = new Set(studentRecords.map((r: any) => r.class_id?._id || r.class_id));
+  
   const teachersMarked = teachers.filter((t: any) => 
     teacherRecords.some((r: any) => (r.teacher_id?._id || r.teacher_id) === t._id)
   );
@@ -130,14 +138,14 @@ const AttendanceMonitor = () => {
           <CardHeader className="pb-2">
             <CardDescription className="font-bold uppercase tracking-wider text-xs">Class Compliance</CardDescription>
             <CardTitle className="text-3xl font-black text-secondary flex items-baseline gap-2">
-              {markedClasses.length} <span className="text-sm font-medium text-muted-foreground">/ {allAvailableClasses.length} Marked</span>
+              {markedClassIds.size} <span className="text-sm font-medium text-muted-foreground">/ {dbClasses.length} Marked</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="w-full bg-muted rounded-full h-2 mt-2">
               <div 
                 className="bg-secondary h-2 rounded-full transition-all duration-500" 
-                style={{ width: `${(markedClasses.length / allAvailableClasses.length) * 100}%` }}
+                style={{ width: `${(markedClassIds.size / (dbClasses.length || 1)) * 100}%` }}
               />
             </div>
           </CardContent>
@@ -230,47 +238,53 @@ const AttendanceMonitor = () => {
           <TabsContent value="students">
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {allAvailableClasses.map((cls) => {
-                  const isMarked = markedClasses.includes(cls);
-                  const classRecords = studentRecords.filter((r: any) => (r.class_id?.name || r.class_id) === cls);
-                  const presenCount = classRecords.filter((r: any) => r.status === 'present').length;
-                  
-                  return (
-                    <Card key={cls} className={cn(
-                      "rounded-3xl border shadow-md transition-all hover:shadow-xl",
-                      isMarked ? "bg-secondary/5 border-secondary/20" : "bg-card border-border border-dashed opacity-70"
-                    )}>
-                      <CardContent className="p-6">
-                        <div className="flex justify-between items-start mb-4">
-                          <div className={cn(
-                            "w-12 h-12 rounded-2xl flex items-center justify-center text-white",
-                            isMarked ? "bg-secondary shadow-lg shadow-secondary/20" : "bg-muted"
-                          )}>
-                            <Users className="w-6 h-6" />
+                {dbClasses.length > 0 ? (
+                  dbClasses.map((cls: any) => {
+                    const isMarked = markedClassIds.has(cls._id);
+                    const classRecords = studentRecords.filter((r: any) => (r.class_id?._id || r.class_id) === cls._id);
+                    const presenCount = classRecords.filter((r: any) => r.status === 'present').length;
+                    
+                    return (
+                      <Card key={cls._id} className={cn(
+                        "rounded-3xl border shadow-md transition-all hover:shadow-xl",
+                        isMarked ? "bg-secondary/5 border-secondary/20" : "bg-card border-border border-dashed opacity-70"
+                      )}>
+                        <CardContent className="p-6">
+                          <div className="flex justify-between items-start mb-4">
+                            <div className={cn(
+                              "w-12 h-12 rounded-2xl flex items-center justify-center text-white",
+                              isMarked ? "bg-secondary shadow-lg shadow-secondary/20" : "bg-muted"
+                            )}>
+                              <Users className="w-6 h-6" />
+                            </div>
+                            {isMarked ? (
+                              <Badge className="bg-green-500 text-white rounded-full">Completed</Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-muted-foreground rounded-full italic">Pending</Badge>
+                            )}
                           </div>
-                          {isMarked ? (
-                            <Badge className="bg-green-500 text-white rounded-full">Completed</Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-muted-foreground rounded-full italic">Pending</Badge>
-                          )}
-                        </div>
-                        <h4 className="text-xl font-black mb-1">{cls}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {isMarked ? `${presenCount} / ${classRecords.length} Students Present` : 'Records not yet uploaded'}
-                        </p>
-                        
-                        <Button 
-                          variant="ghost" 
-                          className="w-full mt-4 rounded-xl gap-2 hover:bg-secondary/10 hover:text-secondary group"
-                          disabled={!isMarked}
-                        >
-                          <Eye className="w-4 h-4 transition-transform group-hover:scale-110" />
-                          View Detailed Report
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                          <h4 className="text-xl font-black mb-1">{cls.name}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {isMarked ? `${presenCount} / ${classRecords.length} Students Present` : 'Records not yet uploaded'}
+                          </p>
+                          
+                          <Button 
+                            variant="ghost" 
+                            className="w-full mt-4 rounded-xl gap-2 hover:bg-secondary/10 hover:text-secondary group"
+                            disabled={!isMarked}
+                          >
+                            <Eye className="w-4 h-4 transition-transform group-hover:scale-110" />
+                            View Detailed Report
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                ) : (
+                  <div className="col-span-full py-20 text-center">
+                    <p className="text-muted-foreground italic tracking-widest uppercase text-sm">No classes found in the database</p>
+                  </div>
+                )}
               </div>
             </motion.div>
           </TabsContent>

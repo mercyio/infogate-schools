@@ -361,3 +361,31 @@ export const getMeTeacher = async (req: AuthRequest, res: Response): Promise<voi
         res.status(500).json({ message: 'Server error', error });
     }
 };
+export const recordStudentPayment = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const student = await Student.findById(req.params.id);
+        if (!student) { res.status(404).json({ message: 'Student not found' }); return; }
+
+        const { amount, method, reference, description } = req.body;
+        
+        let newPaidFees = (student.paid_fees || 0) + Number(amount);
+        
+        const payment = {
+            id: Math.random().toString(36).substr(2, 9),
+            date: new Date(),
+            amount: Number(amount),
+            method,
+            reference,
+            description
+        };
+
+        const updatedStudent = await Student.findByIdAndUpdate(req.params.id, {
+            $set: { paid_fees: newPaidFees },
+            $push: { payment_history: payment }
+        }, { new: true }).populate('user_id', '-passwordHash').populate('class_id');
+
+        res.status(200).json(updatedStudent);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error });
+    }
+};

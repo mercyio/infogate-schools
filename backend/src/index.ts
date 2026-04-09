@@ -22,6 +22,7 @@ import communicationRoutes from './routes/communication.routes';
 import announcementRoutes from './routes/announcement.routes';
 import feeRoutes from './routes/fee.routes';
 import reportRoutes from './routes/report.routes';
+import feedbackRoutes from './routes/feedback.routes';
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -34,6 +35,7 @@ app.use('/api/communication', communicationRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/fees', feeRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 // Basic route
 app.get('/', (req, res) => {

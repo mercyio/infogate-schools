@@ -51,7 +51,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "@/lib/api";
+import { toast } from "sonner";
 
 // Default values for fields not yet in the DB
 const defaultStudentStats = {
@@ -67,20 +69,16 @@ const defaultStudentStats = {
   cumulativePerformance: [],
 };
 
-import { useQuery } from "@tanstack/react-query";
-import api from "@/lib/api";
-
 const StudentDetail = () => {
-  const { classId, studentId } = useParams();
+  const { studentId, classId } = useParams();
   const navigate = useNavigate();
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
-  const [paymentFor, setPaymentFor] = useState("");
+  const queryClient = useQueryClient();
   const [paymentDescription, setPaymentDescription] = useState("");
 
-
-  const { data: realStudent, isLoading } = useQuery({
+  const { data: realStudent, isLoading, isError } = useQuery({
     queryKey: ['student', studentId],
     queryFn: async () => {
       const res = await api.get(`/users/students/${studentId}`);
@@ -89,26 +87,40 @@ const StudentDetail = () => {
     enabled: !!studentId,
   });
 
+  const sfProp = (obj: any, path: string) => {
+    return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+  };
+
   // Merge real data with empty defaults
   const student = realStudent ? {
     ...defaultStudentStats,
-    id: realStudent._id,
-    name: realStudent.user_id?.full_name || realStudent.full_name || "Student Name",
-    admissionNo: realStudent.admission_number || realStudent.reg_number || "N/A",
-    gender: realStudent.gender || "N/A",
-    dateOfBirth: realStudent.date_of_birth?.split('T')[0] || "2000-01-01",
-    class: realStudent.grade || realStudent.class_id?.name || "N/A",
-    level: realStudent.program || "N/A",
-    gradeLevel: realStudent.grade || "N/A",
+    id: realStudent._id || studentId,
+    name: sfProp(realStudent, 'user_id.full_name') || realStudent.full_name || realStudent.name || "Student Name",
+    admissionNo: realStudent.admission_number || realStudent.reg_number || realStudent.admissionNo || "N/A",
+    gender: sfProp(realStudent, 'user_id.gender') || realStudent.gender || "N/A",
+    dateOfBirth: realStudent.date_of_birth ? 
+      (typeof realStudent.date_of_birth === 'string' ? realStudent.date_of_birth.split('T')[0] : 
+       realStudent.date_of_birth instanceof Date ? realStudent.date_of_birth.toISOString().split('T')[0] : 
+       "2000-01-01") : "2000-01-01",
+    class: sfProp(realStudent, 'class_id.name') || sfProp(realStudent, 'class_id.className') || realStudent.grade || realStudent.class || "N/A",
+    level: realStudent.program || realStudent.level || "N/A",
+    gradeLevel: realStudent.grade || realStudent.gradeLevel || "N/A",
     address: realStudent.address || "N/A",
-    parentName: realStudent.parent_name || "N/A",
-    parentPhone: realStudent.parent_phone || "N/A",
-    parentEmail: realStudent.parent_email || "N/A",
+    parentName: realStudent.parent_name || realStudent.parentName || "N/A",
+    parentPhone: realStudent.parent_phone || realStudent.parentPhone || "N/A",
+    parentEmail: realStudent.parent_email || realStudent.parentEmail || "N/A",
+    totalFees: Number(realStudent.total_fees || realStudent.totalFees || sfProp(realStudent, 'class_id.fee_structure.total')) || 0,
+    paidFees: Number(realStudent.paid_fees || realStudent.paidFees) || 0,
+    paymentHistory: Array.isArray(realStudent.payment_history || realStudent.paymentHistory) ? (realStudent.payment_history || realStudent.paymentHistory) : [],
+    academicPerformance: Array.isArray(realStudent.academic_performance || realStudent.academicPerformance) ? (realStudent.academic_performance || realStudent.academicPerformance) : [],
+    attendanceHistory: Array.isArray(realStudent.attendance_history || realStudent.attendanceHistory) ? (realStudent.attendance_history || realStudent.attendanceHistory) : [],
+    gpa: Number(realStudent.gpa) || 0,
+    attendanceRate: Number(realStudent.attendanceRate) || 0,
   } : { 
     ...defaultStudentStats, 
     id: studentId || "N/A",
-    name: "Loading...", 
-    admissionNo: studentId || "N/A", 
+    name: "Student Profile", 
+    admissionNo: "N/A", 
     dateOfBirth: "2000-01-01",
     gender: "N/A",
     class: "N/A",
@@ -119,53 +131,113 @@ const StudentDetail = () => {
     parentEmail: "N/A"
   };
 
+  const studentName = String(student.name || "Student Profile");
+  const academicPerformance = Array.isArray(student.academicPerformance)
+    ? student.academicPerformance.filter(Boolean)
+    : [];
+  const attendanceHistory = Array.isArray(student.attendanceHistory)
+    ? student.attendanceHistory.filter(Boolean)
+    : [];
+  const paymentHistory = Array.isArray(student.paymentHistory)
+    ? student.paymentHistory.filter(Boolean)
+    : [];
+
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading student profile...</div>;
   }
 
-  const outstanding = (student.totalFees || 0) - (student.paidFees || 0);
-  const paymentProgress = student.totalFees ? (student.paidFees / student.totalFees) * 100 : 0;
+  if (isError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-card border rounded-2xl p-8 text-center shadow-sm">
+          <h1 className="text-2xl font-bold mb-2">Student profile unavailable</h1>
+          <p className="text-muted-foreground mb-6">
+            The student record could not be loaded. The link may be invalid, or the record may not exist.
+          </p>
+          <div className="flex justify-center gap-3">
+            <Button onClick={() => navigate(-1)} variant="outline">Go Back</Button>
+            <Button onClick={() => navigate('/portal/admin/students')}>Open Student List</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const getFeesStatus = () => {
-    if (student.totalFees > 0 && outstanding === 0)
-      return { label: "Fully Paid", color: "bg-primary text-primary-foreground" };
-    if ((student.paidFees || 0) > 0)
-      return {
-        label: "Partial Payment",
-        color: "bg-secondary text-secondary-foreground",
-      };
-    return { label: "Unpaid", color: "bg-primary/20 text-primary border border-primary/30" };
-  };
+  if (!studentId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-card border rounded-2xl p-8 text-center shadow-sm">
+          <h1 className="text-2xl font-bold mb-2">Student not found</h1>
+          <p className="text-muted-foreground mb-6">
+            The page was opened without a valid student id.
+          </p>
+          <div className="flex justify-center gap-3">
+            <Button onClick={() => navigate(-1)} variant="outline">Go Back</Button>
+            <Button onClick={() => navigate('/portal/admin/students')}>Open Student List</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const totalFees = Number(student.totalFees) || 0;
+  const paidFees = Number(student.paidFees) || 0;
+  const outstanding = Math.max(0, totalFees - paidFees);
+  const paymentProgress = totalFees > 0 ? (paidFees / totalFees) * 100 : 0;
 
   const getAttendanceColor = (rate: number) => {
     if (rate >= 90) return "text-primary";
     if (rate >= 75) return "text-secondary";
-    return "text-primary/70";
-  };
- 
-  const getAttendanceBg = (rate: number) => {
-    if (rate >= 90) return "bg-primary/20";
-    if (rate >= 75) return "bg-secondary/20";
-    return "bg-primary/10";
+    return "text-orange-500";
   };
 
+  const recordPaymentMutation = useMutation({
+    mutationFn: async (paymentData: any) => {
+      const res = await api.post(`/users/students/${studentId}/payments`, paymentData);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['student', studentId] });
+      toast.success("Payment recorded successfully");
+      setPaymentDialogOpen(false);
+      setPaymentAmount("");
+      setPaymentMethod("");
+      setPaymentDescription("");
+    },
+    onError: () => {
+      toast.error("Failed to record payment");
+    }
+  });
+
   const handleRecordPayment = () => {
-    // In real app, this would update the database
-    console.log("Recording payment:", {
+    recordPaymentMutation.mutate({
       description: paymentDescription,
-      amount: paymentAmount,
+      amount: Number(paymentAmount),
       method: paymentMethod,
-      reference: "TRF-" + Date.now(),
+      reference: "TRF-" + Date.now().toString().slice(-6),
     });
-    setPaymentDialogOpen(false);
-    setPaymentAmount("");
-    setPaymentMethod("");
-    setPaymentDescription("");
   };
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-muted/30 pb-12">
+      <div className="bg-white border-b border-primary/10 mb-8 sticky top-0 z-30">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+          <Button 
+            variant="ghost" 
+            onClick={() => navigate(-1)} 
+            className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </Button>
+          <div className="flex items-center gap-2">
+             <Badge variant="outline" className="bg-primary/5 text-primary border-primary/10">
+               Student ID: {studentId}
+             </Badge>
+          </div>
+        </div>
+      </div>
+      <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -180,8 +252,18 @@ const StudentDetail = () => {
               className="lg:col-span-1 playful-card p-6 bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20"
             >
               <div className="text-center mb-6">
-                <div className="w-24 h-24 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4 border-2 border-primary/10 shadow-inner">
-                  <User className="w-12 h-12 text-primary" />
+                <div 
+                  className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-white shadow-xl text-white font-bold text-2xl"
+                  style={{
+                    background: "linear-gradient(to bottom right, #4f46e5, #7c3aed)"
+                  }}
+                >
+                  {studentName
+                    .split(' ')
+                    .map(n => n[0])
+                    .join('')
+                    .toUpperCase()
+                    .slice(0, 2)}
                 </div>
                 <h2 className="font-bold text-xl">{student.name}</h2>
                 <p className="text-muted-foreground">{student.admissionNo}</p>
@@ -194,7 +276,7 @@ const StudentDetail = () => {
                 <div className="flex items-center gap-3 text-sm p-2 rounded-lg bg-card border border-border/50">
                   <Calendar className="w-4 h-4 text-primary" />
                   <span>
-                    DOB: {new Date(student.dateOfBirth).toLocaleDateString()}
+                    DOB: {student.dateOfBirth}
                   </span>
                 </div>
                 <div className="flex items-center gap-3 text-sm p-2 rounded-lg bg-card border border-border/50">
@@ -267,7 +349,7 @@ const StudentDetail = () => {
                     <div className="grid sm:grid-cols-2 gap-4 mb-6">
                       <div className="p-4 rounded-xl bg-primary/10 border border-primary/20">
                         <p className="text-sm text-muted-foreground mb-1">Current GPA</p>
-                        <p className="text-3xl font-bold text-primary">{student.gpa.toFixed(2)}</p>
+                        <p className="text-3xl font-bold text-primary">{(Number(student.gpa) || 0).toFixed(2)}</p>
                       </div>
                       <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20">
                         <p className="text-sm text-muted-foreground mb-1">Grade Level</p>
@@ -288,14 +370,14 @@ const StudentDetail = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {student.academicPerformance.length > 0 ? (
-                            student.academicPerformance.map((performance) => (
-                              <TableRow key={performance.subject}>
-                                <TableCell className="font-medium">{performance.subject}</TableCell>
-                                <TableCell className="text-center font-bold text-primary">{performance.score}</TableCell>
+                          {academicPerformance.length > 0 ? (
+                            academicPerformance.map((performance: any, idx: number) => (
+                              <TableRow key={idx}>
+                                <TableCell className="font-medium">{performance.subject || 'N/A'}</TableCell>
+                                <TableCell className="text-center font-bold text-primary">{performance.score || 0}</TableCell>
                                 <TableCell className="text-center">
                                   <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20">
-                                    {performance.grade}
+                                    {performance.grade || 'N/A'}
                                   </Badge>
                                 </TableCell>
                               </TableRow>
@@ -341,14 +423,14 @@ const StudentDetail = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {student.attendanceHistory.length > 0 ? (
-                            student.attendanceHistory.map((month) => (
-                              <TableRow key={month.month}>
-                                <TableCell className="font-medium">{month.month}</TableCell>
-                                <TableCell className="text-center font-bold text-secondary">{month.rate}%</TableCell>
+                          {attendanceHistory.length > 0 ? (
+                            attendanceHistory.map((month: any, idx: number) => (
+                              <TableRow key={idx}>
+                                <TableCell className="font-medium">{month.month || 'N/A'}</TableCell>
+                                <TableCell className="text-center font-bold text-secondary">{month.rate || 0}%</TableCell>
                                 <TableCell className="text-center">
-                                  <Badge className={getAttendanceColor(month.rate) + " bg-current/10"}>
-                                    {month.rate >= 75 ? "Excellent" : "Needs Improvement"}
+                                  <Badge className={getAttendanceColor(Number(month.rate) || 0) + " bg-current/10"}>
+                                    {(Number(month.rate) || 0) >= 75 ? "Excellent" : "Needs Improvement"}
                                   </Badge>
                                 </TableCell>
                               </TableRow>
@@ -429,11 +511,11 @@ const StudentDetail = () => {
                     <div className="grid sm:grid-cols-2 gap-4 mb-6">
                       <div className="p-4 rounded-xl bg-primary/10 border border-primary/20">
                         <p className="text-sm text-muted-foreground mb-1">Total Paid</p>
-                        <p className="text-3xl font-bold text-primary">₦{student.paidFees.toLocaleString()}</p>
+                        <p className="text-3xl font-bold text-primary">₦{(Number(student.paidFees) || 0).toLocaleString()}</p>
                       </div>
                       <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20">
                         <p className="text-sm text-muted-foreground mb-1">Outstanding</p>
-                        <p className="text-3xl font-bold text-secondary">₦{outstanding.toLocaleString()}</p>
+                        <p className="text-3xl font-bold text-secondary">₦{(Number(outstanding) || 0).toLocaleString()}</p>
                       </div>
                     </div>
 
@@ -456,12 +538,12 @@ const StudentDetail = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {student.paymentHistory.length > 0 ? (
-                            student.paymentHistory.map((payment) => (
-                              <TableRow key={payment.id}>
-                                <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
-                                <TableCell className="font-mono text-xs">{payment.reference}</TableCell>
-                                <TableCell className="text-right font-bold text-primary">₦{payment.amount.toLocaleString()}</TableCell>
+                          {paymentHistory.length > 0 ? (
+                            paymentHistory.map((payment: any, index: number) => (
+                              <TableRow key={index}>
+                                <TableCell>{payment.date ? new Date(payment.date).toLocaleDateString() : "N/A"}</TableCell>
+                                <TableCell className="font-mono text-xs">{payment.reference || "N/A"}</TableCell>
+                                <TableCell className="text-right font-bold text-primary">₦{(Number(payment.amount) || 0).toLocaleString()}</TableCell>
                               </TableRow>
                             ))
                           ) : (

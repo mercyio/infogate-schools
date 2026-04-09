@@ -161,11 +161,39 @@ const ClassDetail = () => {
 
   if (!classData) return <div>Class not found</div>;
 
+  const handleExport = () => {
+    if (!filteredStudents.length) return;
+    const headers = ["Name", "Admission Number", "Gender", "Attendance", "Fee Status"];
+    const rows = filteredStudents.map(s => {
+      const totalFees = classData.fee_structure?.total || 0;
+      const paidFees = s.paid_fees || 0;
+      const feeStatus = totalFees === 0 ? "Paid" : paidFees >= totalFees ? "Paid" : paidFees > 0 ? "Partial" : "Unpaid";
+      return [
+        sf(s, 'full_name'),
+        s.admission_number,
+        sf(s, 'gender'),
+        `${s.attendance_rate || 90}%`,
+        feeStatus
+      ].join(",");
+    });
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${classData.name}_students.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Exporting student list...");
+  };
+
   const classColor = getClassColor(classId || "1");
+  const sf = (obj: any, field: string) =>
+    obj?.[field] ?? obj?.user_id?.[field];
 
   const filteredStudents = students.filter(
     (student: any) =>
-      student.user_id?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sf(student, 'full_name')?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.admission_number?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -223,17 +251,16 @@ const ClassDetail = () => {
     (sum: number, s: any) => sum + (s.paid_fees || 0),
     0
   );
-  const totalFeesExpected = students.reduce(
-    (sum: number, s: any) => sum + (s.total_fees || 100000),
-    0
-  );
+
+  const totalFeesExpected = students.length * (classData.fee_structure?.total || 0);
+
   const feeCollectionRate = totalFeesExpected > 0 ? Math.round(
     (totalFeesPaid / totalFeesExpected) * 100
   ) : 0;
 
   const avgAttendance = students.length > 0 ? Math.round(
     students.reduce((sum: number, s: any) => sum + (s.attendance_rate || 90), 0) /
-      students.length
+    students.length
   ) : 0;
 
   return (
@@ -299,9 +326,10 @@ const ClassDetail = () => {
             >
               <div className="flex items-center gap-3 mb-4">
                 <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg"
+                  className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg"
                   style={{
-                    background: `linear-gradient(to br, ${classColor.primary}, ${classColor.primary}cc)`,
+                    background: "linear-gradient(to bottom right, #4f46e5, #7c3aed)",
+                    color: "white"
                   }}
                 >
                   {(classData.class_teacher_id?.user_id?.full_name || classData.class_teacher_id?.full_name || 'Teacher')
@@ -400,15 +428,23 @@ const ClassDetail = () => {
                   <span className="text-muted-foreground">Paid</span>
                   <Badge className="bg-mint text-mint-foreground text-xs">
                     {
-                      students.filter((s: any) => s.status === "active") // Placeholder for fee status
-                        .length
+                      students.filter((s: any) => {
+                        const tf = classData.fee_structure?.total || 0;
+                        return tf > 0 && (s.paid_fees || 0) >= tf;
+                      }).length
                     }
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-muted-foreground">Partial</span>
                   <Badge className="bg-sunny text-sunny-foreground text-xs">
-                    0
+                    {
+                      students.filter((s: any) => {
+                        const tf = classData.fee_structure?.total || 0;
+                        const pf = s.paid_fees || 0;
+                        return pf > 0 && pf < tf;
+                      }).length
+                    }
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center text-xs">
@@ -421,7 +457,12 @@ const ClassDetail = () => {
                       border: `1px solid ${classColor.primary}40`,
                     }}
                   >
-                    0
+                    {
+                      students.filter((s: any) => {
+                        const pf = s.paid_fees || 0;
+                        return pf === 0;
+                      }).length
+                    }
                   </Badge>
                 </div>
               </div>
@@ -514,12 +555,9 @@ const ClassDetail = () => {
                 </div>
                 <Button
                   size="sm"
-                  className="gap-2 whitespace-nowrap text-white"
-                  style={{
-                    backgroundColor: `${classColor.primary}`,
-                    borderColor: `${classColor.primary}`,
-                    color: "white",
-                  }}
+                  variant="default"
+                  onClick={handleExport}
+                  className="gap-2 whitespace-nowrap text-white bg-primary hover:bg-primary/90"
                 >
                   <Download className="w-4 h-4" />
                   Export
@@ -530,13 +568,11 @@ const ClassDetail = () => {
             {filteredStudents.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredStudents.map((student: any, index: number) => {
-                  const totalFees = student.total_fees || 100000;
+                  const totalFees = classData.fee_structure?.total || 0;
                   const paidFees = student.paid_fees || 0;
                   const outstanding = totalFees - paidFees;
-                  const feePercentage = Math.round(
-                    (paidFees / totalFees) * 100
-                  );
-                  const feesStatus = paidFees >= totalFees ? "paid" : paidFees > 0 ? "partial" : "unpaid";
+                  const feePercentage = totalFees > 0 ? Math.round((paidFees / totalFees) * 100) : 0;
+                  const feesStatus = totalFees === 0 ? "paid" : paidFees >= totalFees ? "paid" : paidFees > 0 ? "partial" : "unpaid";
                   const attendanceRate = student.attendance_rate || 90;
 
                   return (
@@ -552,7 +588,7 @@ const ClassDetail = () => {
                       whileHover={{ translateY: -8 }}
                       onClick={() =>
                         navigate(
-                          `/portal/admin/classes/${classId}/students/${student._id}`
+                          `/portal/admin/students/${student._id}`
                         )
                       }
                       className="group relative cursor-pointer"
@@ -582,44 +618,22 @@ const ClassDetail = () => {
                           {/* Student Header */}
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-3 flex-1 min-w-0">
-                              <motion.div
-                                whileHover={{ scale: 1.15, rotate: 5 }}
-                                className="flex-shrink-0 w-14 h-14 rounded-full flex items-center justify-center font-bold text-sm shadow-lg"
-                                style={{
-                                  background: `linear-gradient(to br, ${classColor.primary}, ${classColor.primary}cc)`,
-                                  color: "white",
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  justifyContent: "center",
-                                  alignItems: "center",
-                                  lineHeight: "1",
-                                }}
-                              >
-                                {student.user_id?.full_name
-                                  ?.split(" ")
-                                  .slice(0, 2)
-                                  .map((n: string) => n.charAt(0).toUpperCase())
-                                  .join("") || 'S'}
-                              </motion.div>
-                              <div className="min-w-0 flex-1">
-                                <h3
-                                  className="font-bold text-base leading-tight truncate transition-colors duration-200"
-                                  style={{
-                                    color: "currentColor",
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    (
-                                      e.currentTarget as HTMLElement
-                                    ).style.color = classColor.primary;
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    (
-                                      e.currentTarget as HTMLElement
-                                    ).style.color = "currentColor";
-                                  }}
+                                <motion.div
+                                  whileHover={{ scale: 1.15, rotate: 5 }}
+                                  className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-lg"
                                 >
-                                  {student.user_id?.full_name}
-                                </h3>
+                                  {(sf(student, 'full_name') || 'N A')
+                                    .split(" ")
+                                    .slice(0, 2)
+                                    .map((n: string) => n[0].toUpperCase())
+                                    .join("")}
+                                </motion.div>
+                                <div className="min-w-0 flex-1">
+                                  <h3
+                                    className="font-bold text-base leading-tight truncate transition-colors duration-200 group-hover:text-primary"
+                                  >
+                                    {sf(student, 'full_name')}
+                                  </h3>
                                 <p className="text-xs text-muted-foreground font-medium truncate mt-0.5">
                                   {student.admission_number}
                                 </p>
@@ -650,7 +664,7 @@ const ClassDetail = () => {
                                   color: classColor.primary,
                                 }}
                               >
-                                {student.user_id?.gender || 'N/A'}
+                                {sf(student, 'gender') || 'N/A'}
                               </p>
                             </div>
                             <div className="bg-muted/40 rounded-lg p-4 text-center">
@@ -674,7 +688,7 @@ const ClassDetail = () => {
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(
-                                `/portal/admin/classes/${classId}/students/${student._id}`
+                                `/portal/admin/students/${student._id}`
                               );
                             }}
                             className="w-full py-2.5 px-4 rounded-lg font-semibold text-sm text-white shadow-lg transition-all duration-200 border-0"

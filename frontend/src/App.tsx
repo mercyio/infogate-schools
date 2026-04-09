@@ -31,7 +31,7 @@ import StudentDetail from "./pages/portal/admin/StudentDetail";
 import RolePermissions from "./pages/portal/admin/RolePermissions";
 import ContentManagement from "./pages/portal/admin/ContentManagement";
 import FeedbackReview from "./pages/portal/admin/FeedbackReview";
-import TeacherMonitoring from "./pages/portal/admin/TeacherMonitoring";
+import AssignmentsFeed from "./pages/portal/admin/Assignments";
 import TeacherDetail from "./pages/portal/admin/TeacherDetail";
 import EnrollmentReport from "./pages/portal/admin/EnrollmentReport";
 import AdminLayout from "./components/layout/AdminLayout";
@@ -51,8 +51,8 @@ import NotFound from "./pages/NotFound";
 
 const globalErrorHandler = (error: any) => {
   if (error?.response?.status !== 401) { // 401s are handled quietly by AuthContext logic
-      const message = error?.response?.data?.message || error?.message || "An unexpected error occurred.";
-      sonnerToast.error("Network Error", { description: message });
+    const message = error?.response?.data?.message || error?.message || "An unexpected error occurred.";
+    sonnerToast.error("Network Error", { description: message });
   }
 };
 
@@ -114,10 +114,10 @@ const App = () => (
                 <Route path="/portal/admin/permissions" element={<RolePermissions />} />
                 <Route path="/portal/admin/content" element={<ContentManagement />} />
                 <Route path="/portal/admin/feedback" element={<FeedbackReview />} />
-                <Route path="/portal/admin/teacher-monitoring" element={<TeacherMonitoring />} />
+                <Route path="/portal/admin/assignments" element={<AssignmentsFeed />} />
               </Route>
             </Route>
-            
+
             {/* Teacher Portal */}
             <Route element={<ProtectedRoute allowedRoles={['teacher']} />}>
               <Route path="/portal/teacher" element={<TeacherDashboard />} />
@@ -136,7 +136,7 @@ const App = () => (
             <Route element={<ProtectedRoute allowedRoles={['parent']} />}>
               <Route path="/portal/parent" element={<ParentDashboard />} />
             </Route>
-            
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

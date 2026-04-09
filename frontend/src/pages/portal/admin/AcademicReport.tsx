@@ -17,33 +17,11 @@ const AcademicReport = () => {
   const performanceBySubject = reportData?.performanceBySubject || [];
   const gradeDistribution = reportData?.gradeDistribution || [];
 
-  const handlePrint = () => {
+  const handleDownloadPDF = () => {
+    const originalTitle = document.title;
+    document.title = `Academic_Report_${new Date().getFullYear()}`;
     window.print();
-  };
-
-  const handleDownload = () => {
-    const csvContent = [
-      ["ACADEMIC PERFORMANCE REPORT"],
-      ["Generated: " + new Date().toLocaleDateString()],
-      [],
-      ["PERFORMANCE BY SUBJECT"],
-      ["SUBJECT", "AVERAGE SCORE", "STUDENTS"],
-      ...performanceBySubject.map((item: any) => [item.subject, item.avgScore, item.count]),
-      [],
-      ["GRADE DISTRIBUTION"],
-      ["GRADE", "COUNT"],
-      ...gradeDistribution.map((item: any) => [item.grade, item.count]),
-    ]
-      .map((row) => row.join(","))
-      .join("\n");
-
-    const element = document.createElement("a");
-    element.setAttribute("href", "data:text/csv;charset=utf-8," + encodeURIComponent(csvContent));
-    element.setAttribute("download", `academic-report-${new Date().getTime()}.csv`);
-    element.style.display = "none";
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
+    document.title = originalTitle;
   };
 
   if (isLoading) {
@@ -60,10 +38,29 @@ const AcademicReport = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          .shadow-sm, .shadow-md, .shadow-lg, .hover\\:shadow-md { 
+            box-shadow: none !important; 
+            transition: none !important;
+          }
+          body { background: white !important; }
+          .container { max-width: 100% !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+          .bg-white { border: 1px solid #e2e8f0 !important; }
+          .bg-slate-50 { background-color: #f8fafc !important; }
+          .bg-primary/10 { background-color: #f0f7ff !important; -webkit-print-color-adjust: exact; }
+          .bg-sunny/10 { background-color: #fffbeb !important; -webkit-print-color-adjust: exact; }
+          .bg-blue-500, .bg-green-500, .bg-sunny, .bg-coral, .bg-red-500 { 
+            -webkit-print-color-adjust: exact; 
+            print-color-adjust: exact; 
+          }
+        }
+      `}</style>
       <div className="max-w-7xl mx-auto">
         <header className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
           <div className="flex items-center gap-4">
-            <Link to="/admin/reports">
+            <Link to="/portal/admin/reports" className="no-print">
               <Button variant="ghost" size="icon" className="rounded-full">
                 <ArrowLeft className="w-5 h-5" />
               </Button>
@@ -73,12 +70,12 @@ const AcademicReport = () => {
               <p className="text-slate-500">Live database metrics for school performance</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={handlePrint} className="gap-2">
+          <div className="no-print flex items-center gap-3">
+            <Button variant="outline" onClick={handleDownloadPDF} className="gap-2 border-slate-300 text-slate-700">
               <Printer className="w-4 h-4" /> Print
             </Button>
-            <Button onClick={handleDownload} className="gap-2 bg-primary hover:bg-primary/90 text-white border-none">
-              <Download className="w-4 h-4" /> Export CSV
+            <Button onClick={handleDownloadPDF} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-100 border-none">
+              <Download className="w-4 h-4" /> Download PDF
             </Button>
           </div>
         </header>

@@ -12,6 +12,9 @@ import {
   Plus,
   LogOut,
   ClipboardCheck,
+  DollarSign,
+  ClipboardList,
+  MessageSquare,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -64,6 +67,21 @@ const items = [
     title: "Announcements",
     url: "/portal/admin/announcements",
     icon: Bell,
+  },
+  {
+    title: "Fees Management",
+    url: "/portal/admin/fees",
+    icon: DollarSign,
+  },
+  {
+    title: "Assignments",
+    url: "/portal/admin/assignments",
+    icon: ClipboardList,
+  },
+  {
+    title: "Feedback Review",
+    url: "/portal/admin/feedback",
+    icon: MessageSquare,
   },
 ];
 
@@ -120,18 +138,7 @@ export function AdminSidebar() {
 
       <SidebarFooter className="p-4 border-t border-primary/5">
         <SidebarMenu>
-          {/* User Profile */}
-          <SidebarMenuItem>
-            <div className="flex items-center gap-3 px-2 py-3 mb-2 rounded-xl bg-primary/5 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:bg-transparent transition-all">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary via-secondary to-primary bg-[length:200%_200%] animate-gradient rounded-lg flex items-center justify-center text-white shadow-lg shadow-primary/20 hover:scale-105 transition-transform shrink-0">
-                <Shield className="w-5 h-5" />
-              </div>
-              <div className="flex flex-col group-data-[collapsible=icon]:hidden overflow-hidden">
-                <span className="font-bold text-sm truncate">{user?.name || 'Admin'}</span>
-                <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Super Admin</span>
-              </div>
-            </div>
-          </SidebarMenuItem>
+          {/* User Profile removed based on request */}
 
           <SidebarMenuItem>
             <SidebarMenuButton 
