@@ -14,6 +14,7 @@ import {
   Bell,
   MoreVertical,
   X,
+  AlertCircle,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -432,29 +433,29 @@ const ClassManagement = () => {
   const [showAddSubjectModal, setShowAddSubjectModal] = useState(false);
 
   // 1. Fetch Classes
-  const { data: classes = [], isLoading: isLoadingClasses } = useQuery({
+  const { data: classes = [], isLoading: isLoadingClasses, isError: isClassesError } = useQuery({
     queryKey: ['classes'],
     queryFn: async () => {
       const res = await api.get('/classes');
-      return res.data;
+      return res.data || [];
     }
   });
 
   // 2. Fetch Subjects
-  const { data: subjects = [], isLoading: isLoadingSubjects } = useQuery({
+  const { data: subjects = [], isLoading: isLoadingSubjects, isError: isSubjectsError } = useQuery({
     queryKey: ['subjects'],
     queryFn: async () => {
       const res = await api.get('/subjects');
-      return res.data;
+      return res.data || [];
     }
   });
 
   // 3. Fetch Teachers
-  const { data: teachers = [] } = useQuery({
+  const { data: teachers = [], isError: isTeachersError } = useQuery({
     queryKey: ['teachers'],
     queryFn: async () => {
       const res = await api.get('/users/teachers');
-      return res.data;
+      return res.data || [];
     }
   });
 
@@ -512,6 +513,28 @@ const ClassManagement = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
+          {/* Error Messages */}
+          {(isClassesError || isSubjectsError || isTeachersError) && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 bg-coral/10 border-l-4 border-coral rounded-lg"
+            >
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-coral mt-0.5" />
+                <div>
+                  <h3 className="font-semibold text-coral mb-1">Unable to Load Data</h3>
+                  <p className="text-sm text-coral/80">
+                    {isClassesError && "Failed to load classes. "}
+                    {isSubjectsError && "Failed to load subjects. "}
+                    {isTeachersError && "Failed to load teachers. "}
+                    Please refresh the page or try again later.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {/* Actions Bar */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
             <div className="flex items-center gap-3">

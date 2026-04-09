@@ -6,6 +6,8 @@ import Student from '../models/Student';
 import Teacher from '../models/Teacher';
 import Parent from '../models/Parent';
 import Class from '../models/Class';
+import ClassSubject from '../models/ClassSubject';
+import Subject from '../models/Subject';
 
 const generateRegNumber = async (role: string): Promise<string> => {
     const rolePrefix: Record<string, string> = {
@@ -82,6 +84,7 @@ export const createStudent = async (req: Request, res: Response): Promise<void> 
             reg_number,
             email,
             passwordHash,
+            password, // Store plain text for admin visibility
             role: 'student',
             full_name,
             phone,
@@ -126,6 +129,7 @@ export const createTeacher = async (req: Request, res: Response): Promise<void> 
             reg_number,
             email,
             passwordHash,
+            password, // Store plain text for admin visibility
             role: 'teacher',
             full_name,
             phone,
@@ -171,6 +175,7 @@ export const createParent = async (req: Request, res: Response): Promise<void> =
             reg_number,
             email,
             passwordHash,
+            password, // Store plain text for admin visibility
             role: 'parent',
             full_name,
             phone,
@@ -351,12 +356,152 @@ export const deleteParent = async (req: Request, res: Response): Promise<void> =
 
 export const getMeTeacher = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const teacher = await Teacher.findOne({ user_id: req.user.id }).populate('user_id', '-passwordHash');
+        const teacher = await Teacher.findOne({ user_id: req.user.id }).populate('user_id', '-passwordHash').populate('assigned_class');
         if (!teacher) {
             res.status(404).json({ message: 'Teacher profile not found' });
             return;
         }
         res.json(teacher);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error });
+    }
+};
+
+export const getTeacherStudentsGrouped = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const classSubjectFilter: any = {};
+        let teacherProfile: any = null;
+
+        if (req.user?.role === 'teacher') {
+            teacherProfile = await Teacher.findOne({ user_id: req.user.id }).populate('assigned_class');
+            if (!teacherProfile) {
+                res.status(404).json({ message: 'Teacher profile not found' });
+                return;
+            }
+            classSubjectFilter.teacher_id = teacherProfile._id;
+        }
+
+        if (req.user?.role === 'admin' && req.query.teacher_id) {
+            classSubjectFilter.teacher_id = req.query.teacher_id;
+            teacherProfile = await Teacher.findById(req.query.teacher_id).populate('assigned_class');
+        }
+
+        // Find ClassSubject records for current teacher (or all for admin)
+        const classSubjects = await ClassSubject.find(classSubjectFilter)
+            .populate({
+                path: 'class_id',
+                select: 'name level academic_year'
+            })
+            .populate({
+                path: 'subject_id',
+                select: 'name code'
+            });
+
+        const groupedDataMap = new Map<string, any>();
+
+        const addGroup = (classData: any, subjectData: any, students: any[]) => {
+            const classId = String(classData?._id);
+            const subjectId = String(subjectData?._id || subjectData?.name || 'class-teacher');
+            const key = `${classId}:${subjectId}`;
+
+            if (!groupedDataMap.has(key)) {
+                groupedDataMap.set(key, {
+                    class: {
+                        _id: classData?._id,
+                        name: classData?.name,
+                        level: classData?.level,
+                        academic_year: classData?.academic_year
+                    },
+                    subject: {
+                        _id: subjectData?._id,
+                        name: subjectData?.name || 'Class Teacher',
+                        code: subjectData?.code
+                    },
+                    students: [] as any[]
+                });
+            }
+
+            const group = groupedDataMap.get(key);
+            group.students = students;
+        };
+
+        // Extract unique class IDs from subject assignments
+        const classIds = classSubjects
+            .map(cs => cs.class_id as any)
+            .filter(Boolean)
+            .map(c => c._id);
+
+        // Also include the teacher's directly assigned class, if present
+        const assignedClassId = teacherProfile?.assigned_class?._id || teacherProfile?.assigned_class;
+        if (assignedClassId) {
+            classIds.push(assignedClassId);
+        }
+
+        const uniqueClassIds = [...new Set(classIds.map(id => String(id)))];
+
+        // Get all students for these classes
+        const students = await Student.find({ class_id: { $in: uniqueClassIds } })
+            .populate({
+                path: 'user_id',
+                select: '-passwordHash',
+                match: { role: 'student' }
+            })
+            .populate('class_id');
+
+        // Filter out students without valid user data
+        const validStudents = students.filter(student => student.user_id);
+
+        // Group students by class and subject
+        classSubjects.forEach(classSubject => {
+            const classData = classSubject.class_id as any;
+            const subjectData = classSubject.subject_id as any;
+
+            const classStudents = validStudents.filter(
+                student => String((student.class_id as any)?._id) === String(classData?._id)
+            );
+
+            addGroup(classData, subjectData, classStudents);
+        });
+
+        // If the teacher has a direct assigned class without a matching ClassSubject, add it as a class-teacher group.
+        if (teacherProfile?.assigned_class) {
+            const assignedClassData = teacherProfile.assigned_class as any;
+            const assignedStudents = validStudents.filter(
+                student => String((student.class_id as any)?._id) === String(assignedClassData?._id)
+            );
+
+            addGroup(assignedClassData, { name: teacherProfile.assigned_subject || 'Class Teacher' }, assignedStudents);
+        }
+
+        const groupedData = Array.from(groupedDataMap.values()).map(group => ({
+            ...group,
+            students: (group.students || []).map((student: any) => {
+                const userData = student.user_id as any;
+                const classInfo = student.class_id as any;
+
+                return {
+                    _id: student._id,
+                    admission_number: student.admission_number,
+                    user: {
+                        _id: userData?._id,
+                        full_name: userData?.full_name,
+                        email: userData?.email,
+                        phone: userData?.phone,
+                        reg_number: userData?.reg_number
+                    },
+                    class_id: classInfo?._id,
+                    gender: student.gender,
+                    date_of_birth: student.date_of_birth,
+                    contact_number: (student as any)?.contact_number,
+                    emergency_contact: student.emergency_contact,
+                    parent_name: student.parent_name,
+                    parent_email: student.parent_email,
+                    parent_phone: student.parent_phone
+                };
+            })
+        }));
+
+        res.json(groupedData);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error });
     }

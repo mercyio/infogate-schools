@@ -9,7 +9,7 @@ router.route('/')
     .post(protect, authorize('admin', 'teacher'), markAttendance);
 
 router.route('/teachers')
-    .get(protect, authorize('admin'), getTeacherAttendance)
-    .post(protect, authorize('admin'), markTeacherAttendance);
+    .get(protect, authorize('admin', 'teacher'), getTeacherAttendance)
+    .post(protect, authorize('admin', 'teacher'), markTeacherAttendance);
 
 export default router;

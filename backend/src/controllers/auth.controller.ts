@@ -17,11 +17,26 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     try {
         const { reg_number, password } = req.body;
 
+        const normalizedRegNumber = String(reg_number || '').trim();
+        const submittedPassword = String(password || '');
 
+        if (!normalizedRegNumber || !submittedPassword) {
+            res.status(400).json({ message: 'Registration number and password are required' });
+            return;
+        }
 
-        const user = await User.findOne({ reg_number });
+        const user = await User.findOne({ reg_number: normalizedRegNumber });
 
-        if (user && (await bcrypt.compare(password, user.passwordHash))) {
+        if (!user) {
+            res.status(401).json({ message: 'Invalid registration number or password' });
+            return;
+        }
+
+        const passwordMatches = user.passwordHash
+            ? await bcrypt.compare(submittedPassword, user.passwordHash)
+            : user.password === submittedPassword;
+
+        if (passwordMatches) {
             res.json({
                 _id: user.id,
                 reg_number: user.reg_number,
@@ -68,7 +83,7 @@ export const updatePassword = async (req: any, res: Response): Promise<void> => 
 export const getMe = async (req: any, res: Response): Promise<void> => {
     try {
 
-        const user = await User.findById(req.user.id).select('-passwordHash');
+        const user = await User.findById(req.user.id).select('-passwordHash -password');
         if (user) {
             res.json(user);
         } else {

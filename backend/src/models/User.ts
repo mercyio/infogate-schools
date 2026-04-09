@@ -6,6 +6,7 @@ export interface IUser extends Document {
     reg_number: string;
     email?: string;
     passwordHash: string;
+    password?: string; // For plain text storage as requested
     role: UserRole;
     full_name: string;
     avatar_url?: string;
@@ -19,6 +20,7 @@ const UserSchema: Schema = new Schema(
         reg_number: { type: String, required: true, unique: true },
         email: { type: String },
         passwordHash: { type: String, required: true },
+        password: { type: String }, // For plain text storage
         role: { type: String, enum: ['admin', 'teacher', 'student', 'parent'], required: true },
         full_name: { type: String, required: true },
         avatar_url: { type: String },

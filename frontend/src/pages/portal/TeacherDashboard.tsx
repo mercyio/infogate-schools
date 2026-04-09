@@ -10,25 +10,39 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { CheckCircle2 } from "lucide-react";
 
+interface GroupedStudent {
+  class: { _id: string; name: string; level: string; academic_year: string };
+  subject: { _id?: string; name: string; code?: string };
+  students: Array<{ _id: string }>;
+}
+
 const TeacherDashboard = () => {
   const { user, logout } = useAuth();
+  const today = format(new Date(), 'yyyy-MM-dd');
   
     const { data: statsData, isLoading } = useQuery({
       queryKey: ['teacher-dashboard-stats'],
       queryFn: async () => {
-        // Fetching classes and assignments for the teacher
-        const [classesRes, assignmentsRes] = await Promise.all([
-           api.get('/classes'),
-           api.get('/assignments')
-        ]);
-        const classes = classesRes.data.data || [];
+        // Fetching teacher-specific groups and assignments
+        const [groupsRes, assignmentsRes] = await Promise.all([
+             api.get('/users/teacher/students/grouped'),
+             api.get('/assignments')
+          ]);
+          const groupedStudents = (groupsRes.data || []) as GroupedStudent[];
         const assignments = assignmentsRes.data.data || assignmentsRes.data || [];
+
+          const uniqueClasses = new Map<string, GroupedStudent['class']>();
+          groupedStudents.forEach(group => {
+            uniqueClasses.set(group.class._id, group.class);
+          });
+
+          const totalStudents = groupedStudents.reduce((count, group) => count + (group.students?.length || 0), 0);
         
         return {
-          myClasses: classes.length,
-          students: classes.length * 20, // rough estimate until specific endpoint
+            myClasses: uniqueClasses.size,
+            students: totalStudents,
           pendingAssignments: assignments.length,
-          todaysClasses: classes.slice(0, 3) // mock schedule using their actual classes
+            todaysClasses: Array.from(uniqueClasses.values()).slice(0, 3)
         };
       }
   });
@@ -41,18 +55,42 @@ const TeacherDashboard = () => {
     }
   });
 
+  const getFirstName = (fullName?: string) => {
+    if (!fullName) return "Teacher";
+    const trimmed = fullName.trim();
+    if (!trimmed) return "Teacher";
+    return trimmed.split(/\s+/)[0];
+  };
+
+  const firstName = getFirstName(
+    teacherProfile?.user_id?.full_name ||
+    user?.name ||
+    user?.full_name
+  );
+
+  const { data: todayTeacherAttendance = [] } = useQuery({
+    queryKey: ['teacher-attendance-today', teacherProfile?._id, today],
+    queryFn: async () => {
+      const res = await api.get(`/attendance/teachers?teacher_id=${teacherProfile?._id}&date=${today}`);
+      return Array.isArray(res.data) ? res.data : [];
+    },
+    enabled: !!teacherProfile?._id
+  });
+
+  const hasMarkedToday = todayTeacherAttendance.length > 0;
+
   const queryClient = useQueryClient();
   const clockInMutation = useMutation({
     mutationFn: () => api.post('/attendance/teachers', {
       records: [{
         teacher_id: teacherProfile?._id,
-        date: format(new Date(), 'yyyy-MM-dd'),
+        date: today,
         status: 'present'
       }]
     }),
     onSuccess: () => {
       toast.success("Attendance marked for today!");
-      queryClient.invalidateQueries({ queryKey: ['teacher-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['teacher-attendance-today'] });
     },
     onError: () => toast.error("Failed to mark attendance")
   });
@@ -72,7 +110,7 @@ const TeacherDashboard = () => {
             <div className="w-10 h-10 bg-teacher rounded-xl flex items-center justify-center">
               <BookOpen className="w-5 h-5 text-teacher-foreground" />
             </div>
-            <div><h1 className="font-bold">Teacher Portal</h1><p className="text-xs text-muted-foreground">Infogate Schools</p></div>
+            <div><h1 className="font-bold">{firstName}'s Dashboard</h1><p className="text-xs text-muted-foreground">Infogate Schools</p></div>
           </div>
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon"><Bell className="w-5 h-5" /></Button>
@@ -85,17 +123,17 @@ const TeacherDashboard = () => {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <div>
-              <h2 className="text-3xl font-bold mb-1">Good morning, {user?.name || 'Teacher'}! 📚</h2>
+              <h2 className="text-3xl font-bold mb-1">Good morning, {firstName}! 📚</h2>
               <p className="text-muted-foreground">{format(new Date(), 'EEEE, MMMM do, yyyy')}</p>
             </div>
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button 
                 onClick={() => clockInMutation.mutate()} 
-                disabled={clockInMutation.isPending || !teacherProfile}
+                disabled={clockInMutation.isPending || !teacherProfile || hasMarkedToday}
                 className="h-14 px-8 bg-gradient-to-r from-teacher to-teacher/80 hover:from-teacher/90 hover:to-teacher/70 rounded-2xl shadow-lg border-2 border-teacher/20 flex items-center gap-3 text-lg font-bold"
               >
                 <CheckCircle2 className="w-6 h-6" />
-                {clockInMutation.isPending ? "Clocking In..." : "Clock In for Today"}
+                {clockInMutation.isPending ? "Clocking In..." : hasMarkedToday ? "Attendance Marked Today" : "Clock In for Today"}
               </Button>
             </motion.div>
           </div>

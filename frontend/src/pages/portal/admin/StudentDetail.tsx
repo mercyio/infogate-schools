@@ -141,6 +141,7 @@ const StudentDetail = () => {
   const paymentHistory = Array.isArray(student.paymentHistory)
     ? student.paymentHistory.filter(Boolean)
     : [];
+  const loginPassword = sfProp(realStudent, 'user_id.password') || "********";
 
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading student profile...</div>;
@@ -282,6 +283,10 @@ const StudentDetail = () => {
                 <div className="flex items-center gap-3 text-sm p-2 rounded-lg bg-card border border-border/50">
                   <User className="w-4 h-4 text-primary" />
                   <span>Gender: {student.gender}</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm p-2 rounded-lg bg-card border border-border/50">
+                  <Shield className="w-4 h-4 text-primary" />
+                  <span className="truncate">Login Password: {loginPassword}</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm p-2 rounded-lg bg-card border border-border/50">
                   <MapPin className="w-4 h-4 text-primary" />

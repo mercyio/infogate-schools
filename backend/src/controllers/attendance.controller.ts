@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import Attendance from '../models/Attendance';
 import TeacherAttendance from '../models/TeacherAttendance';
 import { AuthRequest } from '../middleware/auth.middleware';
+import Teacher from '../models/Teacher';
 
 export const getAttendance = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -56,7 +57,17 @@ export const markAttendance = async (req: AuthRequest, res: Response): Promise<v
 export const getTeacherAttendance = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         let query = {};
-        if (req.query.teacher_id) {
+        const isTeacher = req.user?.role === 'teacher';
+
+        if (isTeacher) {
+            const teacherProfile = await Teacher.findOne({ user_id: req.user.id }).select('_id');
+            if (!teacherProfile) {
+                res.status(404).json({ message: 'Teacher profile not found' });
+                return;
+            }
+            query = { teacher_id: teacherProfile._id };
+        }
+        if (!isTeacher && req.query.teacher_id) {
             query = { teacher_id: req.query.teacher_id };
         }
         if (req.query.date) {
@@ -78,6 +89,27 @@ export const getTeacherAttendance = async (req: AuthRequest, res: Response): Pro
 export const markTeacherAttendance = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const records = req.body.records; // Array of { teacher_id, date, status, remarks }
+
+        if (!Array.isArray(records) || records.length === 0) {
+            res.status(400).json({ message: 'records is required and must be a non-empty array' });
+            return;
+        }
+
+        // Teachers can only clock in for themselves.
+        if (req.user?.role === 'teacher') {
+            const teacherProfile = await Teacher.findOne({ user_id: req.user.id }).select('_id');
+            if (!teacherProfile) {
+                res.status(404).json({ message: 'Teacher profile not found' });
+                return;
+            }
+
+            const ownTeacherId = String(teacherProfile._id);
+            const hasForeignTeacherId = records.some((record: any) => String(record.teacher_id) !== ownTeacherId);
+            if (hasForeignTeacherId) {
+                res.status(403).json({ message: 'Teachers can only mark their own attendance' });
+                return;
+            }
+        }
         
         // Delete existing records for the same teachers on the same date
         for (const record of records) {

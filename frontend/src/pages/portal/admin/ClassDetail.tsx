@@ -125,7 +125,7 @@ const ClassDetail = () => {
   const [searchTerm, setSearchTerm] = useState("");
 
   // 1. Fetch Class Data
-  const { data: classData, isLoading: isLoadingClass } = useQuery({
+  const { data: classData, isLoading: isLoadingClass, isError: isClassError } = useQuery({
     queryKey: ['class', classId],
     queryFn: async () => {
       const res = await api.get(`/classes/${classId}`);
@@ -134,20 +134,20 @@ const ClassDetail = () => {
   });
 
   // 2. Fetch Students
-  const { data: students = [], isLoading: isLoadingStudents } = useQuery({
+  const { data: students = [], isLoading: isLoadingStudents, isError: isStudentsError } = useQuery({
     queryKey: ['students', classId],
     queryFn: async () => {
       const res = await api.get(`/users/students?class_id=${classId}`);
-      return res.data;
+      return res.data || [];
     }
   });
 
   // 3. Fetch Subjects
-  const { data: subjects = [], isLoading: isLoadingSubjects } = useQuery({
+  const { data: subjects = [], isLoading: isLoadingSubjects, isError: isSubjectsError } = useQuery({
     queryKey: ['subjects', classId],
     queryFn: async () => {
       const res = await api.get(`/subjects/class/${classId}`);
-      return res.data;
+      return res.data || [];
     }
   });
 
@@ -159,7 +159,68 @@ const ClassDetail = () => {
     );
   }
 
-  if (!classData) return <div>Class not found</div>;
+  if (!classId) {
+    return (
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center">
+        <div className="playful-card p-8 max-w-md w-full">
+          <AlertCircle className="w-12 h-12 text-coral mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-center mb-2">Class Not Found</h2>
+          <p className="text-center text-muted-foreground mb-6">
+            Unable to find the requested class. Please try again or select a different class.
+          </p>
+          <Button 
+            onClick={() => navigate('/portal/admin/classes')}
+            className="w-full bg-primary hover:bg-primary/90 text-white"
+          >
+            Back to Classes
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isClassError || isStudentsError || isSubjectsError) {
+    return (
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center">
+        <div className="playful-card p-8 max-w-md w-full">
+          <AlertCircle className="w-12 h-12 text-coral mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-center mb-2">Unable to Load Class</h2>
+          <p className="text-center text-muted-foreground mb-6">
+            {isClassError && "Failed to load class details. "}
+            {isStudentsError && "Failed to load students. "}
+            {isSubjectsError && "Failed to load subjects. "}
+            Please check your connection and try again.
+          </p>
+          <Button 
+            onClick={() => navigate('/portal/admin/classes')}
+            className="w-full bg-primary hover:bg-primary/90 text-white"
+          >
+            Back to Classes
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!classData) {
+    return (
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center">
+        <div className="playful-card p-8 max-w-md w-full">
+          <AlertCircle className="w-12 h-12 text-coral mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-center mb-2">Class Not Found</h2>
+          <p className="text-center text-muted-foreground mb-6">
+            The requested class does not exist. It may have been deleted or the ID is invalid.
+          </p>
+          <Button 
+            onClick={() => navigate('/portal/admin/classes')}
+            className="w-full bg-primary hover:bg-primary/90 text-white"
+          >
+            Back to Classes
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const handleExport = () => {
     if (!filteredStudents.length) return;

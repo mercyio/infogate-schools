@@ -138,6 +138,7 @@ const TeacherDetail = () => {
   const teacher = {
     id: realTeacher._id,
     name: realTeacher.user_id?.full_name || "N/A",
+    regNumber: realTeacher.user_id?.reg_number || "N/A",
     subject: realTeacher.assigned_subject || "N/A",
     classes: realTeacher.assigned_class ? [realTeacher.assigned_class] : [],
     experience: realTeacher.experience || "N/A",
@@ -148,6 +149,7 @@ const TeacherDetail = () => {
     dateJoined: realTeacher.date_of_joining || realTeacher.createdAt,
     qualification: realTeacher.qualification || "N/A",
     specialization: realTeacher.specialization || "N/A",
+    password: realTeacher.user_id?.password || "********", // Display plain text password if available
     attendance: 0,
     assignmentsUploaded: 0,
     gradesSubmitted: 0
@@ -532,6 +534,22 @@ const TeacherDetail = () => {
                       <span className="text-muted-foreground">Date Joined</span>
                       <span className="font-medium">
                         {new Date(teacher.dateJoined).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between pt-2 border-t border-dashed border-primary/20">
+                      <span className="text-primary font-semibold flex items-center gap-1">
+                        <Shield className="w-3 h-3" /> Reg Number
+                      </span>
+                      <span className="font-mono bg-primary/5 px-2 py-0.5 rounded text-primary font-bold">
+                        {teacher.regNumber}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-primary font-semibold flex items-center gap-1">
+                        <Shield className="w-3 h-3" /> Login Password
+                      </span>
+                      <span className="font-mono bg-primary/5 px-2 py-0.5 rounded text-primary font-bold">
+                        {teacher.password}
                       </span>
                     </div>
                   </div>
