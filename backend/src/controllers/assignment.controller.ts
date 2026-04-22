@@ -1,11 +1,37 @@
 import { Request, Response } from 'express';
 import Assignment from '../models/Assignment';
 import AssignmentSubmission from '../models/AssignmentSubmission';
+import Teacher from '../models/Teacher';
+import ClassSubject from '../models/ClassSubject';
 import { AuthRequest } from '../middleware/auth.middleware';
 
-export const getAssignments = async (req: Request, res: Response): Promise<void> => {
+export const getAssignments = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const assignments = await Assignment.find().populate('class_subject_id').populate('teacher_id');
+        const query: Record<string, unknown> = {};
+
+        if (req.user?.role === 'teacher') {
+            const teacherProfile = await Teacher.findOne({ user_id: req.user.id }).select('_id');
+            if (!teacherProfile) {
+                res.status(404).json({ message: 'Teacher profile not found' });
+                return;
+            }
+            query.teacher_id = teacherProfile._id;
+        }
+
+        const assignments = await Assignment.find(query)
+            .populate({
+                path: 'class_subject_id',
+                populate: [
+                    { path: 'class_id', select: 'name level academic_year' },
+                    { path: 'subject_id', select: 'name code' },
+                ],
+            })
+            .populate({
+                path: 'teacher_id',
+                populate: { path: 'user_id', select: 'full_name email' },
+            })
+            .sort({ createdAt: -1 });
+
         res.json(assignments);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error });
@@ -15,10 +41,35 @@ export const getAssignments = async (req: Request, res: Response): Promise<void>
 export const createAssignment = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { title, description, class_subject_id, due_date, total_marks } = req.body;
-        const teacher_id = req.user.id;
+        if (!title || !class_subject_id || !due_date || total_marks === undefined) {
+            res.status(400).json({ message: 'title, class_subject_id, due_date and total_marks are required' });
+            return;
+        }
+
+        const teacherProfile = await Teacher.findOne({ user_id: req.user.id }).select('_id');
+        if (!teacherProfile) {
+            res.status(404).json({ message: 'Teacher profile not found' });
+            return;
+        }
+
+        const classSubject = await ClassSubject.findById(class_subject_id).select('teacher_id');
+        if (!classSubject) {
+            res.status(404).json({ message: 'Class-subject mapping not found' });
+            return;
+        }
+
+        if (!classSubject.teacher_id || String(classSubject.teacher_id) !== String(teacherProfile._id)) {
+            res.status(403).json({ message: 'You are not assigned to this class and subject' });
+            return;
+        }
 
         const assignment = await Assignment.create({
-            title, description, class_subject_id, teacher_id, due_date, total_marks
+            title,
+            description,
+            class_subject_id,
+            teacher_id: teacherProfile._id,
+            due_date,
+            total_marks,
         });
 
         res.status(201).json(assignment);
@@ -113,9 +164,28 @@ export const getAdminAssignmentFeed = async (req: Request, res: Response): Promi
     }
 };
 
-export const getAssignmentSubmissions = async (req: Request, res: Response): Promise<void> => {
+export const getAssignmentSubmissions = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { assignmentId } = req.params;
+
+        if (req.user?.role === 'teacher') {
+            const teacherProfile = await Teacher.findOne({ user_id: req.user.id }).select('_id');
+            if (!teacherProfile) {
+                res.status(404).json({ message: 'Teacher profile not found' });
+                return;
+            }
+
+            const assignment = await Assignment.findById(assignmentId).select('teacher_id');
+            if (!assignment) {
+                res.status(404).json({ message: 'Assignment not found' });
+                return;
+            }
+
+            if (String(assignment.teacher_id) !== String(teacherProfile._id)) {
+                res.status(403).json({ message: 'You are not authorized to view these submissions' });
+                return;
+            }
+        }
 
         const submissions = await AssignmentSubmission.find({ assignment_id: assignmentId })
             .populate({

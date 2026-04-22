@@ -174,7 +174,10 @@ const TeacherDashboard = () => {
                 <Link to="/portal/teacher/attendance">
                   <Button variant="outline" className="h-auto py-3 w-full">Mark Attendance</Button>
                 </Link>
-                {["Create Assignment", "View Timetable", "Grade Submissions"].map((action) => (
+                <Link to="/portal/teacher/assignments">
+                  <Button variant="outline" className="h-auto py-3 w-full">Create Assignment</Button>
+                </Link>
+                {["View Timetable", "Grade Submissions"].map((action) => (
                   <Button key={action} variant="outline" className="h-auto py-3">{action}</Button>
                 ))}
               </div>

@@ -78,6 +78,7 @@ const AdminDashboard = () => {
               { label: "View Reports", icon: BarChart3, color: "bg-lavender", path: "/portal/admin/reports" },
               { label: "Announcements", icon: Bell, color: "bg-coral", path: "/portal/admin/announcements" },
               { label: "Fees Management", icon: DollarSign, color: "bg-accent", path: "/portal/admin/fees" },
+              { label: "Timetable Upload", icon: BookOpen, color: "bg-lavender", path: "/portal/admin/timetables" },
               { label: "Class Management", icon: BookOpen, color: "bg-pink", path: "/portal/admin/classes" },
               { label: "Feedback Review", icon: Eye, color: "bg-secondary", path: "/portal/admin/feedback" },
               { label: "Assignments", icon: ClipboardList, color: "bg-coral", path: "/portal/admin/assignments" },

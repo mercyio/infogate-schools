@@ -399,7 +399,7 @@ export const getTeacherStudentsGrouped = async (req: AuthRequest, res: Response)
 
         const groupedDataMap = new Map<string, any>();
 
-        const addGroup = (classData: any, subjectData: any, students: any[]) => {
+        const addGroup = (classData: any, subjectData: any, students: any[], classSubjectId?: any) => {
             const classId = String(classData?._id);
             const subjectId = String(subjectData?._id || subjectData?.name || 'class-teacher');
             const key = `${classId}:${subjectId}`;
@@ -417,6 +417,7 @@ export const getTeacherStudentsGrouped = async (req: AuthRequest, res: Response)
                         name: subjectData?.name || 'Class Teacher',
                         code: subjectData?.code
                     },
+                    class_subject_id: classSubjectId ? String(classSubjectId) : null,
                     students: [] as any[]
                 });
             }
@@ -460,7 +461,7 @@ export const getTeacherStudentsGrouped = async (req: AuthRequest, res: Response)
                 student => String((student.class_id as any)?._id) === String(classData?._id)
             );
 
-            addGroup(classData, subjectData, classStudents);
+            addGroup(classData, subjectData, classStudents, classSubject._id);
         });
 
         // If the teacher has a direct assigned class without a matching ClassSubject, add it as a class-teacher group.

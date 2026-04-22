@@ -26,6 +26,7 @@ import Reports from "./pages/portal/admin/Reports";
 import Announcements from "./pages/portal/admin/Announcements";
 import FeesManagement from "./pages/portal/admin/FeesManagement";
 import ClassManagement from "./pages/portal/admin/ClassManagement";
+import TimetableManagement from "./pages/portal/admin/TimetableManagement";
 import ClassDetail from "./pages/portal/admin/ClassDetail";
 import StudentDetail from "./pages/portal/admin/StudentDetail";
 import RolePermissions from "./pages/portal/admin/RolePermissions";
@@ -52,7 +53,7 @@ import NotFound from "./pages/NotFound";
 const globalErrorHandler = (error: any) => {
   if (error?.response?.status !== 401) { // 401s are handled quietly by AuthContext logic
     const message = error?.response?.data?.message || error?.message || "An unexpected error occurred.";
-    sonnerToast.error("Network Error", { description: message });
+    sonnerToast.error("Request Failed", { description: message });
   }
 };
 
@@ -108,6 +109,7 @@ const App = () => (
                 <Route path="/portal/admin/custom-report" element={<CustomReport />} />
                 <Route path="/portal/admin/announcements" element={<Announcements />} />
                 <Route path="/portal/admin/fees" element={<FeesManagement />} />
+                <Route path="/portal/admin/timetables" element={<TimetableManagement />} />
                 <Route path="/portal/admin/classes" element={<ClassManagement />} />
                 <Route path="/portal/admin/classes/:classId" element={<ClassDetail />} />
                 <Route path="/portal/admin/classes/:classId/students/:studentId" element={<StudentDetail />} />

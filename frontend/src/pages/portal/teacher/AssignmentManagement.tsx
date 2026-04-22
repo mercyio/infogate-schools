@@ -3,23 +3,51 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { BookOpen, FileText, Plus, Calendar, Clock, Upload, Eye, Edit, Trash2, Bell, ChevronLeft, Users } from "lucide-react";
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { BookOpen, FileText, Plus, Calendar, ChevronLeft, Users } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface GroupedStudent {
+  class_subject_id: string | null;
   class: { _id: string; name: string; level: string };
   subject: { _id: string; name: string; code?: string };
   students: any[];
 }
 
+interface AssignmentItem {
+  _id: string;
+  title: string;
+  description?: string;
+  due_date: string;
+  total_marks: number;
+  class_subject_id?: {
+    _id?: string;
+    class_id?: { _id?: string; name?: string };
+    subject_id?: { _id?: string; name?: string };
+  } | string;
+}
+
 const AssignmentManagement = () => {
   const [showCreate, setShowCreate] = useState(false);
-  const [selectedClass, setSelectedClass] = useState<string | null>(null);
-  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    due_date: "",
+    total_marks: "100",
+  });
+
+  const queryClient = useQueryClient();
+
+  const getGroupKey = (group: GroupedStudent) => {
+    if (group.class_subject_id) {
+      return group.class_subject_id;
+    }
+    return `${group.class._id}:${group.subject._id || group.subject.name}`;
+  };
 
   // Fetch grouped students
   const { data: groupedStudents = [], isLoading } = useQuery({
@@ -30,15 +58,106 @@ const AssignmentManagement = () => {
     }
   });
 
-  // Auto-select first class if available
-  React.useEffect(() => {
-    if (groupedStudents?.length > 0 && !selectedClass) {
-      setSelectedClass(groupedStudents[0].class._id);
-      setSelectedSubject(groupedStudents[0].subject._id);
+  const { data: assignments = [] } = useQuery({
+    queryKey: ['teacher-assignments'],
+    queryFn: async () => {
+      const res = await api.get('/assignments');
+      return (Array.isArray(res.data) ? res.data : []) as AssignmentItem[];
     }
-  }, [groupedStudents, selectedClass]);
+  });
 
-  const selectedGroupData = groupedStudents.find(g => g.class._id === selectedClass);
+  const createAssignmentMutation = useMutation({
+    mutationFn: async () => {
+      const selectedGroup = groupedStudents.find((group) => getGroupKey(group) === selectedGroupKey);
+
+      if (!selectedGroup?.class_subject_id) {
+        throw new Error("This class/subject is not mapped for assignment creation yet.");
+      }
+
+      return api.post('/assignments', {
+        title: form.title.trim(),
+        description: form.description.trim(),
+        class_subject_id: selectedGroup.class_subject_id,
+        due_date: form.due_date,
+        total_marks: Number(form.total_marks),
+      });
+    },
+    onSuccess: () => {
+      toast.success("Assignment created successfully.");
+      setShowCreate(false);
+      setForm({ title: "", description: "", due_date: "", total_marks: "100" });
+      queryClient.invalidateQueries({ queryKey: ['teacher-assignments'] });
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || error?.message || 'Failed to create assignment';
+      toast.error(message);
+    }
+  });
+
+  // Auto-select first class if available
+  useEffect(() => {
+    if (groupedStudents?.length > 0 && !selectedGroupKey) {
+      setSelectedGroupKey(getGroupKey(groupedStudents[0]));
+    }
+  }, [groupedStudents, selectedGroupKey]);
+
+  const selectedGroupData = useMemo(
+    () => groupedStudents.find((group) => getGroupKey(group) === selectedGroupKey),
+    [groupedStudents, selectedGroupKey]
+  );
+
+  const selectedGroupAssignments = useMemo(() => {
+    if (!selectedGroupData) {
+      return [];
+    }
+
+    return assignments.filter((assignment) => {
+      const assignmentClassSubjectId =
+        typeof assignment.class_subject_id === 'string'
+          ? assignment.class_subject_id
+          : assignment.class_subject_id?._id;
+
+      if (selectedGroupData.class_subject_id && assignmentClassSubjectId) {
+        return String(assignmentClassSubjectId) === String(selectedGroupData.class_subject_id);
+      }
+
+      const assignmentClassId =
+        typeof assignment.class_subject_id === 'string'
+          ? undefined
+          : assignment.class_subject_id?.class_id?._id;
+      const assignmentSubjectId =
+        typeof assignment.class_subject_id === 'string'
+          ? undefined
+          : assignment.class_subject_id?.subject_id?._id;
+
+      return (
+        String(assignmentClassId || '') === String(selectedGroupData.class._id || '') &&
+        String(assignmentSubjectId || '') === String(selectedGroupData.subject._id || '')
+      );
+    });
+  }, [assignments, selectedGroupData]);
+
+  const canCreateForGroup = Boolean(selectedGroupData?.class_subject_id);
+
+  const handleCreateAssignment = () => {
+    if (!form.title.trim()) {
+      toast.error('Assignment title is required');
+      return;
+    }
+
+    if (!form.due_date) {
+      toast.error('Please choose a due date');
+      return;
+    }
+
+    const marks = Number(form.total_marks);
+    if (Number.isNaN(marks) || marks <= 0) {
+      toast.error('Total marks must be greater than 0');
+      return;
+    }
+
+    createAssignmentMutation.mutate();
+  };
 
   if (isLoading) return (
     <div className="min-h-screen bg-muted/30 flex items-center justify-center">
@@ -94,14 +213,13 @@ const AssignmentManagement = () => {
               <div className="space-y-2">
                 {groupedStudents.map((group) => (
                   <button
-                    key={`${group.class._id}`}
+                    key={getGroupKey(group)}
                     onClick={() => {
-                      setSelectedClass(group.class._id);
-                      setSelectedSubject(group.subject._id);
+                      setSelectedGroupKey(getGroupKey(group));
                     }}
                     className={cn(
                       "w-full text-left p-3 rounded-xl transition-all border",
-                      selectedClass === group.class._id
+                      selectedGroupKey === getGroupKey(group)
                         ? "bg-primary text-primary-foreground border-primary shadow-lg"
                         : "bg-muted/40 hover:bg-muted/60 border-transparent hover:border-primary/20"
                     )}
@@ -120,10 +238,19 @@ const AssignmentManagement = () => {
               {showCreate && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="playful-card p-6 mb-8">
                   <h3 className="font-bold text-lg mb-4">Create New Assignment</h3>
+                  {!canCreateForGroup && (
+                    <p className="text-sm text-amber-700 bg-amber-100 rounded-lg px-3 py-2 mb-4">
+                      This class/subject pair is not linked in ClassSubject yet, so assignment creation is disabled.
+                    </p>
+                  )}
                   <div className="grid sm:grid-cols-2 gap-4 mb-4">
                     <div>
                       <label className="text-sm font-medium mb-2 block">Title</label>
-                      <Input placeholder="Assignment title" />
+                      <Input
+                        placeholder="Assignment title"
+                        value={form.title}
+                        onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+                      />
                     </div>
                     <div>
                       <label className="text-sm font-medium mb-2 block">Class</label>
@@ -139,25 +266,38 @@ const AssignmentManagement = () => {
                     </div>
                     <div>
                       <label className="text-sm font-medium mb-2 block">Due Date</label>
-                      <Input type="date" />
+                      <Input
+                        type="date"
+                        value={form.due_date}
+                        onChange={(e) => setForm((prev) => ({ ...prev, due_date: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Total Marks</label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={form.total_marks}
+                        onChange={(e) => setForm((prev) => ({ ...prev, total_marks: e.target.value }))}
+                      />
                     </div>
                   </div>
                   <div className="mb-4">
                     <label className="text-sm font-medium mb-2 block">Instructions</label>
-                    <Textarea placeholder="Assignment instructions..." rows={4} />
-                  </div>
-                  <div className="mb-4">
-                    <label className="text-sm font-medium mb-2 block">Attachments</label>
-                    <div className="border-2 border-dashed rounded-xl p-8 text-center cursor-pointer hover:bg-muted/40 transition-colors">
-                      <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">Drop files here or click to upload</p>
-                    </div>
+                    <Textarea
+                      placeholder="Assignment instructions..."
+                      rows={4}
+                      value={form.description}
+                      onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                    />
                   </div>
                   <div className="flex gap-3">
-                    <Button onClick={() => {
-                      toast.success("Assignment created!");
-                      setShowCreate(false);
-                    }}>Create Assignment</Button>
+                    <Button
+                      onClick={handleCreateAssignment}
+                      disabled={createAssignmentMutation.isPending || !canCreateForGroup}
+                    >
+                      {createAssignmentMutation.isPending ? 'Creating...' : 'Create Assignment'}
+                    </Button>
                     <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
                   </div>
                 </motion.div>
@@ -169,17 +309,41 @@ const AssignmentManagement = () => {
                   <div className="playful-card p-6">
                     <h3 className="font-bold text-lg mb-2">{selectedGroupData.class.name}</h3>
                     <p className="text-sm text-muted-foreground mb-4">{selectedGroupData.subject.name} • {selectedGroupData.students.length} students</p>
-                    <div className="text-center py-12 text-muted-foreground">
-                      <FileText className="w-16 h-16 mx-auto mb-4 opacity-20" />
-                      <p>No assignments yet for this class</p>
-                      <Button 
-                        variant="outline" 
-                        className="mt-4"
-                        onClick={() => setShowCreate(true)}
-                      >
-                        Create First Assignment
-                      </Button>
-                    </div>
+                    {selectedGroupAssignments.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <FileText className="w-16 h-16 mx-auto mb-4 opacity-20" />
+                        <p>No assignments yet for this class and subject</p>
+                        <Button
+                          variant="outline"
+                          className="mt-4"
+                          onClick={() => setShowCreate(true)}
+                        >
+                          Create First Assignment
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {selectedGroupAssignments.map((assignment) => (
+                          <div key={assignment._id} className="rounded-xl border bg-muted/20 p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="font-semibold">{assignment.title}</p>
+                                {assignment.description ? (
+                                  <p className="text-sm text-muted-foreground mt-1">{assignment.description}</p>
+                                ) : null}
+                              </div>
+                              <span className="text-xs rounded-full bg-primary/10 text-primary px-2 py-1">
+                                {assignment.total_marks} marks
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              Due {new Date(assignment.due_date).toLocaleDateString()}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

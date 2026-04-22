@@ -23,6 +23,7 @@ import announcementRoutes from './routes/announcement.routes';
 import feeRoutes from './routes/fee.routes';
 import reportRoutes from './routes/report.routes';
 import feedbackRoutes from './routes/feedback.routes';
+import timetableRoutes from './routes/timetable.routes';
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -36,6 +37,7 @@ app.use('/api/announcements', announcementRoutes);
 app.use('/api/fees', feeRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/timetables', timetableRoutes);
 
 // Basic route
 app.get('/', (req, res) => {

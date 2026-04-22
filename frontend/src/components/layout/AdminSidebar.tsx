@@ -74,6 +74,11 @@ const items = [
     icon: DollarSign,
   },
   {
+    title: "Timetable Upload",
+    url: "/portal/admin/timetables",
+    icon: Calendar,
+  },
+  {
     title: "Assignments",
     url: "/portal/admin/assignments",
     icon: ClipboardList,
