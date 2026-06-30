@@ -49,6 +49,11 @@ const items = [
     icon: GraduationCap,
   },
   {
+    title: "Parents",
+    url: "/portal/admin/parents",
+    icon: Users,
+  },
+  {
     title: "Classes",
     url: "/portal/admin/classes",
     icon: BookOpen,

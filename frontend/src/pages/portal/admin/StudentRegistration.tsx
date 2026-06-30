@@ -1,21 +1,24 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Shield, 
-  Bell, 
-  LogOut, 
-  ArrowLeft, 
-  User, 
+import {
+  Shield,
+  Bell,
+  LogOut,
+  ArrowLeft,
+  User,
   Save,
   Calendar,
   Mail,
   Phone,
   MapPin,
   Users,
-  GraduationCap
+  GraduationCap,
+  Search,
+  X,
+  ChevronDown,
 } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
@@ -28,6 +31,20 @@ const StudentRegistration = () => {
   const isEdit = searchParams.get("edit") === "true";
   const studentId = searchParams.get("id");
 
+  const [parentSearch, setParentSearch] = useState("");
+  const [parentDropdownOpen, setParentDropdownOpen] = useState(false);
+  const parentDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (parentDropdownRef.current && !parentDropdownRef.current.contains(e.target as Node)) {
+        setParentDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -36,6 +53,7 @@ const StudentRegistration = () => {
     address: "",
     program: "",
     class_id: "",
+    parent_id: "",
     parentName: "",
     parentEmail: "",
     parentPhone: "",
@@ -59,6 +77,7 @@ const StudentRegistration = () => {
         address: student.address || "",
         program: student.program || "",
         class_id: student.class_id?._id || student.class_id || "",
+        parent_id: student.parent_id?._id || student.parent_id || "",
         parentName: student.parent_name || "",
         parentEmail: student.parent_email || "",
         parentPhone: student.parent_phone || "",
@@ -78,6 +97,14 @@ const StudentRegistration = () => {
     }
   });
 
+  const { data: parents = [] } = useQuery({
+    queryKey: ['parents'],
+    queryFn: async () => {
+      const res = await api.get('/users/parents');
+      return res.data || [];
+    }
+  });
+
   const registerMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const payload = {
@@ -87,6 +114,7 @@ const StudentRegistration = () => {
         address: data.address,
         program: data.program,
         class_id: data.class_id,
+        parent_id: data.parent_id || undefined,
         parent_name: data.parentName,
         parent_email: data.parentEmail,
         parent_phone: data.parentPhone,
@@ -269,6 +297,87 @@ const StudentRegistration = () => {
                 <Users className="w-5 h-5 text-parent" />
                 Parent/Guardian Information
               </h3>
+              <div className="mb-4">
+                <label className="text-sm font-semibold mb-2 block">Link to Parent Account</label>
+                <div className="relative" ref={parentDropdownRef}>
+                  {/* Display selected parent or search input */}
+                  <div
+                    className="flex items-center h-12 rounded-xl border border-input bg-background px-3 gap-2 cursor-pointer"
+                    onClick={() => setParentDropdownOpen((o) => !o)}
+                  >
+                    <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+                    {formData.parent_id ? (
+                      <>
+                        <span className="text-sm flex-1 truncate">
+                          {(() => {
+                            const p = parents.find((p: any) => p._id === formData.parent_id) as any;
+                            return p ? `${p.user_id?.full_name}${p.relationship ? ` (${p.relationship})` : ""}` : "Selected";
+                          })()}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setFormData({ ...formData, parent_id: "" }); setParentSearch(""); }}
+                        >
+                          <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <input
+                          type="text"
+                          className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground"
+                          placeholder="Search parent by name or email…"
+                          value={parentSearch}
+                          onChange={(e) => { setParentSearch(e.target.value); setParentDropdownOpen(true); }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                      </>
+                    )}
+                  </div>
+
+                  {/* Dropdown list */}
+                  {parentDropdownOpen && (
+                    <div className="absolute z-50 mt-1 w-full bg-background border border-input rounded-xl shadow-lg max-h-56 overflow-y-auto">
+                      <div
+                        className="px-4 py-2.5 text-sm text-muted-foreground hover:bg-muted cursor-pointer"
+                        onClick={() => { setFormData({ ...formData, parent_id: "" }); setParentSearch(""); setParentDropdownOpen(false); }}
+                      >
+                        — None (unlink parent) —
+                      </div>
+                      {parents
+                        .filter((p: any) => {
+                          const q = parentSearch.toLowerCase();
+                          return (
+                            p.user_id?.full_name?.toLowerCase().includes(q) ||
+                            p.user_id?.email?.toLowerCase().includes(q) ||
+                            p.relationship?.toLowerCase().includes(q)
+                          );
+                        })
+                        .map((p: any) => (
+                          <div
+                            key={p._id}
+                            className="px-4 py-2.5 hover:bg-muted cursor-pointer"
+                            onClick={() => {
+                              setFormData({ ...formData, parent_id: p._id });
+                              setParentSearch("");
+                              setParentDropdownOpen(false);
+                            }}
+                          >
+                            <p className="text-sm font-medium">{p.user_id?.full_name} {p.relationship ? <span className="text-muted-foreground font-normal">({p.relationship})</span> : null}</p>
+                            <p className="text-xs text-muted-foreground">{p.user_id?.email}</p>
+                          </div>
+                        ))}
+                      {parents.filter((p: any) => {
+                        const q = parentSearch.toLowerCase();
+                        return p.user_id?.full_name?.toLowerCase().includes(q) || p.user_id?.email?.toLowerCase().includes(q);
+                      }).length === 0 && (
+                        <p className="px-4 py-3 text-sm text-muted-foreground">No parents found.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label className="text-sm font-semibold mb-2 block">Parent/Guardian Name *</label>

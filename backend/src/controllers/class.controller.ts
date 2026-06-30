@@ -4,7 +4,7 @@ import ClassSubject from '../models/ClassSubject';
 
 export const getClasses = async (req: Request, res: Response): Promise<void> => {
     try {
-        const classes = await Class.find().populate({
+        const classes = await Class.find().sort({ order: 1 }).populate({
             path: 'class_teacher_id',
             populate: {
                 path: 'user_id',

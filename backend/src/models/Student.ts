@@ -6,6 +6,7 @@ export interface IStudent extends Document {
     user_id: mongoose.Types.ObjectId;
     admission_number: string;
     class_id?: mongoose.Types.ObjectId;
+    parent_id?: mongoose.Types.ObjectId;
     date_of_birth?: Date;
     gender?: 'male' | 'female' | 'other';
     address?: string;
@@ -36,6 +37,7 @@ const StudentSchema: Schema = new Schema(
         user_id: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
         admission_number: { type: String, required: true, unique: true },
         class_id: { type: Schema.Types.ObjectId, ref: 'Class' },
+        parent_id: { type: Schema.Types.ObjectId, ref: 'Parent' },
         date_of_birth: { type: Date },
         gender: { type: String, enum: ['male', 'female', 'other'] },
         address: { type: String },

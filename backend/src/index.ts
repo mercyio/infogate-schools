@@ -1,3 +1,4 @@
+import path from 'path';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -14,6 +15,7 @@ import subjectRoutes from './routes/subject.routes';
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 import userRoutes from './routes/user.routes';
 import attendanceRoutes from './routes/attendance.routes';

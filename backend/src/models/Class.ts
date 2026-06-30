@@ -6,6 +6,7 @@ export interface IClass extends Document {
     name: string;
     level: SchoolLevel;
     capacity: number;
+    order?: number;
     class_teacher_id?: mongoose.Types.ObjectId;
     academic_year: string;
     fee_structure?: {
@@ -24,6 +25,7 @@ const ClassSchema: Schema = new Schema(
         name: { type: String, required: true },
         level: { type: String, enum: ['nursery', 'primary', 'secondary', 'vocational'], required: true },
         capacity: { type: Number, required: true },
+        order: { type: Number, default: 99 },
         class_teacher_id: { type: Schema.Types.ObjectId, ref: 'Teacher' },
         academic_year: { type: String, required: true },
         fee_structure: {

@@ -47,6 +47,9 @@ import AssignmentManagement from "./pages/portal/teacher/AssignmentManagement";
 import ResourcesManagement from "./pages/portal/teacher/ResourcesManagement";
 import ParentCommunication from "./pages/portal/teacher/ParentCommunication";
 import TeacherReports from "./pages/portal/teacher/TeacherReports";
+import TimetableView from "./pages/portal/teacher/TimetableView";
+import ManageParents from "./pages/portal/admin/ManageParents";
+import AssignmentsPage from "./pages/portal/student/AssignmentsPage";
 import AttendanceMonitor from "./pages/portal/admin/AttendanceMonitor";
 import NotFound from "./pages/NotFound";
 
@@ -97,6 +100,7 @@ const App = () => (
                 <Route path="/portal/admin/students" element={<ManageStudents />} />
                 <Route path="/portal/admin/students/:studentId" element={<StudentDetail />} />
                 <Route path="/portal/admin/students/register" element={<StudentRegistration />} />
+                <Route path="/portal/admin/parents" element={<ManageParents />} />
                 <Route path="/portal/admin/teachers" element={<ManageTeachers />} />
                 <Route path="/portal/admin/teachers/:teacherId" element={<TeacherDetail />} />
                 <Route path="/portal/admin/attendance" element={<AttendanceMonitor />} />
@@ -129,11 +133,13 @@ const App = () => (
               <Route path="/portal/teacher/resources" element={<ResourcesManagement />} />
               <Route path="/portal/teacher/communication" element={<ParentCommunication />} />
               <Route path="/portal/teacher/reports" element={<TeacherReports />} />
+              <Route path="/portal/teacher/timetable" element={<TimetableView />} />
             </Route>
 
             {/* Student & Parent Portals */}
             <Route element={<ProtectedRoute allowedRoles={['student']} />}>
               <Route path="/portal/student" element={<StudentDashboard />} />
+              <Route path="/portal/student/assignments" element={<AssignmentsPage />} />
             </Route>
             <Route element={<ProtectedRoute allowedRoles={['parent']} />}>
               <Route path="/portal/parent" element={<ParentDashboard />} />

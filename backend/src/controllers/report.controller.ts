@@ -8,6 +8,9 @@ import Class from '../models/Class';
 import Assignment from '../models/Assignment';
 import Grade from '../models/Grade';
 import TeacherAttendance from '../models/TeacherAttendance';
+import ClassSubject from '../models/ClassSubject';
+import Timetable from '../models/Timetable';
+import { AuthRequest } from '../middleware/auth.middleware';
 
 export const getAdminDashboardStats = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -53,14 +56,46 @@ export const getTeacherDashboardStats = async (req: Request, res: Response): Pro
     }
 };
 
-export const getStudentDashboardStats = async (req: Request, res: Response): Promise<void> => {
+export const getStudentDashboardStats = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        // Placeholder for student-specific dashboard - could be expanded to real gpa/attendance
+        const studentProfile = await Student.findOne({ user_id: req.user?.id })
+            .populate({ path: 'class_id', select: 'name level academic_year' });
+
+        if (!studentProfile) {
+            res.status(404).json({ message: 'Student profile not found' });
+            return;
+        }
+
+        const classInfo = studentProfile.class_id as any;
+
+        // Timetable for the student's class
+        let timetables: any[] = [];
+        if (classInfo?._id) {
+            const classSubjects = await ClassSubject.find({ class_id: classInfo._id }).select('_id');
+            timetables = await Timetable.find({ class_subject_id: { $in: classSubjects.map((cs) => cs._id) } })
+                .populate({
+                    path: 'class_subject_id',
+                    populate: [
+                        { path: 'class_id', select: 'name level' },
+                        { path: 'subject_id', select: 'name code' },
+                    ],
+                })
+                .sort({ day_of_week: 1, start_time: 1 });
+        }
+
+        // Assignments for the student's class
+        let assignments: any[] = [];
+        if (classInfo?._id) {
+            const classSubjects = await ClassSubject.find({ class_id: classInfo._id }).select('_id');
+            assignments = await Assignment.find({ class_subject_id: { $in: classSubjects.map((cs) => cs._id) } })
+                .populate({ path: 'class_subject_id', populate: { path: 'subject_id', select: 'name code' } })
+                .sort({ due_date: 1 });
+        }
+
         res.json({
-            attendance: '98%',
-            gpa: '3.8',
-            upcomingAssignments: 2,
-            unreadMessages: 1
+            class: classInfo ? { _id: classInfo._id, name: classInfo.name, level: classInfo.level } : null,
+            timetables,
+            assignments,
         });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error });

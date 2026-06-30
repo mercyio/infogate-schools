@@ -18,9 +18,13 @@ const generateRegNumber = async (role: string): Promise<string> => {
     };
     const prefix = rolePrefix[role] || role.substring(0, 3).toUpperCase();
     const year = new Date().getFullYear();
-    const count = await User.countDocuments({ role });
-    const sequence = (count + 1).toString().padStart(4, '0');
-    return `IG/${year}/${prefix}-${sequence}`;
+    const pattern = `IG/${year}/${prefix}-`;
+    const last = await User.findOne({ reg_number: { $regex: `^${pattern}` } })
+        .sort({ reg_number: -1 })
+        .select('reg_number');
+    const lastSeq = last ? parseInt(last.reg_number.split('-').pop() || '0', 10) : 0;
+    const sequence = (lastSeq + 1).toString().padStart(4, '0');
+    return `${pattern}${sequence}`;
 };
 
 const generateRandomPassword = (): string => {
@@ -70,8 +74,8 @@ export const getParents = async (req: Request, res: Response): Promise<void> => 
 
 export const createStudent = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { 
-            full_name, email, phone, class_id, date_of_birth, gender, address, emergency_contact,
+        const {
+            full_name, email, phone, class_id, parent_id, date_of_birth, gender, address, emergency_contact,
             program, grade, parent_name, parent_email, parent_phone, medical_info
         } = req.body;
 
@@ -94,6 +98,7 @@ export const createStudent = async (req: Request, res: Response): Promise<void> 
             user_id: user._id,
             admission_number: reg_number,
             class_id,
+            parent_id: parent_id || undefined,
             date_of_birth,
             gender,
             address,
@@ -166,6 +171,22 @@ export const createParent = async (req: Request, res: Response): Promise<void> =
     try {
         const { full_name, email, phone, occupation, relationship } = req.body;
 
+        // If phone provided, check if a parent with this phone already exists
+        if (phone) {
+            const existingUser = await User.findOne({ phone, role: 'parent' });
+            if (existingUser) {
+                const existingParent = await Parent.findOne({ user_id: existingUser._id });
+                if (existingParent) {
+                    return res.status(200).json({
+                        message: 'Existing parent matched by phone number',
+                        credentials: { reg_number: existingUser.reg_number, password: existingUser.password },
+                        parent: existingParent,
+                        matched: true,
+                    }) as any;
+                }
+            }
+        }
+
         const reg_number = await generateRegNumber('parent');
         const password = generateRandomPassword();
         const salt = await bcrypt.genSalt(10);
@@ -175,7 +196,7 @@ export const createParent = async (req: Request, res: Response): Promise<void> =
             reg_number,
             email,
             passwordHash,
-            password, // Store plain text for admin visibility
+            password,
             role: 'parent',
             full_name,
             phone,
@@ -192,8 +213,13 @@ export const createParent = async (req: Request, res: Response): Promise<void> =
             credentials: { reg_number, password },
             parent
         });
-    } catch (error) {
-        res.status(500).json({ message: 'Server error', error });
+    } catch (error: any) {
+        if (error?.code === 11000) {
+            const field = Object.keys(error?.keyPattern || {})[0] || 'field';
+            res.status(400).json({ message: `Duplicate value for ${field}` });
+            return;
+        }
+        res.status(500).json({ message: 'Server error', error: error?.message });
     }
 };
 
@@ -212,15 +238,17 @@ export const updateStudent = async (req: Request, res: Response): Promise<void> 
         const student = await Student.findById(req.params.id);
         if (!student) { res.status(404).json({ message: 'Student not found' }); return; }
 
-        const { 
-            full_name, email, phone, class_id, date_of_birth, gender, address, emergency_contact, status,
-            program, grade, parent_name, parent_email, parent_phone, medical_info 
+        const {
+            full_name, email, phone, class_id, parent_id, date_of_birth, gender, address, emergency_contact, status,
+            program, grade, parent_name, parent_email, parent_phone, medical_info
         } = req.body;
 
         await User.findByIdAndUpdate(student.user_id, { full_name, email, phone }, { new: true });
 
         const updatedStudent = await Student.findByIdAndUpdate(req.params.id, {
-            class_id, date_of_birth, gender, address, emergency_contact, status,
+            class_id,
+            parent_id: parent_id || undefined,
+            date_of_birth, gender, address, emergency_contact, status,
             program, grade, parent_name, parent_email, parent_phone, medical_info
         }, { new: true }).populate('user_id', '-passwordHash').populate('class_id');
 
@@ -464,14 +492,32 @@ export const getTeacherStudentsGrouped = async (req: AuthRequest, res: Response)
             addGroup(classData, subjectData, classStudents, classSubject._id);
         });
 
-        // If the teacher has a direct assigned class without a matching ClassSubject, add it as a class-teacher group.
+        // If the teacher has a direct assigned class, add it only if not already covered by a ClassSubject group.
         if (teacherProfile?.assigned_class) {
             const assignedClassData = teacherProfile.assigned_class as any;
+            const assignedClassIdStr = String(assignedClassData?._id);
+
             const assignedStudents = validStudents.filter(
-                student => String((student.class_id as any)?._id) === String(assignedClassData?._id)
+                student => String((student.class_id as any)?._id) === assignedClassIdStr
             );
 
-            addGroup(assignedClassData, { name: teacherProfile.assigned_subject || 'Class Teacher' }, assignedStudents);
+            // Check if already covered by a ClassSubject group for this teacher
+            const alreadyCovered = classSubjects.some(
+                cs => String((cs.class_id as any)?._id) === assignedClassIdStr
+            );
+
+            if (!alreadyCovered) {
+                // Look up any ClassSubject for this class (regardless of teacher)
+                const anyCs = await ClassSubject.findOne({ class_id: assignedClassData._id })
+                    .populate({ path: 'subject_id', select: 'name code' });
+
+                addGroup(
+                    assignedClassData,
+                    anyCs ? anyCs.subject_id : { name: teacherProfile.assigned_subject || 'Class Teacher' },
+                    assignedStudents,
+                    anyCs ? anyCs._id : undefined
+                );
+            }
         }
 
         const groupedData = Array.from(groupedDataMap.values()).map(group => ({
@@ -531,6 +577,24 @@ export const recordStudentPayment = async (req: Request, res: Response): Promise
         }, { new: true }).populate('user_id', '-passwordHash').populate('class_id');
 
         res.status(200).json(updatedStudent);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error });
+    }
+};
+
+export const getMyChildren = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const parentProfile = await Parent.findOne({ user_id: req.user?.id });
+        if (!parentProfile) {
+            res.status(404).json({ message: 'Parent profile not found' });
+            return;
+        }
+
+        const children = await Student.find({ parent_id: parentProfile._id })
+            .populate({ path: 'user_id', select: 'full_name email reg_number' })
+            .populate({ path: 'class_id', select: 'name level academic_year' });
+
+        res.json(children);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error });
     }

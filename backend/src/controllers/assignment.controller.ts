@@ -1,7 +1,9 @@
+import path from 'path';
 import { Request, Response } from 'express';
 import Assignment from '../models/Assignment';
 import AssignmentSubmission from '../models/AssignmentSubmission';
 import Teacher from '../models/Teacher';
+import Student from '../models/Student';
 import ClassSubject from '../models/ClassSubject';
 import { AuthRequest } from '../middleware/auth.middleware';
 
@@ -16,6 +18,16 @@ export const getAssignments = async (req: AuthRequest, res: Response): Promise<v
                 return;
             }
             query.teacher_id = teacherProfile._id;
+        }
+
+        if (req.user?.role === 'student') {
+            const studentProfile = await Student.findOne({ user_id: req.user.id }).select('class_id');
+            if (!studentProfile?.class_id) {
+                res.json([]);
+                return;
+            }
+            const classSubjects = await ClassSubject.find({ class_id: studentProfile.class_id }).select('_id');
+            query.class_subject_id = { $in: classSubjects.map((cs) => cs._id) };
         }
 
         const assignments = await Assignment.find(query)
@@ -52,13 +64,16 @@ export const createAssignment = async (req: AuthRequest, res: Response): Promise
             return;
         }
 
-        const classSubject = await ClassSubject.findById(class_subject_id).select('teacher_id');
+        const classSubject = await ClassSubject.findById(class_subject_id).select('teacher_id class_id');
         if (!classSubject) {
             res.status(404).json({ message: 'Class-subject mapping not found' });
             return;
         }
 
-        if (!classSubject.teacher_id || String(classSubject.teacher_id) !== String(teacherProfile._id)) {
+        const isAssignedTeacher = classSubject.teacher_id && String(classSubject.teacher_id) === String(teacherProfile._id);
+        const isClassTeacher = await Teacher.exists({ _id: teacherProfile._id, assigned_class: classSubject.class_id });
+
+        if (!isAssignedTeacher && !isClassTeacher) {
             res.status(403).json({ message: 'You are not assigned to this class and subject' });
             return;
         }
@@ -214,6 +229,82 @@ export const getAssignmentSubmissions = async (req: AuthRequest, res: Response):
             data: formattedSubmissions,
             total: formattedSubmissions.length,
         });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error });
+    }
+};
+
+export const submitAssignment = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { assignmentId } = req.params;
+        const { submission_text } = req.body;
+        const file = (req as any).file;
+
+        const studentProfile = await Student.findOne({ user_id: req.user?.id }).select('_id');
+        if (!studentProfile) {
+            res.status(404).json({ message: 'Student profile not found' });
+            return;
+        }
+
+        const assignment = await Assignment.findById(assignmentId);
+        if (!assignment) {
+            res.status(404).json({ message: 'Assignment not found' });
+            return;
+        }
+
+        if (!submission_text && !file) {
+            res.status(400).json({ message: 'Either submission text or a file attachment is required' });
+            return;
+        }
+
+        const existing = await AssignmentSubmission.findOne({
+            assignment_id: assignmentId,
+            student_id: studentProfile._id,
+        });
+
+        const attachmentUrl = file
+            ? `/uploads/${file.filename}`
+            : existing?.attachment_url;
+
+        if (existing) {
+            existing.submission_text = submission_text || existing.submission_text;
+            if (file) existing.attachment_url = attachmentUrl;
+            existing.status = 'submitted';
+            existing.submitted_at = new Date();
+            await existing.save();
+            res.json(existing);
+        } else {
+            const submission = await AssignmentSubmission.create({
+                assignment_id: assignmentId,
+                student_id: studentProfile._id,
+                submission_text,
+                attachment_url: attachmentUrl,
+                status: 'submitted',
+                submitted_at: new Date(),
+            });
+            res.status(201).json(submission);
+        }
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error });
+    }
+};
+
+export const getMySubmission = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { assignmentId } = req.params;
+
+        const studentProfile = await Student.findOne({ user_id: req.user?.id }).select('_id');
+        if (!studentProfile) {
+            res.status(404).json({ message: 'Student profile not found' });
+            return;
+        }
+
+        const submission = await AssignmentSubmission.findOne({
+            assignment_id: assignmentId,
+            student_id: studentProfile._id,
+        });
+
+        res.json(submission || null);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error });
     }
