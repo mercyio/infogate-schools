@@ -1,26 +1,45 @@
 import type React from "react"
-
 import { useState, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { User, GraduationCap, Users, Mail, Phone, MessageSquare, ChevronRight, CheckCircle2 } from "lucide-react"
+
+const grades = [
+  { value: "kindergarten", label: "Kindergarten" },
+  { value: "nursery-1", label: "Nursery 1" },
+  { value: "nursery-2", label: "Nursery 2" },
+  { value: "primary-1", label: "Primary 1" },
+  { value: "primary-2", label: "Primary 2" },
+  { value: "primary-3", label: "Primary 3" },
+  { value: "primary-4", label: "Primary 4" },
+  { value: "primary-5", label: "Primary 5" },
+  { value: "primary-6", label: "Primary 6" },
+  { value: "jss-1", label: "JSS 1" },
+  { value: "jss-2", label: "JSS 2" },
+  { value: "jss-3", label: "JSS 3" },
+  { value: "ss-1", label: "SS 1" },
+  { value: "ss-2", label: "SS 2" },
+  { value: "ss-3", label: "SS 3" },
+]
+
+const steps = [
+  { id: 1, label: "Student Info", icon: User, color: "from-sky-500 to-blue-600" },
+  { id: 2, label: "Parent Info", icon: Users, color: "from-violet-500 to-purple-600" },
+  { id: 3, label: "Additional", icon: MessageSquare, color: "from-emerald-500 to-green-600" },
+]
 
 export default function RegisterPage() {
   const navigate = useNavigate()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [formStatus, setFormStatus] = useState<{
-    type: "success" | "error" | null
-    message: string | null
-  }>({ type: null, message: null })
-
+  const [currentStep, setCurrentStep] = useState(1)
+  const [formStatus, setFormStatus] = useState<{ type: "success" | "error" | null; message: string | null }>({ type: null, message: null })
   const formRef = useRef<HTMLFormElement>(null)
 
-  // Form state for controlled inputs
   const [formData, setFormData] = useState({
     student_name: "",
     grade: "",
@@ -31,116 +50,67 @@ export default function RegisterPage() {
   })
 
   const handleInputChange = (name: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const resetForm = () => {
-    setFormData({
-      student_name: "",
-      grade: "",
-      parent_name: "",
-      email: "",
-      phone: "",
-      message: "",
-    })
-
-    // Also reset the form element if it exists
-    if (formRef.current) {
-      formRef.current.reset()
-    }
+  const canProceed = (step: number) => {
+    if (step === 1) return !!formData.student_name && !!formData.grade
+    if (step === 2) return !!formData.parent_name && !!formData.email && !!formData.phone
+    return true
   }
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    console.log("Form submission started")
-
     setIsSubmitting(true)
     setFormStatus({ type: null, message: null })
 
     try {
-      // Validate required fields on client side
       if (!formData.student_name || !formData.grade || !formData.parent_name || !formData.email || !formData.phone) {
-        setFormStatus({
-          type: "error",
-          message: "Please fill in all required fields.",
-        })
+        setFormStatus({ type: "error", message: "Please fill in all required fields." })
         setIsSubmitting(false)
         return
       }
 
-      // Basic email validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailRegex.test(formData.email)) {
-        setFormStatus({
-          type: "error",
-          message: "Please enter a valid email address.",
-        })
+        setFormStatus({ type: "error", message: "Please enter a valid email address." })
         setIsSubmitting(false)
         return
       }
 
-      console.log("Registration submitted:", formData)
-      
-      // Submit registration to the backend
       import("@/lib/api").then(async ({ default: api }) => {
         try {
-            const response = await api.post('/users/student-registration', {
-              full_name: formData.student_name,
-              email: formData.email,
-              phone: formData.phone,
-              grade: formData.grade,
-              parent_name: formData.parent_name,
-              role: 'student', // Pre-assigned role
-              message: formData.message
-            });
-            
-            // Show success message
-            setFormStatus({
-              type: "success",
-              message: "Registration successful! Redirecting to confirmation page...",
-            });
-            
-            const registrationData = {
-              ...formData,
-              tx_ref: response.data?.user?.reg_number || `TXN-${Date.now()}`,
-              initiated_at: new Date().toISOString(),
-              status: "completed",
-            };
-            
-            // Navigate to success page with registration data
-            setTimeout(() => {
-              navigate("/register-success", {
-                state: { registrationData },
-              })
-            }, 1000)
-            
+          const response = await api.post('/users/student-registration', {
+            full_name: formData.student_name,
+            email: formData.email,
+            phone: formData.phone,
+            grade: formData.grade,
+            parent_name: formData.parent_name,
+            role: 'student',
+            message: formData.message
+          })
+
+          setFormStatus({ type: "success", message: "Registration successful! Redirecting..." })
+
+          const registrationData = {
+            ...formData,
+            tx_ref: response.data?.user?.reg_number || `TXN-${Date.now()}`,
+            initiated_at: new Date().toISOString(),
+            status: "completed",
+          }
+
+          setTimeout(() => {
+            navigate("/register-success", { state: { registrationData } })
+          }, 1000)
         } catch (apiError: any) {
-          console.error("API error during registration:", apiError);
           setFormStatus({
             type: "error",
-            message: apiError.response?.data?.message || "Server error occurred during registration. Please try again.",
-          });
+            message: apiError.response?.data?.message || "Server error occurred. Please try again.",
+          })
         }
-      });
-      
-    } catch (error) {
-      console.error("Unexpected error during registration:", error)
-
-      let errorMessage = "An unexpected error occurred. Please try again."
-
-      if (error instanceof Error) {
-        errorMessage = error.message
-      } else if (typeof error === "string") {
-        errorMessage = error
-      }
-
-      setFormStatus({
-        type: "error",
-        message: errorMessage,
       })
+    } catch (error) {
+      setFormStatus({ type: "error", message: error instanceof Error ? error.message : "An unexpected error occurred." })
     } finally {
       setIsSubmitting(false)
     }
@@ -148,157 +118,244 @@ export default function RegisterPage() {
 
   return (
     <div className="w-full">
-      <Card className="shadow-xl border-0 max-w-2xl mx-auto bg-gradient-to-br from-primary/20 via-primary/15 to-secondary/15">
-              <CardHeader className="text-center pb-8">
-                <CardTitle className="text-2xl md:text-3xl font-bold text-foreground">
-                  Student Registration Form
-                </CardTitle>
-                <p className="text-muted-foreground mt-2">
-                  Please fill out all required fields to begin the application process
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {formStatus.type && formStatus.message && (
-                  <Alert variant={formStatus.type === "success" ? "default" : "destructive"}>
-                    <AlertDescription>
-                      {typeof formStatus.message === "string" ? formStatus.message : "An error occurred"}
-                    </AlertDescription>
-                  </Alert>
-                )}
+      {/* Step indicator */}
+      <div className="flex items-center justify-center gap-2 mb-8">
+        {steps.map((step, i) => {
+          const Icon = step.icon
+          const isActive = currentStep === step.id
+          const isDone = currentStep > step.id
+          return (
+            <div key={step.id} className="flex items-center gap-2">
+              <div className="flex flex-col items-center gap-1">
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all shadow-sm
+                  ${isDone ? "bg-emerald-500" : isActive ? `bg-gradient-to-br ${step.color}` : "bg-gray-100 border-2 border-gray-200"}`}>
+                  {isDone
+                    ? <CheckCircle2 className="w-5 h-5 text-white" />
+                    : <Icon className={`w-5 h-5 ${isActive ? "text-white" : "text-gray-400"}`} />
+                  }
+                </div>
+                <span className={`text-xs font-bold ${isActive ? "text-gray-900" : isDone ? "text-emerald-600" : "text-gray-400"}`}>
+                  {step.label}
+                </span>
+              </div>
+              {i < steps.length - 1 && (
+                <div className={`w-12 h-0.5 mb-5 rounded-full ${currentStep > step.id ? "bg-emerald-400" : "bg-gray-200"}`} />
+              )}
+            </div>
+          )
+        })}
+      </div>
 
-                <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
-                  {/* Student Information */}
-                   <div className="space-y-4">
-                     <h3 className="text-lg font-semibold text-foreground border-b-2 border-primary/30 pb-2">Student Information</h3>
+      {formStatus.type && formStatus.message && (
+        <Alert variant={formStatus.type === "success" ? "default" : "destructive"} className="mb-6 rounded-2xl">
+          <AlertDescription>{formStatus.message}</AlertDescription>
+        </Alert>
+      )}
 
-                     <div className="space-y-2">
-                       <Label htmlFor="student_name" className="text-foreground font-semibold">Student Full Name *</Label>
-                       <Input
-                         id="student_name"
-                         name="student_name"
-                         type="text"
-                         required
-                         value={formData.student_name}
-                         onChange={(e) => handleInputChange("student_name", e.target.value)}
-                         placeholder="Enter student's full name"
-                         className="w-full border-primary/30 focus:border-primary focus:ring-primary"
-                       />
-                     </div>
+      <form ref={formRef} onSubmit={handleSubmit}>
 
-                     <div className="space-y-2">
-                       <Label htmlFor="grade" className="text-foreground font-semibold">Grade Level *</Label>
-                      <Select
-                        name="grade"
-                        required
-                        value={formData.grade}
-                        onValueChange={(value) => handleInputChange("grade", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select grade level" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="kindergarten">Kindergarten</SelectItem>
-                          <SelectItem value="1st">1st Grade</SelectItem>
-                          <SelectItem value="2nd">2nd Grade</SelectItem>
-                          <SelectItem value="3rd">3rd Grade</SelectItem>
-                          <SelectItem value="4th">4th Grade</SelectItem>
-                          <SelectItem value="5th">5th Grade</SelectItem>
-                          <SelectItem value="6th">6th Grade</SelectItem>
-                          <SelectItem value="7th">7th Grade</SelectItem>
-                          <SelectItem value="8th">8th Grade</SelectItem>
-                          <SelectItem value="9th">9th Grade</SelectItem>
-                          <SelectItem value="10th">10th Grade</SelectItem>
-                          <SelectItem value="11th">11th Grade</SelectItem>
-                          <SelectItem value="12th">12th Grade</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+        {/* Step 1 — Student */}
+        {currentStep === 1 && (
+          <div className="space-y-5">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-md">
+                <User className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-gray-900">Student Information</h3>
+                <p className="text-xs text-muted-foreground">Tell us about the student applying</p>
+              </div>
+            </div>
 
-                  {/* Parent/Guardian Information */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-foreground border-b-2 border-primary/30 pb-2">Parent/Guardian Information</h3>
+            <div className="space-y-2">
+              <Label htmlFor="student_name" className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                Student Full Name <span className="text-rose-500">*</span>
+              </Label>
+              <Input
+                id="student_name"
+                name="student_name"
+                type="text"
+                required
+                value={formData.student_name}
+                onChange={(e) => handleInputChange("student_name", e.target.value)}
+                placeholder="Enter student's full name"
+                className="h-11 rounded-xl bg-sky-50 border-sky-200 focus:bg-white placeholder:text-gray-400"
+              />
+            </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="parent_name" className="text-foreground font-semibold">Parent/Guardian Full Name *</Label>
-                      <Input
-                        id="parent_name"
-                        name="parent_name"
-                        type="text"
-                        required
-                        value={formData.parent_name}
-                        onChange={(e) => handleInputChange("parent_name", e.target.value)}
-                        placeholder="Enter parent/guardian full name"
-                        className="w-full border-primary/30 focus:border-primary focus:ring-primary"
-                      />
-                    </div>
+            <div className="space-y-2">
+              <Label htmlFor="grade" className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                <GraduationCap className="w-4 h-4 text-sky-500" />
+                Grade / Class Level <span className="text-rose-500">*</span>
+              </Label>
+              <Select name="grade" required value={formData.grade} onValueChange={(v) => handleInputChange("grade", v)}>
+                <SelectTrigger className="h-11 rounded-xl bg-sky-50 border-sky-200 focus:bg-white">
+                  <SelectValue placeholder="Select grade level" />
+                </SelectTrigger>
+                <SelectContent>
+                  {grades.map((g) => (
+                    <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="email" className="text-foreground font-semibold">Email Address *</Label>
-                      <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        required
-                        value={formData.email}
-                        onChange={(e) => handleInputChange("email", e.target.value)}
-                        placeholder="Enter email address"
-                        className="w-full border-primary/30 focus:border-primary focus:ring-primary"
-                      />
-                    </div>
+            <Button
+              type="button"
+              size="lg"
+              disabled={!canProceed(1)}
+              onClick={() => setCurrentStep(2)}
+              className="w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold shadow-md mt-2"
+            >
+              Continue <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
 
-                    <div className="space-y-2">
-                      <Label htmlFor="phone" className="text-foreground font-semibold">Phone Number *</Label>
-                      <Input
-                        id="phone"
-                        name="phone"
-                        type="tel"
-                        required
-                        value={formData.phone}
-                        onChange={(e) => handleInputChange("phone", e.target.value)}
-                        placeholder="Enter phone number (e.g., +251912345678)"
-                        className="w-full border-primary/30 focus:border-primary focus:ring-primary"
-                      />
-                    </div>
-                  </div>
+        {/* Step 2 — Parent */}
+        {currentStep === 2 && (
+          <div className="space-y-5">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-md">
+                <Users className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-gray-900">Parent / Guardian Information</h3>
+                <p className="text-xs text-muted-foreground">We'll use this to reach out to you</p>
+              </div>
+            </div>
 
-                  {/* Additional Information */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-foreground border-b-2 border-primary/30 pb-2">Additional Information</h3>
+            <div className="space-y-2">
+              <Label htmlFor="parent_name" className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                Parent / Guardian Full Name <span className="text-rose-500">*</span>
+              </Label>
+              <Input
+                id="parent_name"
+                name="parent_name"
+                type="text"
+                required
+                value={formData.parent_name}
+                onChange={(e) => handleInputChange("parent_name", e.target.value)}
+                placeholder="Enter parent/guardian full name"
+                className="h-11 rounded-xl bg-violet-50 border-violet-200 focus:bg-white placeholder:text-gray-400"
+              />
+            </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="message" className="text-foreground font-semibold">Additional Comments (Optional)</Label>
-                      <Textarea
-                        id="message"
-                        name="message"
-                        value={formData.message}
-                        onChange={(e) => handleInputChange("message", e.target.value)}
-                        placeholder="Any additional information you'd like to share..."
-                        className="w-full min-h-[100px] border-primary/30 focus:border-primary focus:ring-primary"
-                      />
-                    </div>
-                  </div>
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                <Mail className="w-4 h-4 text-violet-500" />
+                Email Address <span className="text-rose-500">*</span>
+              </Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                required
+                value={formData.email}
+                onChange={(e) => handleInputChange("email", e.target.value)}
+                placeholder="parent@example.com"
+                className="h-11 rounded-xl bg-violet-50 border-violet-200 focus:bg-white placeholder:text-gray-400"
+              />
+            </div>
 
-                  {/* Submit Button */}
-                  <div className="pt-6">
-                    <Button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="w-full bg-primary hover:bg-primary/90 text-white py-3 text-lg font-semibold rounded-lg disabled:opacity-50"
-                    >
-                      {isSubmitting ? "Submitting..." : "Submit Registration"}
-                    </Button>
-                  </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone" className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                <Phone className="w-4 h-4 text-violet-500" />
+                Phone Number <span className="text-rose-500">*</span>
+              </Label>
+              <Input
+                id="phone"
+                name="phone"
+                type="tel"
+                required
+                value={formData.phone}
+                onChange={(e) => handleInputChange("phone", e.target.value)}
+                placeholder="+234 800 000 0000"
+                className="h-11 rounded-xl bg-violet-50 border-violet-200 focus:bg-white placeholder:text-gray-400"
+              />
+            </div>
 
-                  <div className="text-center text-sm text-muted-foreground">
-                    <p>
-                      By submitting this form, you agree to our terms and conditions. We will contact you within 24-48
-                      hours to schedule your campus visit.
-                    </p>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
+            <div className="flex gap-3 mt-2">
+              <Button type="button" variant="outline" size="lg" onClick={() => setCurrentStep(1)} className="flex-1 font-bold border-2">
+                Back
+              </Button>
+              <Button
+                type="button"
+                size="lg"
+                disabled={!canProceed(2)}
+                onClick={() => setCurrentStep(3)}
+                className="flex-1 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-400 hover:to-purple-500 text-white font-bold shadow-md"
+              >
+                Continue <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3 — Additional + Submit */}
+        {currentStep === 3 && (
+          <div className="space-y-5">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-md">
+                <MessageSquare className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-gray-900">Almost Done!</h3>
+                <p className="text-xs text-muted-foreground">Review your details and submit</p>
+              </div>
+            </div>
+
+            {/* Summary card */}
+            <div className="rounded-2xl bg-blue-50 border-2 border-blue-200 p-4 space-y-2.5">
+              <p className="text-xs font-extrabold uppercase tracking-wider text-blue-500 mb-3">Application Summary</p>
+              {[
+                { label: "Student", value: formData.student_name },
+                { label: "Grade", value: grades.find(g => g.value === formData.grade)?.label },
+                { label: "Parent", value: formData.parent_name },
+                { label: "Email", value: formData.email },
+                { label: "Phone", value: formData.phone },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex justify-between text-sm">
+                  <span className="text-muted-foreground font-medium">{label}</span>
+                  <span className="font-extrabold text-gray-900 truncate max-w-[60%] text-right">{value}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="message" className="text-sm font-semibold text-gray-700">
+                Additional Comments <span className="text-muted-foreground font-normal">(Optional)</span>
+              </Label>
+              <Textarea
+                id="message"
+                name="message"
+                value={formData.message}
+                onChange={(e) => handleInputChange("message", e.target.value)}
+                placeholder="Any special needs, questions, or information you'd like to share..."
+                className="rounded-xl resize-none bg-emerald-50 border-emerald-200 focus:bg-white placeholder:text-gray-400 min-h-[100px]"
+              />
+            </div>
+
+            <div className="flex gap-3 mt-2">
+              <Button type="button" variant="outline" size="lg" onClick={() => setCurrentStep(2)} className="flex-1 font-bold border-2">
+                Back
+              </Button>
+              <Button
+                type="submit"
+                size="lg"
+                disabled={isSubmitting}
+                className="flex-1 bg-gradient-to-br from-[#0a2342] via-[#0d3460] to-[#1a5276] hover:opacity-90 text-white font-bold shadow-md"
+              >
+                {isSubmitting ? "Submitting..." : "Submit Application"}
+              </Button>
+            </div>
+
+            <p className="text-center text-xs text-muted-foreground pt-1">
+              By submitting, you agree to our terms. We'll contact you within 24–48 hours to schedule your campus visit.
+            </p>
+          </div>
+        )}
+      </form>
     </div>
   )
 }

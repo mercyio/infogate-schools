@@ -75,13 +75,13 @@ const About = () => {
         </div>
         <div className="absolute bottom-0 left-0 right-0">
           <svg viewBox="0 0 1440 50" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
-            <path d="M0 50 L0 25 Q720 0 1440 25 L1440 50 Z" fill="white"/>
+            <path d="M0 50 L0 25 Q720 0 1440 25 L1440 50 Z" fill="#eef2ff"/>
           </svg>
         </div>
       </section>
 
       {/* ── VISION & MISSION ── */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-indigo-50">
         <div className="container mx-auto px-4">
           <motion.div
             variants={fadeUp}
@@ -208,7 +208,7 @@ const About = () => {
       </section>
 
       {/* ── CORE VALUES ── */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-sky-100">
         <div className="container mx-auto px-4">
           <motion.div
             variants={fadeUp}

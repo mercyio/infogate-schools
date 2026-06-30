@@ -171,7 +171,7 @@ const Home = () => {
                 initial="hidden"
                 whileInView="show"
                 viewport={{ once: true }}
-                className="flex flex-col items-center text-center p-5 rounded-2xl bg-muted/50 hover:bg-primary/5 transition-colors"
+                className="flex flex-col items-center text-center p-5 rounded-2xl bg-white hover:bg-primary/5 transition-colors"
               >
                 <div className="text-3xl mb-2">{item.emoji}</div>
                 <div className="font-extrabold text-gray-900 text-base">{item.label}</div>
@@ -183,7 +183,7 @@ const Home = () => {
       </section>
 
       {/* ── WHY CHOOSE US ── */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-indigo-50">
         <div className="container mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-14 items-center">
             {/* Image mosaic */}
@@ -254,7 +254,7 @@ const Home = () => {
       </section>
 
       {/* ── PROGRAMS ── */}
-      <section className="py-20">
+      <section className="py-20 bg-blue-50">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.97 }}
@@ -374,7 +374,7 @@ const Home = () => {
       </section>
 
       {/* ── GALLERY STRIP ── */}
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-sky-100">
         <div className="container mx-auto px-4">
           <div className="text-center mb-8">
             <span className="inline-block px-4 py-1.5 bg-emerald-100 text-emerald-700 text-sm font-bold rounded-full mb-3">
@@ -397,7 +397,7 @@ const Home = () => {
       </section>
 
       {/* ── CTA BANNER ── */}
-      <section className="py-20">
+      <section className="py-20 bg-blue-50">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.97 }}
@@ -444,7 +444,7 @@ const Home = () => {
       </section>
 
       {/* ── CONTACT STRIP ── */}
-      <section className="py-12 border-t border-border">
+      <section className="py-12 bg-blue-50 border-t border-blue-200">
         <div className="container mx-auto px-4">
           <div className="grid sm:grid-cols-3 gap-6 text-center">
             {[
