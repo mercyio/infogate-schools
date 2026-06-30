@@ -1,627 +1,730 @@
-import { motion } from "framer-motion";
-import { useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { BookOpen, Clock3, Eye, Plus, Save, Search, Trash2 } from "lucide-react";
+  ArrowLeft,
+  BookOpen,
+  Check,
+  ChevronRight,
+  Clock,
+  GraduationCap,
+  Layers,
+  Plus,
+  Save,
+  Scissors,
+  Trash2,
+  Wrench,
+  X,
+} from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
 
-interface SchoolClass {
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+const LEVELS = ["Nursery", "Primary", "Secondary", "Vocational"] as const;
+type Level = typeof LEVELS[number];
+
+const WORK_DAYS = [
+  { index: 1, label: "Mon", full: "Monday" },
+  { index: 2, label: "Tue", full: "Tuesday" },
+  { index: 3, label: "Wed", full: "Wednesday" },
+  { index: 4, label: "Thu", full: "Thursday" },
+  { index: 5, label: "Fri", full: "Friday" },
+  { index: 6, label: "Sat", full: "Saturday" },
+];
+
+interface Subject {
   _id: string;
   name: string;
-  level: string;
-}
-
-interface ClassSubject {
-  _id: string;
-  class_id?: { _id: string; name: string; level: string };
-  subject_id?: { _id: string; name?: string; code?: string };
 }
 
 interface TimetableItem {
   _id: string;
+  level: string;
   day_of_week: number;
   start_time: string;
   end_time: string;
   room_number?: string;
-  class_subject_id?: {
-    _id?: string;
-    class_id?: { _id?: string; name?: string; level?: string };
-    subject_id?: { _id?: string; name?: string; code?: string };
-  };
+  subject_id?: { _id?: string; name?: string };
 }
 
-interface DraftRow {
+interface Period {
   id: string;
-  class_subject_id: string;
-  day_of_week: string;
-  start_time: string;
-  end_time: string;
-  room_number: string;
+  start: string;
+  end: string;
 }
 
-const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const MODAL_DAYS = [
-  { index: 1, label: "Monday" },
-  { index: 2, label: "Tuesday" },
-  { index: 3, label: "Wednesday" },
-  { index: 4, label: "Thursday" },
-  { index: 5, label: "Friday" },
-  { index: 6, label: "Saturday" },
+// subject_id per cell; key = `${periodId}:${dayIndex}`
+type Grid = Record<string, string>;
+type Rooms = Record<string, string>;
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const LEVEL_META: Record<Level, { icon: typeof BookOpen; color: string; light: string; desc: string }> = {
+  Nursery:    { icon: Layers,       color: "from-pink-500 to-rose-400",    light: "bg-pink-50 border-pink-200",   desc: "Early childhood classes" },
+  Primary:    { icon: BookOpen,     color: "from-blue-600 to-blue-400",    light: "bg-blue-50 border-blue-200",   desc: "Primary school classes" },
+  Secondary:  { icon: GraduationCap, color: "from-purple-600 to-violet-400", light: "bg-purple-50 border-purple-200", desc: "Secondary school classes" },
+  Vocational: { icon: Wrench,       color: "from-amber-500 to-orange-400", light: "bg-amber-50 border-amber-200", desc: "Technical & vocational classes" },
+};
+
+const SUBJECT_PALETTE = [
+  { bg: "bg-blue-100",   text: "text-blue-800",   border: "border-blue-300",   dot: "bg-blue-500" },
+  { bg: "bg-green-100",  text: "text-green-800",  border: "border-green-300",  dot: "bg-green-500" },
+  { bg: "bg-purple-100", text: "text-purple-800", border: "border-purple-300", dot: "bg-purple-500" },
+  { bg: "bg-amber-100",  text: "text-amber-800",  border: "border-amber-300",  dot: "bg-amber-500" },
+  { bg: "bg-rose-100",   text: "text-rose-800",   border: "border-rose-300",   dot: "bg-rose-500" },
+  { bg: "bg-cyan-100",   text: "text-cyan-800",   border: "border-cyan-300",   dot: "bg-cyan-500" },
+  { bg: "bg-indigo-100", text: "text-indigo-800", border: "border-indigo-300", dot: "bg-indigo-500" },
+  { bg: "bg-teal-100",   text: "text-teal-800",   border: "border-teal-300",   dot: "bg-teal-500" },
+  { bg: "bg-orange-100", text: "text-orange-800", border: "border-orange-300", dot: "bg-orange-500" },
+  { bg: "bg-lime-100",   text: "text-lime-800",   border: "border-lime-300",   dot: "bg-lime-500" },
 ];
+
+const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+function subjectColor(subjects: Subject[], subjectId: string) {
+  const idx = subjects.findIndex((s) => s._id === subjectId);
+  return SUBJECT_PALETTE[idx % SUBJECT_PALETTE.length] ?? SUBJECT_PALETTE[0];
+}
+
+// ─── Cell Picker ─────────────────────────────────────────────────────────────
+
+function CellPicker({
+  subjects,
+  value,
+  room,
+  onChange,
+  onRoomChange,
+}: {
+  subjects: Subject[];
+  value: string;
+  room: string;
+  onChange: (id: string) => void;
+  onRoomChange: (r: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [showRoom, setShowRoom] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setShowRoom(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const selected = subjects.find((s) => s._id === value);
+  const color = value ? subjectColor(subjects, value) : null;
+
+  return (
+    <div ref={ref} className="relative w-full h-full min-h-[60px]">
+      {/* Cell display */}
+      <button
+        onClick={() => setOpen((p) => !p)}
+        className={`w-full h-full min-h-[60px] rounded-lg border-2 transition-all flex flex-col items-center justify-center gap-0.5 px-1 py-1.5 group ${
+          selected
+            ? `${color!.bg} ${color!.border} ${color!.text}`
+            : "border-dashed border-gray-200 hover:border-blue-300 hover:bg-blue-50/50"
+        }`}
+      >
+        {selected ? (
+          <>
+            <span className="text-[11px] font-bold leading-tight text-center line-clamp-2">{selected.name}</span>
+            {room && <span className="text-[9px] opacity-60 leading-none">{room}</span>}
+          </>
+        ) : (
+          <Plus className="w-4 h-4 text-gray-300 group-hover:text-blue-400 transition-colors" />
+        )}
+      </button>
+
+      {/* Dropdown picker */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -4 }}
+            transition={{ duration: 0.12 }}
+            className="absolute z-50 top-full left-0 mt-1 w-52 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden"
+            style={{ minWidth: "180px" }}
+          >
+            {/* Room input */}
+            {showRoom ? (
+              <div className="p-2 border-b">
+                <div className="flex items-center gap-1">
+                  <Input
+                    autoFocus
+                    placeholder="Room / location"
+                    value={room}
+                    onChange={(e) => onRoomChange(e.target.value)}
+                    className="h-7 text-xs"
+                  />
+                  <button onClick={() => setShowRoom(false)} className="p-1 hover:bg-gray-100 rounded">
+                    <Check className="w-3 h-3 text-green-600" />
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {/* Clear */}
+            {selected && (
+              <button
+                onClick={() => { onChange(""); onRoomChange(""); setOpen(false); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50 border-b"
+              >
+                <X className="w-3 h-3" /> Clear cell
+              </button>
+            )}
+
+            {/* Room toggle */}
+            {selected && !showRoom && (
+              <button
+                onClick={() => setShowRoom(true)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-500 hover:bg-gray-50 border-b"
+              >
+                <Scissors className="w-3 h-3" /> {room ? "Edit room" : "Add room"}
+              </button>
+            )}
+
+            {/* Subject list */}
+            <div className="max-h-48 overflow-y-auto py-1">
+              {subjects.map((s) => {
+                const c = subjectColor(subjects, s._id);
+                const active = s._id === value;
+                return (
+                  <button
+                    key={s._id}
+                    onClick={() => { onChange(s._id); setOpen(false); }}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs font-medium transition-colors ${
+                      active ? `${c.bg} ${c.text}` : "hover:bg-gray-50"
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${c.dot}`} />
+                    <span className="truncate">{s.name}</span>
+                    {active && <Check className="w-3 h-3 ml-auto" />}
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 const TimetableManagement = () => {
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedClassId, setSelectedClassId] = useState("");
-  const [draftRows, setDraftRows] = useState<DraftRow[]>([]);
-  const [modalClassName, setModalClassName] = useState<string | null>(null);
 
-  const { data: classes = [] } = useQuery({
-    queryKey: ["classes"],
-    queryFn: async () => {
-      const res = await api.get("/classes");
-      const raw = res.data?.data || res.data || [];
-      return raw as SchoolClass[];
-    },
-  });
+  // Phase: 'levels' = landing, 'editor' = grid editor
+  const [phase, setPhase] = useState<"levels" | "editor">("levels");
+  const [activeLevel, setActiveLevel] = useState<Level | null>(null);
+  const [periods, setPeriods] = useState<Period[]>([]);
+  const [grid, setGrid] = useState<Grid>({});
+  const [rooms, setRooms] = useState<Rooms>({});
+  const [dirty, setDirty] = useState(false);
 
-  const { data: classSubjects = [] } = useQuery({
-    queryKey: ["timetable-class-subjects"],
-    queryFn: async () => {
-      const res = await api.get("/timetables/class-subjects");
-      return (Array.isArray(res.data) ? res.data : []) as ClassSubject[];
-    },
-  });
+  // ── Data fetching ──────────────────────────────────────────────────────────
 
-  const { data: timetables = [], isLoading } = useQuery({
+  const { data: allTimetables = [], isLoading: loadingAll } = useQuery<TimetableItem[]>({
     queryKey: ["timetables"],
     queryFn: async () => {
       const res = await api.get("/timetables");
-      return (Array.isArray(res.data) ? res.data : []) as TimetableItem[];
+      return Array.isArray(res.data) ? res.data : [];
     },
   });
 
-  const bulkCreateMutation = useMutation({
-    mutationFn: async () => {
-      const entries = draftRows
-        .filter((row) => row.class_subject_id && row.start_time && row.end_time)
-        .map((row) => ({
-          class_subject_id: row.class_subject_id,
-          day_of_week: Number(row.day_of_week),
-          start_time: row.start_time,
-          end_time: row.end_time,
-          room_number: row.room_number.trim() || undefined,
-        }));
-
-      return api.post("/timetables/bulk", { entries });
-    },
-    onSuccess: async (response: any) => {
-      const totalSaved = response?.data?.total || 0;
-      toast.success(`Saved ${totalSaved} timetable entries.`);
-      setSearchTerm("");
-      await queryClient.invalidateQueries({ queryKey: ["timetables"] });
-      await queryClient.refetchQueries({ queryKey: ["timetables"], type: "active" });
-      setDraftRows((prev) => prev.map((row) => ({ ...row, start_time: "", end_time: "", room_number: "" })));
-    },
-    onError: (error: any) => {
-      const message = error?.response?.data?.message || "Failed to save timetable";
-      toast.error(message);
+  const { data: subjectsByLevel = [], isLoading: loadingSubjects } = useQuery<Subject[]>({
+    queryKey: ["timetable-subjects-by-level", activeLevel],
+    enabled: !!activeLevel,
+    queryFn: async () => {
+      const res = await api.get(`/timetables/subjects-by-level?level=${activeLevel}`);
+      return Array.isArray(res.data) ? res.data : [];
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => api.delete(`/timetables/${id}`),
-    onSuccess: () => {
-      toast.success("Timetable entry deleted.");
-      queryClient.invalidateQueries({ queryKey: ["timetables"] });
-    },
-    onError: () => toast.error("Failed to delete timetable entry"),
-  });
-
-  const classSubjectOptions = useMemo(() => {
-    if (!selectedClassId) {
-      return [];
-    }
-    return classSubjects.filter((item) => item.class_id?._id === selectedClassId);
-  }, [classSubjects, selectedClassId]);
-
-  const selectedClass = useMemo(
-    () => classes.find((item) => item._id === selectedClassId),
-    [classes, selectedClassId]
-  );
-
-  const groupedTimetables = useMemo(() => {
-    const filtered = timetables.filter((item) => {
-      const className = item.class_subject_id?.class_id?.name || "";
-      const subjectName = item.class_subject_id?.subject_id?.name || "";
-      const text = `${className} ${subjectName}`.toLowerCase();
-      return text.includes(searchTerm.toLowerCase());
+  // Per-level entry counts for the landing cards
+  const levelStats = useMemo(() => {
+    const map: Record<string, number> = {};
+    allTimetables.forEach((t) => {
+      map[t.level] = (map[t.level] || 0) + 1;
     });
+    return map;
+  }, [allTimetables]);
 
-    const grouped = new Map<string, TimetableItem[]>();
-    filtered.forEach((item) => {
-      const className = item.class_subject_id?.class_id?.name || "Unassigned Class";
-      const list = grouped.get(className) || [];
-      list.push(item);
-      grouped.set(className, list);
-    });
+  // ── Load existing timetable into grid when entering editor ─────────────────
 
-    return Array.from(grouped.entries()).map(([className, items]) => {
-      const sortedItems = [...items].sort((a, b) => {
-        if (a.day_of_week !== b.day_of_week) {
-          return a.day_of_week - b.day_of_week;
-        }
-        return a.start_time.localeCompare(b.start_time);
-      });
-
-      const dayMap = new Map<number, TimetableItem[]>();
-      sortedItems.forEach((entry) => {
-        const dayItems = dayMap.get(entry.day_of_week) || [];
-        dayItems.push(entry);
-        dayMap.set(entry.day_of_week, dayItems);
-      });
-
-      const dayGroups = Array.from(dayMap.entries())
-        .sort((a, b) => a[0] - b[0])
-        .map(([dayIndex, dayItems]) => ({
-          dayIndex,
-          dayLabel: DAYS[dayIndex] || "Unknown Day",
-          items: dayItems,
-        }));
-
-      return {
-        className,
-        items: sortedItems,
-        totalEntries: sortedItems.length,
-        activeDays: dayGroups.length,
-        dayGroups,
-      };
-    });
-  }, [timetables, searchTerm]);
-
-  const selectedModalGroup = useMemo(
-    () => groupedTimetables.find((group) => group.className === modalClassName) || null,
-    [groupedTimetables, modalClassName]
-  );
-
-  const modalSlots = useMemo(() => {
-    if (!selectedModalGroup) {
-      return [] as Array<{ key: string; start: string; end: string }>;
-    }
-
-    const unique = new Map<string, { key: string; start: string; end: string }>();
-    selectedModalGroup.items.forEach((item) => {
-      const start = item.start_time;
-      const end = item.end_time;
-      const key = `${start}-${end}`;
-      if (!unique.has(key)) {
-        unique.set(key, { key, start, end });
-      }
-    });
-
-    return Array.from(unique.values()).sort((a, b) => a.start.localeCompare(b.start));
-  }, [selectedModalGroup]);
-
-  const getItemsForCell = (dayIndex: number, slotKey: string) => {
-    if (!selectedModalGroup) {
-      return [] as TimetableItem[];
-    }
-
-    return selectedModalGroup.items.filter((item) => {
-      const entryKey = `${item.start_time}-${item.end_time}`;
-      return item.day_of_week === dayIndex && entryKey === slotKey;
-    });
-  };
-
-  const dayHeaderClass = (dayIndex: number) => {
-    switch (dayIndex) {
-      case 1:
-        return "bg-amber-100/70";
-      case 2:
-        return "bg-cyan-100/70";
-      case 3:
-        return "bg-indigo-100/70";
-      case 4:
-        return "bg-yellow-100/70";
-      case 5:
-        return "bg-green-100/70";
-      case 6:
-        return "bg-blue-100/70";
-      default:
-        return "bg-muted";
-    }
-  };
-
-  const handleClassChange = (value: string) => {
-    setSelectedClassId(value);
-
-    setDraftRows([
-      {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        class_subject_id: "",
-        day_of_week: "1",
-        start_time: "",
-        end_time: "",
-        room_number: "",
-      },
-    ]);
-  };
-
-  const updateRow = (rowId: string, patch: Partial<DraftRow>) => {
-    setDraftRows((prev) =>
-      prev.map((row) =>
-        row.id === rowId ? { ...row, ...patch } : row
-      )
-    );
-  };
-
-  const addRow = () => {
-    setDraftRows((prev) => [
-      ...prev,
-      {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        class_subject_id: "",
-        day_of_week: "1",
-        start_time: "",
-        end_time: "",
-        room_number: "",
-      },
-    ]);
-  };
-
-  const removeRow = (rowId: string) => {
-    setDraftRows((prev) => prev.filter((row) => row.id !== rowId));
-  };
-
-  const handleSaveClassTimetable = () => {
-    if (!selectedClassId) {
-      toast.error("Please choose a class first");
-      return;
-    }
-
-    const rowsToSave = draftRows.filter((row) => row.class_subject_id && row.start_time && row.end_time);
-    if (rowsToSave.length === 0) {
-      toast.error("Select subject and time for at least one row before saving");
-      return;
-    }
-
-    const invalidRow = rowsToSave.find((row) => row.start_time >= row.end_time);
-    if (invalidRow) {
-      toast.error("End time must be later than start time for every row");
-      return;
-    }
-
-    const seen = new Map<string, number>();
-    for (let i = 0; i < rowsToSave.length; i += 1) {
-      const row = rowsToSave[i];
-      const key = `${row.class_subject_id}|${row.day_of_week}|${row.start_time}|${row.end_time}`;
-      if (seen.has(key)) {
-        const firstIndex = seen.get(key)! + 1;
-        const secondIndex = i + 1;
-        toast.error(`Rows ${firstIndex} and ${secondIndex} are identical. Change subject/day/time in one row.`);
+  const loadLevelIntoGrid = useCallback(
+    (level: string) => {
+      const entries = allTimetables.filter((t) => t.level === level.toLowerCase());
+      if (entries.length === 0) {
+        // Start fresh: 5 blank periods
+        setPeriods([
+          { id: uid(), start: "08:00", end: "08:45" },
+          { id: uid(), start: "08:45", end: "09:30" },
+          { id: uid(), start: "09:30", end: "10:15" },
+          { id: uid(), start: "10:30", end: "11:15" },
+          { id: uid(), start: "11:15", end: "12:00" },
+        ]);
+        setGrid({});
+        setRooms({});
         return;
       }
-      seen.set(key, i);
-    }
 
-    bulkCreateMutation.mutate();
+      // Extract unique time slots → periods
+      const slotMap = new Map<string, { start: string; end: string }>();
+      entries.forEach((e) => {
+        const key = `${e.start_time}-${e.end_time}`;
+        if (!slotMap.has(key)) slotMap.set(key, { start: e.start_time, end: e.end_time });
+      });
+
+      const builtPeriods: Period[] = Array.from(slotMap.values())
+        .sort((a, b) => a.start.localeCompare(b.start))
+        .map((s) => ({ id: `${s.start}-${s.end}`, start: s.start, end: s.end }));
+
+      const builtGrid: Grid = {};
+      const builtRooms: Rooms = {};
+      entries.forEach((e) => {
+        const periodId = `${e.start_time}-${e.end_time}`;
+        const cellKey = `${periodId}:${e.day_of_week}`;
+        if (e.subject_id?._id) builtGrid[cellKey] = e.subject_id._id;
+        if (e.room_number) builtRooms[cellKey] = e.room_number;
+      });
+
+      setPeriods(builtPeriods);
+      setGrid(builtGrid);
+      setRooms(builtRooms);
+    },
+    [allTimetables]
+  );
+
+  const openEditor = (level: Level) => {
+    setActiveLevel(level);
+    loadLevelIntoGrid(level);
+    setDirty(false);
+    setPhase("editor");
   };
 
+  const goBack = () => {
+    setPhase("levels");
+    setActiveLevel(null);
+    setDirty(false);
+  };
+
+  // ── Period management ──────────────────────────────────────────────────────
+
+  const addPeriod = () => {
+    const last = periods[periods.length - 1];
+    const newStart = last?.end || "08:00";
+    const [h, m] = newStart.split(":").map(Number);
+    const endMin = h * 60 + m + 45;
+    const newEnd = `${String(Math.floor(endMin / 60)).padStart(2, "0")}:${String(endMin % 60).padStart(2, "0")}`;
+    setPeriods((p) => [...p, { id: uid(), start: newStart, end: newEnd }]);
+    setDirty(true);
+  };
+
+  const updatePeriod = (id: string, field: "start" | "end", val: string) => {
+    setPeriods((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: val } : p)));
+    setDirty(true);
+  };
+
+  const removePeriod = (id: string) => {
+    // Also clear any grid cells that used this period
+    setPeriods((p) => p.filter((x) => x.id !== id));
+    setGrid((g) => {
+      const next = { ...g };
+      Object.keys(next).forEach((k) => { if (k.startsWith(`${id}:`)) delete next[k]; });
+      return next;
+    });
+    setRooms((r) => {
+      const next = { ...r };
+      Object.keys(next).forEach((k) => { if (k.startsWith(`${id}:`)) delete next[k]; });
+      return next;
+    });
+    setDirty(true);
+  };
+
+  // ── Grid cell management ───────────────────────────────────────────────────
+
+  const setCell = (periodId: string, dayIdx: number, subjectId: string) => {
+    const key = `${periodId}:${dayIdx}`;
+    setGrid((g) => ({ ...g, [key]: subjectId }));
+    setDirty(true);
+  };
+
+  const setRoom = (periodId: string, dayIdx: number, room: string) => {
+    const key = `${periodId}:${dayIdx}`;
+    setRooms((r) => ({ ...r, [key]: room }));
+    setDirty(true);
+  };
+
+  // ── Save ───────────────────────────────────────────────────────────────────
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      // 1. Delete all existing entries for this level
+      await api.delete(`/timetables/level/${activeLevel}`);
+
+      // 2. Build entries from grid
+      const entries: any[] = [];
+      periods.forEach((period) => {
+        if (!period.start || !period.end || period.start >= period.end) return;
+        WORK_DAYS.forEach((day) => {
+          const key = `${period.id}:${day.index}`;
+          const subjectId = grid[key];
+          if (!subjectId) return;
+          entries.push({
+            level: activeLevel,
+            subject_id: subjectId,
+            day_of_week: day.index,
+            start_time: period.start,
+            end_time: period.end,
+            room_number: rooms[key]?.trim() || undefined,
+          });
+        });
+      });
+
+      if (entries.length === 0) return { data: { total: 0 } };
+      return api.post("/timetables/bulk", { entries });
+    },
+    onSuccess: async (res: any) => {
+      const total = res?.data?.total ?? 0;
+      toast.success(total > 0 ? `Timetable saved — ${total} slots.` : "Timetable cleared.");
+      await queryClient.invalidateQueries({ queryKey: ["timetables"] });
+      setDirty(false);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to save timetable");
+    },
+  });
+
+  // ── Subject color index (stable across renders) ────────────────────────────
+
+  const subjectColorMap = useMemo(() => {
+    const map: Record<string, typeof SUBJECT_PALETTE[0]> = {};
+    subjectsByLevel.forEach((s, i) => {
+      map[s._id] = SUBJECT_PALETTE[i % SUBJECT_PALETTE.length];
+    });
+    return map;
+  }, [subjectsByLevel]);
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-secondary/5">
-      <div className="container mx-auto px-4 py-8">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+    <div className="min-h-screen bg-gray-50">
+      <AnimatePresence mode="wait">
+
+        {/* ─── PHASE 1: Level Cards ─────────────────────────────────────── */}
+        {phase === "levels" && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            key="levels"
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/20 via-accent/15 to-secondary/10 border border-primary/20 shadow-xl p-8 md:p-12"
+            exit={{ opacity: 0, y: -16 }}
+            className="container mx-auto px-4 py-8 space-y-8"
           >
-            <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-3">
-              Timetable Setup Per Class
-            </h2>
-            <p className="text-muted-foreground text-lg">
-              Pick one class, fill all subjects in one card, and save timetable in one click.
-            </p>
-          </motion.div>
-
-          <div className="playful-card p-6 space-y-6">
-            <div className="grid md:grid-cols-3 gap-4 items-end">
-              <div className="space-y-2 md:col-span-2">
-                <Label>Select Class</Label>
-                <Select value={selectedClassId} onValueChange={handleClassChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose class" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {classes.map((item) => (
-                      <SelectItem key={item._id} value={item._id}>
-                        {item.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button
-                onClick={handleSaveClassTimetable}
-                disabled={bulkCreateMutation.isPending || !selectedClassId || draftRows.length === 0}
-                className="gap-2"
-              >
-                <Save className="w-4 h-4" />
-                {bulkCreateMutation.isPending ? "Saving..." : "Save Class Timetable"}
-              </Button>
-            </div>
-
-            {selectedClassId && draftRows.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No subjects linked to this class yet. Add subjects in class management first.
-              </p>
-            ) : null}
-
-            {selectedClassId && draftRows.length > 0 ? (
-              <div>
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <h3 className="font-semibold text-lg">
-                    {selectedClass?.name || "Selected Class"} Subject Timetable
-                  </h3>
-                  <Button onClick={addRow} variant="outline" className="gap-2">
-                    <Plus className="w-4 h-4" /> Add Row
-                  </Button>
-                </div>
-                <div className="overflow-x-auto rounded-xl border">
-                  <table className="w-full min-w-[920px]">
-                    <thead className="bg-muted/50">
-                      <tr>
-                        <th className="text-left text-xs font-semibold tracking-wide px-4 py-3">Subject</th>
-                        <th className="text-left text-xs font-semibold tracking-wide px-4 py-3">Day</th>
-                        <th className="text-left text-xs font-semibold tracking-wide px-4 py-3">Start</th>
-                        <th className="text-left text-xs font-semibold tracking-wide px-4 py-3">End</th>
-                        <th className="text-left text-xs font-semibold tracking-wide px-4 py-3">Room</th>
-                        <th className="text-left text-xs font-semibold tracking-wide px-4 py-3">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {draftRows.map((row) => (
-                        <tr key={row.id} className="border-t">
-                          <td className="px-4 py-3">
-                            <Select
-                              value={row.class_subject_id}
-                              onValueChange={(value) =>
-                                updateRow(row.id, { class_subject_id: value })
-                              }
-                            >
-                              <SelectTrigger className="h-9 w-[200px]">
-                                <SelectValue placeholder="Select subject" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {classSubjectOptions.map((option) => (
-                                  <SelectItem key={option._id} value={option._id}>
-                                    {option.subject_id?.name || "Unnamed Subject"}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </td>
-                          <td className="px-4 py-3">
-                            <Select
-                              value={row.day_of_week}
-                              onValueChange={(value) =>
-                                updateRow(row.id, { day_of_week: value })
-                              }
-                            >
-                              <SelectTrigger className="h-9 w-[150px]">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {DAYS.map((day, index) => (
-                                  <SelectItem key={day} value={String(index)}>
-                                    {day}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </td>
-                          <td className="px-4 py-3">
-                            <Input
-                              type="time"
-                              className="h-9 w-[140px]"
-                              value={row.start_time}
-                              onChange={(e) =>
-                                updateRow(row.id, { start_time: e.target.value })
-                              }
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <Input
-                              type="time"
-                              className="h-9 w-[140px]"
-                              value={row.end_time}
-                              onChange={(e) =>
-                                updateRow(row.id, { end_time: e.target.value })
-                              }
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <Input
-                              placeholder="Room"
-                              className="h-9 w-[180px]"
-                              value={row.room_number}
-                              onChange={(e) =>
-                                updateRow(row.id, { room_number: e.target.value })
-                              }
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => removeRow(row.id)}
-                              disabled={draftRows.length <= 1}
-                            >
-                              <Trash2 className="w-4 h-4 text-destructive" />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : null}
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <h3 className="text-2xl font-bold">Saved Timetables</h3>
-              <p className="text-sm text-muted-foreground mt-1">{timetables.length} timetable entries</p>
-            </div>
-            <div className="relative flex-1 sm:flex-initial sm:min-w-64">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search class or subject..."
-                className="pl-10 h-11 rounded-lg border-primary/30"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {isLoading ? (
-            <div className="py-20 flex justify-center">
-              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-            </div>
-          ) : groupedTimetables.length === 0 ? (
-            <div className="playful-card p-10 text-center">
-              <BookOpen className="w-12 h-12 text-muted-foreground/60 mx-auto mb-3" />
-              <p className="text-muted-foreground">
-                {searchTerm ? "No matching timetable entries for this search." : "No timetable entries yet."}
-              </p>
-            </div>
-          ) : (
-            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {groupedTimetables.map((group) => (
-                <div key={group.className} className="playful-card p-4 md:p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h4 className="font-bold text-base md:text-lg">{group.className}</h4>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {group.totalEntries} periods • {group.activeDays} active days
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      className="gap-2"
-                      onClick={() => setModalClassName(group.className)}
-                    >
-                      <Eye className="w-4 h-4" /> View
-                    </Button>
+            {/* Page header */}
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0a2342] via-[#0d3460] to-[#1a5276] p-8 md:p-12 shadow-xl">
+              <div className="absolute inset-0 opacity-5" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-yellow-400 rounded-2xl flex items-center justify-center shadow-lg">
+                    <Clock className="w-6 h-6 text-gray-900" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-white">Timetable Manager</h1>
+                    <p className="text-white/60 text-sm mt-0.5">One timetable per school level, shared across all classes</p>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-
-          <Dialog open={!!modalClassName} onOpenChange={(open) => !open && setModalClassName(null)}>
-            <DialogContent className="max-w-6xl">
-              <DialogHeader>
-                <DialogTitle>{selectedModalGroup?.className || "Class Timetable"}</DialogTitle>
-                <DialogDescription>
-                  Weekly timetable arranged as rows and columns.
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="rounded-xl border overflow-hidden bg-card">
-                <div className="text-center py-4 border-b bg-primary/5">
-                  <h4 className="text-3xl font-extrabold tracking-tight text-primary">Timetable</h4>
+                <div className="flex gap-6 mt-6">
+                  {LEVELS.map((lvl) => {
+                    const count = levelStats[lvl.toLowerCase()] || 0;
+                    return (
+                      <div key={lvl} className="text-center">
+                        <div className="text-2xl font-extrabold text-white">{count}</div>
+                        <div className="text-white/50 text-xs">{lvl}</div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <table className="w-full min-w-[980px]">
-                  <thead>
-                    <tr>
-                      <th className="text-center text-xs font-bold tracking-wide px-2 py-3 bg-muted w-[60px]">#</th>
-                      <th className="text-center text-xs font-bold tracking-wide px-3 py-3 bg-muted w-[130px]">Time</th>
-                      {MODAL_DAYS.map((day) => (
-                        <th
-                          key={day.index}
-                          className={`text-center text-xs font-bold tracking-wide px-3 py-3 border-l ${dayHeaderClass(day.index)}`}
-                        >
-                          {day.label}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {modalSlots.length === 0 ? (
-                      <tr className="border-t">
-                        <td colSpan={8} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                          No timetable entries for this class yet.
-                        </td>
-                      </tr>
-                    ) : (
-                      modalSlots.map((slot, slotIndex) => (
-                        <tr key={slot.key} className="border-t align-top">
-                          <td className="text-center px-2 py-3 text-2xl font-bold text-muted-foreground">{slotIndex + 1}</td>
-                          <td className="text-center px-3 py-3 text-xs font-semibold bg-muted/50">
-                            {slot.start} - {slot.end}
-                          </td>
-                          {MODAL_DAYS.map((day) => {
-                            const cellItems = getItemsForCell(day.index, slot.key);
-                            return (
-                              <td key={`${slot.key}-${day.index}`} className="px-2 py-2 border-l">
-                                {cellItems.length === 0 ? (
-                                  <div className="h-16 rounded-md bg-background/60" />
-                                ) : (
-                                  <div className="space-y-1">
-                                    {cellItems.map((item) => (
-                                      <div key={item._id} className="rounded-md border bg-background p-2">
-                                        <p className="text-xs font-semibold leading-snug">
-                                          {item.class_subject_id?.subject_id?.name || "Unknown Subject"}
-                                        </p>
-                                        {item.room_number ? (
-                                          <p className="text-[11px] text-muted-foreground mt-0.5">{item.room_number}</p>
-                                        ) : null}
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          className="mt-1 h-6 px-1.5 text-destructive text-[11px]"
-                                          onClick={() => deleteMutation.mutate(item._id)}
-                                          disabled={deleteMutation.isPending}
-                                        >
-                                          <Trash2 className="w-3 h-3 mr-1" />
-                                          Remove
-                                        </Button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
               </div>
-            </DialogContent>
-          </Dialog>
-        </motion.div>
-      </div>
+            </div>
+
+            {/* Level cards */}
+            {loadingAll ? (
+              <div className="py-20 flex justify-center">
+                <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-5">
+                {LEVELS.map((lvl, i) => {
+                  const meta = LEVEL_META[lvl];
+                  const Icon = meta.icon;
+                  const count = levelStats[lvl.toLowerCase()] || 0;
+                  const hasEntries = count > 0;
+
+                  return (
+                    <motion.div
+                      key={lvl}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.07 }}
+                      className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden group"
+                    >
+                      {/* Card top gradient */}
+                      <div className={`h-2 bg-gradient-to-r ${meta.color}`} />
+                      <div className="p-6">
+                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${meta.color} flex items-center justify-center mb-4 shadow-md`}>
+                          <Icon className="w-6 h-6 text-white" />
+                        </div>
+                        <h3 className="text-xl font-extrabold text-gray-900">{lvl}</h3>
+                        <p className="text-sm text-gray-400 mt-0.5">{meta.desc}</p>
+
+                        <div className="mt-4 flex items-center gap-2">
+                          {hasEntries ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">
+                              <Check className="w-3 h-3" /> {count} periods set
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 text-gray-500 text-xs font-semibold rounded-full">
+                              Not configured
+                            </span>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={() => openEditor(lvl)}
+                          className={`mt-5 w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
+                            hasEntries
+                              ? "bg-gradient-to-r from-[#0a2342] to-[#1a5276] text-white hover:opacity-90 shadow-md"
+                              : "bg-gradient-to-r from-yellow-400 to-amber-500 text-gray-900 hover:opacity-90 shadow-md"
+                          }`}
+                        >
+                          {hasEntries ? "Edit Timetable" : "Set Up Timetable"}
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* ─── PHASE 2: Grid Editor ─────────────────────────────────────── */}
+        {phase === "editor" && activeLevel && (
+          <motion.div
+            key="editor"
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            className="flex flex-col h-screen"
+          >
+            {/* Editor toolbar */}
+            <div className="bg-white border-b border-gray-100 shadow-sm px-4 py-3 flex items-center justify-between gap-3 sticky top-0 z-30">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={goBack}
+                  className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+                >
+                  <ArrowLeft className="w-5 h-5 text-gray-600" />
+                </button>
+                <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${LEVEL_META[activeLevel].color} flex items-center justify-center`}>
+                    {(() => { const Icon = LEVEL_META[activeLevel].icon; return <Icon className="w-4 h-4 text-white" />; })()}
+                  </div>
+                  <div>
+                    <h2 className="font-extrabold text-gray-900 leading-none">{activeLevel} Timetable</h2>
+                    <p className="text-xs text-gray-400 mt-0.5">Shared across all {activeLevel} classes</p>
+                  </div>
+                </div>
+                {dirty && (
+                  <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">Unsaved changes</span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {/* Subject legend */}
+                <div className="hidden lg:flex items-center gap-1.5 flex-wrap max-w-lg">
+                  {subjectsByLevel.map((s) => {
+                    const c = subjectColorMap[s._id];
+                    return (
+                      <span key={s._id} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${c.bg} ${c.text} ${c.border}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+                        {s.name}
+                      </span>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={() => saveMutation.mutate()}
+                  disabled={saveMutation.isPending}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-yellow-400 to-amber-500 text-gray-900 font-bold rounded-xl hover:opacity-90 transition-all shadow-md disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {saveMutation.isPending ? "Saving…" : "Save Timetable"}
+                </button>
+              </div>
+            </div>
+
+            {/* Loading subjects */}
+            {loadingSubjects && (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+              </div>
+            )}
+
+            {!loadingSubjects && subjectsByLevel.length === 0 && (
+              <div className="flex-1 flex flex-col items-center justify-center gap-4 text-gray-400">
+                <BookOpen className="w-14 h-14 opacity-30" />
+                <div className="text-center">
+                  <p className="font-semibold text-gray-600">No subjects found for {activeLevel}</p>
+                  <p className="text-sm mt-1">Add subjects to classes under this level first, then return here.</p>
+                </div>
+                <button onClick={goBack} className="mt-2 px-5 py-2 bg-[#0a2342] text-white rounded-xl font-bold text-sm hover:opacity-90">
+                  Go Back
+                </button>
+              </div>
+            )}
+
+            {!loadingSubjects && subjectsByLevel.length > 0 && (
+              <div className="flex-1 overflow-auto p-4">
+                <div className="min-w-[820px]">
+
+                  {/* Grid */}
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+
+                    {/* Header row */}
+                    <div className="grid border-b border-gray-100" style={{ gridTemplateColumns: "180px repeat(6, 1fr)" }}>
+                      <div className="px-4 py-3 flex items-center gap-2 border-r border-gray-100">
+                        <Clock className="w-4 h-4 text-gray-400" />
+                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Period / Time</span>
+                      </div>
+                      {WORK_DAYS.map((day) => (
+                        <div key={day.index} className="px-2 py-3 text-center border-r border-gray-100 last:border-r-0">
+                          <div className="text-xs font-extrabold text-gray-700 uppercase tracking-wide">{day.label}</div>
+                          <div className="text-[10px] text-gray-400">{day.full}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Period rows */}
+                    {periods.map((period, pIdx) => (
+                      <div
+                        key={period.id}
+                        className="grid border-b border-gray-100 last:border-b-0 group/row"
+                        style={{ gridTemplateColumns: "180px repeat(6, 1fr)" }}
+                      >
+                        {/* Period time cell */}
+                        <div className="px-3 py-2 border-r border-gray-100 flex flex-col gap-1 bg-gray-50/60">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase">Period {pIdx + 1}</span>
+                            <button
+                              onClick={() => removePeriod(period.id)}
+                              className="opacity-0 group-hover/row:opacity-100 p-0.5 hover:bg-red-100 rounded transition-all"
+                              title="Remove period"
+                            >
+                              <Trash2 className="w-3 h-3 text-red-400" />
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="time"
+                              value={period.start}
+                              onChange={(e) => updatePeriod(period.id, "start", e.target.value)}
+                              className="w-full text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-blue-400"
+                            />
+                            <span className="text-gray-300 text-xs shrink-0">–</span>
+                            <input
+                              type="time"
+                              value={period.end}
+                              onChange={(e) => updatePeriod(period.id, "end", e.target.value)}
+                              className="w-full text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-blue-400"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Day cells */}
+                        {WORK_DAYS.map((day) => {
+                          const key = `${period.id}:${day.index}`;
+                          return (
+                            <div key={day.index} className="p-1.5 border-r border-gray-100 last:border-r-0">
+                              <CellPicker
+                                subjects={subjectsByLevel}
+                                value={grid[key] || ""}
+                                room={rooms[key] || ""}
+                                onChange={(id) => setCell(period.id, day.index, id)}
+                                onRoomChange={(r) => setRoom(period.id, day.index, r)}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+
+                    {/* Add period row */}
+                    <div
+                      className="grid border-t border-dashed border-gray-200 hover:bg-blue-50/30 transition-colors cursor-pointer"
+                      style={{ gridTemplateColumns: "180px repeat(6, 1fr)" }}
+                      onClick={addPeriod}
+                    >
+                      <div className="px-4 py-3 col-span-7 flex items-center gap-2 text-gray-400 hover:text-blue-500 transition-colors">
+                        <Plus className="w-4 h-4" />
+                        <span className="text-sm font-semibold">Add period</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mobile subject legend */}
+                  <div className="lg:hidden mt-4 bg-white rounded-xl border border-gray-100 p-4">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Subjects</p>
+                    <div className="flex flex-wrap gap-2">
+                      {subjectsByLevel.map((s) => {
+                        const c = subjectColorMap[s._id];
+                        return (
+                          <span key={s._id} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${c.bg} ${c.text} ${c.border}`}>
+                            <span className={`w-2 h-2 rounded-full ${c.dot}`} />
+                            {s.name}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Bottom save bar */}
+                  <div className="mt-4 flex items-center justify-between bg-white rounded-xl border border-gray-100 px-5 py-3 shadow-sm">
+                    <div className="text-sm text-gray-500">
+                      <span className="font-semibold text-gray-800">{Object.values(grid).filter(Boolean).length}</span> slots assigned
+                      {" · "}
+                      <span className="font-semibold text-gray-800">{periods.length}</span> periods
+                    </div>
+                    <button
+                      onClick={() => saveMutation.mutate()}
+                      disabled={saveMutation.isPending}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#0a2342] to-[#1a5276] text-white font-bold rounded-xl hover:opacity-90 transition-all shadow-md disabled:opacity-50 text-sm"
+                    >
+                      <Save className="w-4 h-4" />
+                      {saveMutation.isPending ? "Saving…" : "Save Timetable"}
+                    </button>
+                  </div>
+
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+      </AnimatePresence>
     </div>
   );
 };

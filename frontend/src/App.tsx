@@ -31,6 +31,7 @@ import ParentDashboard from "./pages/portal/ParentDashboard";
 import ManageStudents from "./pages/portal/admin/ManageStudents";
 import ManageTeachers from "./pages/portal/admin/ManageTeachers";
 import StudentRegistration from "./pages/portal/admin/StudentRegistration";
+import TeacherRegistration from "./pages/portal/admin/TeacherRegistration";
 import Reports from "./pages/portal/admin/Reports";
 import Announcements from "./pages/portal/admin/Announcements";
 import FeesManagement from "./pages/portal/admin/FeesManagement";
@@ -113,6 +114,7 @@ const App = () => (
                 <Route path="/portal/admin/students/register" element={<StudentRegistration />} />
                 <Route path="/portal/admin/parents" element={<ManageParents />} />
                 <Route path="/portal/admin/teachers" element={<ManageTeachers />} />
+                <Route path="/portal/admin/teachers/register" element={<TeacherRegistration />} />
                 <Route path="/portal/admin/teachers/:teacherId" element={<TeacherDetail />} />
                 <Route path="/portal/admin/attendance" element={<AttendanceMonitor />} />
                 <Route path="/portal/admin/reports" element={<Reports />} />

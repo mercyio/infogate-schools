@@ -1,7 +1,8 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ITimetable extends Document {
-    class_subject_id: mongoose.Types.ObjectId;
+    level: string;
+    subject_id: mongoose.Types.ObjectId;
     day_of_week: number;
     start_time: string;
     end_time: string;
@@ -12,9 +13,10 @@ export interface ITimetable extends Document {
 
 const TimetableSchema: Schema = new Schema(
     {
-        class_subject_id: { type: Schema.Types.ObjectId, ref: 'ClassSubject', required: true },
+        level: { type: String, required: true, enum: ['nursery', 'primary', 'secondary', 'vocational'] },
+        subject_id: { type: Schema.Types.ObjectId, ref: 'Subject', required: true },
         day_of_week: { type: Number, required: true, min: 0, max: 6 },
-        start_time: { type: String, required: true }, // HH:mm format
+        start_time: { type: String, required: true },
         end_time: { type: String, required: true },
         room_number: { type: String },
     },

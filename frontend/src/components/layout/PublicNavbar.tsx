@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Phone } from "lucide-react";
+import { Menu, X, Phone, LayoutDashboard } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 const navLinks = [
   { name: "Home", path: "/" },
@@ -17,6 +18,8 @@ const PublicNavbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
+  const { isAuthenticated, user } = useAuth();
+  const dashboardPath = isAuthenticated ? `/portal/${user?.role}` : "/login";
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 20);
@@ -78,9 +81,9 @@ const PublicNavbar = () => {
 
             {/* Desktop CTA */}
             <div className="hidden lg:flex items-center gap-3">
-              <Link to="/login">
-                <Button variant="outline" size="sm" className="font-semibold">
-                  Portal Login
+              <Link to={dashboardPath}>
+                <Button variant="outline" size="sm" className="font-semibold flex items-center gap-1.5">
+                  {isAuthenticated ? <><LayoutDashboard className="w-3.5 h-3.5" /> Dashboard</> : "Portal Login"}
                 </Button>
               </Link>
               <Link to="/admissions">
@@ -125,8 +128,10 @@ const PublicNavbar = () => {
                   </Link>
                 ))}
                 <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-border">
-                  <Link to="/login" onClick={() => setIsOpen(false)}>
-                    <Button variant="outline" className="w-full font-semibold">Portal Login</Button>
+                  <Link to={dashboardPath} onClick={() => setIsOpen(false)}>
+                    <Button variant="outline" className="w-full font-semibold flex items-center justify-center gap-1.5">
+                      {isAuthenticated ? <><LayoutDashboard className="w-4 h-4" /> Dashboard</> : "Portal Login"}
+                    </Button>
                   </Link>
                   <Link to="/admissions" onClick={() => setIsOpen(false)}>
                     <Button className="w-full font-bold bg-primary">Apply Now →</Button>

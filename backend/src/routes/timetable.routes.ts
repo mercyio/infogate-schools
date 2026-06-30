@@ -1,17 +1,19 @@
 import express from 'express';
 import {
     getTimetables,
-    getTimetableClassSubjects,
+    getSubjectsByLevel,
     createTimetable,
     createTimetableBulk,
     updateTimetable,
     deleteTimetable,
+    deleteTimetablesByLevel,
 } from '../controllers/timetable.controller';
 import { protect, authorize } from '../middleware/auth.middleware';
 
 const router = express.Router();
 
-router.get('/class-subjects', protect, authorize('admin', 'teacher'), getTimetableClassSubjects);
+router.get('/subjects-by-level', protect, authorize('admin', 'teacher'), getSubjectsByLevel);
+router.delete('/level/:level', protect, authorize('admin'), deleteTimetablesByLevel);
 router.post('/bulk', protect, authorize('admin'), createTimetableBulk);
 
 router.route('/')

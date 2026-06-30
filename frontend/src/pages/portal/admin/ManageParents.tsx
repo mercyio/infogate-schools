@@ -149,7 +149,7 @@ export default function ManageParents() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               <motion.div
-                className="w-16 h-16 bg-gradient-to-br from-violet-500 via-violet-400 to-violet-300 rounded-2xl flex items-center justify-center shadow-xl"
+                className="w-16 h-16 bg-gradient-to-br from-[#0a2342] to-[#1a5276] rounded-2xl flex items-center justify-center shadow-xl"
                 whileHover={{ scale: 1.05 }}
               >
                 <Users className="w-8 h-8 text-white" />
@@ -157,7 +157,7 @@ export default function ManageParents() {
               <div>
                 <h2 className="text-3xl font-bold">Manage Parents</h2>
                 <p className="text-muted-foreground mt-1 flex items-center gap-2">
-                  <span className="w-2 h-2 bg-violet-500 rounded-full animate-pulse" />
+                  <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
                   {parents.length} parent{parents.length !== 1 ? "s" : ""} registered
                 </p>
               </div>
@@ -165,19 +165,19 @@ export default function ManageParents() {
 
             <Dialog open={addOpen} onOpenChange={setAddOpen}>
               <DialogTrigger asChild>
-                <Button className="gap-2 bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-700 hover:to-violet-600 shadow-lg">
+                <Button className="gap-2 bg-gradient-to-r from-[#0a2342] to-[#1a5276] hover:opacity-90 text-white font-bold shadow-md">
                   <Plus className="w-4 h-4" /> Add Parent
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-                <DialogHeader className="bg-gradient-to-r from-violet-500/10 to-violet-300/10 -m-6 mb-6 p-6 rounded-t-lg border-b">
-                  <DialogTitle className="text-2xl font-bold text-violet-700">Add New Parent</DialogTitle>
-                  <p className="text-sm text-muted-foreground mt-1">Login credentials will be generated automatically.</p>
+                <DialogHeader className="bg-gradient-to-r from-[#0a2342] to-[#1a5276] -m-6 mb-6 p-6 rounded-t-lg">
+                  <DialogTitle className="text-2xl font-bold text-white">Add New Parent</DialogTitle>
+                  <p className="text-sm text-white/60 mt-1">Login credentials will be generated automatically.</p>
                 </DialogHeader>
 
                 <div className="space-y-4 px-1">
-                  <div className="space-y-4 p-4 bg-violet-50/50 rounded-xl border border-violet-200/50">
-                    <h3 className="font-semibold flex items-center gap-2">👤 Personal Information</h3>
+                  <div className="space-y-4 p-4 bg-blue-50/50 rounded-xl border border-blue-200/50">
+                    <h3 className="font-semibold flex items-center gap-2 text-[#0a2342]">👤 Personal Information</h3>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Full Name <span className="text-destructive">*</span></Label>
@@ -213,7 +213,7 @@ export default function ManageParents() {
                   <Button
                     onClick={handleAdd}
                     disabled={addMutation.isPending}
-                    className="gap-2 bg-gradient-to-r from-violet-600 to-violet-500"
+                    className="gap-2 bg-gradient-to-r from-[#0a2342] to-[#1a5276] hover:opacity-90 text-white font-bold"
                   >
                     <Save className="w-4 h-4" />
                     {addMutation.isPending ? "Adding…" : "Add Parent"}
@@ -239,7 +239,7 @@ export default function ManageParents() {
           {/* List */}
           {isLoading ? (
             <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-500" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-12">
@@ -257,7 +257,7 @@ export default function ManageParents() {
                   className="playful-card p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group hover:shadow-xl transition-all"
                 >
                   <div className="flex items-center gap-4 flex-1">
-                    <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-violet-300 rounded-2xl flex items-center justify-center text-white font-bold text-lg shrink-0">
+                    <div className="w-12 h-12 bg-gradient-to-br from-[#0a2342] to-[#1a5276] rounded-2xl flex items-center justify-center text-white font-bold text-lg shrink-0">
                       {(parent.user_id?.full_name ?? "?").split(" ").map((n) => n[0]).join("").slice(0, 2)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -274,7 +274,7 @@ export default function ManageParents() {
                           </span>
                         )}
                         {parent.relationship && (
-                          <span className="flex items-center gap-1 text-xs text-muted-foreground bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">
+                          <span className="flex items-center gap-1 text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
                             <Heart className="w-3 h-3" /> {parent.relationship}
                           </span>
                         )}
@@ -329,11 +329,11 @@ export default function ManageParents() {
       {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="bg-gradient-to-r from-violet-500/10 to-violet-300/10 -m-6 mb-6 p-6 rounded-t-lg border-b">
-            <DialogTitle className="text-2xl font-bold text-violet-700">Edit Parent</DialogTitle>
+          <DialogHeader className="bg-gradient-to-r from-yellow-400 to-amber-500 -m-6 mb-6 p-6 rounded-t-lg">
+            <DialogTitle className="text-2xl font-bold text-gray-900">Edit Parent</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 px-1">
-            <div className="space-y-4 p-4 bg-violet-50/50 rounded-xl border border-violet-200/50">
+            <div className="space-y-4 p-4 bg-blue-50/50 rounded-xl border border-blue-200/50">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Full Name</Label>
@@ -368,7 +368,7 @@ export default function ManageParents() {
             <Button
               onClick={() => editId && updateMutation.mutate({ id: editId, data: editForm })}
               disabled={updateMutation.isPending}
-              className="gap-2 bg-gradient-to-r from-violet-600 to-violet-500"
+              className="gap-2 bg-gradient-to-r from-yellow-400 to-amber-500 hover:opacity-90 text-gray-900 font-bold"
             >
               <Save className="w-4 h-4" />
               {updateMutation.isPending ? "Saving…" : "Save Changes"}
@@ -382,7 +382,7 @@ export default function ManageParents() {
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <KeyRound className="w-5 h-5 text-violet-600" /> Login Credentials
+              <KeyRound className="w-5 h-5 text-yellow-500" /> Login Credentials
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">Share these credentials with the parent to log in.</p>
@@ -406,7 +406,7 @@ export default function ManageParents() {
               </Button>
             </div>
           </div>
-          <Button className="w-full mt-2" onClick={() => setCredentials(null)}>Done</Button>
+          <Button className="w-full mt-2 bg-gradient-to-r from-[#0a2342] to-[#1a5276] hover:opacity-90 text-white font-bold" onClick={() => setCredentials(null)}>Done</Button>
         </DialogContent>
       </Dialog>
     </div>

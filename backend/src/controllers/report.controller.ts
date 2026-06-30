@@ -68,18 +68,11 @@ export const getStudentDashboardStats = async (req: AuthRequest, res: Response):
 
         const classInfo = studentProfile.class_id as any;
 
-        // Timetable for the student's class
+        // Timetable for the student's level (all classes in the same level share one timetable)
         let timetables: any[] = [];
-        if (classInfo?._id) {
-            const classSubjects = await ClassSubject.find({ class_id: classInfo._id }).select('_id');
-            timetables = await Timetable.find({ class_subject_id: { $in: classSubjects.map((cs) => cs._id) } })
-                .populate({
-                    path: 'class_subject_id',
-                    populate: [
-                        { path: 'class_id', select: 'name level' },
-                        { path: 'subject_id', select: 'name code' },
-                    ],
-                })
+        if (classInfo?.level) {
+            timetables = await Timetable.find({ level: classInfo.level })
+                .populate('subject_id', 'name code')
                 .sort({ day_of_week: 1, start_time: 1 });
         }
 

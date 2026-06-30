@@ -1,147 +1,212 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Users, GraduationCap, BookOpen, TrendingUp, Bell, DollarSign, BarChart3, Eye, ClipboardList } from "lucide-react";
-
+import {
+  Users, GraduationCap, BookOpen, BarChart3, Bell,
+  DollarSign, ClipboardList, Calendar, TrendingUp,
+  ClipboardCheck, MessageSquare, ArrowRight, Activity,
+} from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 
+const fadeUp = {
+  hidden: { opacity: 0, y: 16 },
+  show: (i = 0) => ({ opacity: 1, y: 0, transition: { delay: i * 0.07, duration: 0.4 } }),
+};
+
+const quickLinks = [
+  { label: "Students", icon: Users, path: "/portal/admin/students", gradient: "from-[#0a2342] to-[#1a5276]" },
+  { label: "Teachers", icon: GraduationCap, path: "/portal/admin/teachers", gradient: "from-yellow-400 to-amber-500", text: "text-gray-900" },
+  { label: "Classes", icon: BookOpen, path: "/portal/admin/classes", gradient: "from-[#0d3460] to-[#1a5276]" },
+  { label: "Reports", icon: BarChart3, path: "/portal/admin/reports", gradient: "from-yellow-500 to-amber-400", text: "text-gray-900" },
+  { label: "Fees", icon: DollarSign, path: "/portal/admin/fees", gradient: "from-[#0a2342] to-[#0d3460]" },
+  { label: "Timetable", icon: Calendar, path: "/portal/admin/timetables", gradient: "from-amber-400 to-yellow-300", text: "text-gray-900" },
+  { label: "Attendance", icon: ClipboardCheck, path: "/portal/admin/attendance", gradient: "from-[#1a5276] to-[#0d3460]" },
+  { label: "Announcements", icon: Bell, path: "/portal/admin/announcements", gradient: "from-yellow-400 to-amber-500", text: "text-gray-900" },
+];
+
 const AdminDashboard = () => {
-  const { user, logout } = useAuth();
-  
+  const { user } = useAuth();
+
   const { data: statsData, isLoading } = useQuery({
     queryKey: ['admin-dashboard-stats'],
     queryFn: async () => {
-      // Temporarily fetching generic users/classes counts since there is no /admin/stats endpoint yet.
       const [studentsRes, teachersRes, classesRes, announcementsRes, assignmentsRes] = await Promise.all([
         api.get('/users/students'),
         api.get('/users/teachers'),
         api.get('/classes'),
         api.get('/announcements'),
-        api.get('/assignments/admin/feed')
+        api.get('/assignments/admin/feed'),
       ]);
-      
-      const students = studentsRes.data?.length || 0;
-      const teachers = teachersRes.data?.length || 0;
-      const classes = classesRes.data.data?.length || 0;
-      const announcements = announcementsRes.data?.data || announcementsRes.data || [];
-      const assignments = assignmentsRes.data?.data || [];
-      
       return {
-        students,
-        teachers,
-        classes,
-        announcements,
-        assignments
+        students: studentsRes.data?.length || 0,
+        teachers: teachersRes.data?.length || 0,
+        classes: classesRes.data.data?.length || 0,
+        announcements: announcementsRes.data?.data || announcementsRes.data || [],
+        assignments: assignmentsRes.data?.data || [],
       };
-    }
+    },
   });
 
   const stats = [
-    { label: "Total Students", value: statsData?.students || 0, icon: Users, color: "bg-primary" },
-    { label: "Teachers", value: statsData?.teachers || 0, icon: GraduationCap, color: "bg-secondary" },
-    { label: "Active Classes", value: statsData?.classes || 0, icon: BookOpen, color: "bg-accent" },
+    { label: "Total Students", value: statsData?.students ?? "—", icon: Users, gradient: "from-[#0a2342] to-[#1a5276]", bg: "bg-blue-50", border: "border-blue-100" },
+    { label: "Teachers", value: statsData?.teachers ?? "—", icon: GraduationCap, gradient: "from-yellow-400 to-amber-500", bg: "bg-yellow-50", border: "border-yellow-100" },
+    { label: "Active Classes", value: statsData?.classes ?? "—", icon: BookOpen, gradient: "from-[#0d3460] to-[#1a5276]", bg: "bg-sky-50", border: "border-sky-100" },
+    { label: "Announcements", value: statsData?.announcements?.length ?? "—", icon: Bell, gradient: "from-amber-400 to-yellow-400", bg: "bg-amber-50", border: "border-amber-100" },
   ];
 
-  return (
-    <div className="py-8 px-4">
+  const now = new Date();
+  const hour = now.getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
-      <div className="container mx-auto px-4 py-8">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <h2 className="text-2xl font-bold mb-6">Welcome back, {user?.name || 'Administrator'}! 👋</h2>
-          
-          {/* Stats Grid */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {isLoading ? (
-               <div className="col-span-3 flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-               </div>
-            ) : stats.map((stat, i) => (
-              <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className="playful-card p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`w-12 h-12 ${stat.color} rounded-xl flex items-center justify-center`}>
-                    <stat.icon className="w-6 h-6 text-card" />
-                  </div>
+  return (
+    <div className="p-6 max-w-7xl mx-auto space-y-8">
+
+      {/* ── Header ── */}
+      <motion.div variants={fadeUp} initial="hidden" animate="show" className="flex items-start justify-between">
+        <div>
+          <p className="text-sm text-gray-400 font-medium mb-0.5">{greeting} 👋</p>
+          <h1 className="text-2xl font-extrabold text-gray-900">{user?.name || "Administrator"}</h1>
+          <p className="text-sm text-gray-400 mt-1">
+            {now.toLocaleDateString("en-NG", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+          </p>
+        </div>
+        <Link
+          to="/portal/admin/announcements"
+          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#0a2342] to-[#1a5276] text-white text-sm font-bold rounded-xl shadow hover:opacity-90 transition-all"
+        >
+          <Bell className="w-4 h-4" /> New Announcement
+        </Link>
+      </motion.div>
+
+      {/* ── Stats ── */}
+      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {isLoading
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 animate-pulse h-28" />
+            ))
+          : stats.map((s, i) => (
+              <motion.div
+                key={s.label}
+                custom={i}
+                variants={fadeUp}
+                initial="hidden"
+                animate="show"
+                className={`bg-white rounded-2xl border ${s.border} p-5 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow`}
+              >
+                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${s.gradient} flex items-center justify-center shadow-md shrink-0`}>
+                  <s.icon className="w-6 h-6 text-white" />
                 </div>
-                <p className="text-2xl font-extrabold">{stat.value}</p>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
+                <div>
+                  <p className="text-2xl font-extrabold text-gray-900">{s.value}</p>
+                  <p className="text-xs text-gray-400 font-medium">{s.label}</p>
+                </div>
               </motion.div>
             ))}
-          </div>
+      </div>
 
-          {/* Quick Actions */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {[
-              { label: "Manage Students", icon: Users, color: "bg-primary", path: "/portal/admin/students" },
-              { label: "Manage Teachers", icon: GraduationCap, color: "bg-secondary", path: "/portal/admin/teachers" },
-              { label: "View Reports", icon: BarChart3, color: "bg-lavender", path: "/portal/admin/reports" },
-              { label: "Announcements", icon: Bell, color: "bg-coral", path: "/portal/admin/announcements" },
-              { label: "Fees Management", icon: DollarSign, color: "bg-accent", path: "/portal/admin/fees" },
-              { label: "Timetable Upload", icon: BookOpen, color: "bg-lavender", path: "/portal/admin/timetables" },
-              { label: "Class Management", icon: BookOpen, color: "bg-pink", path: "/portal/admin/classes" },
-              { label: "Feedback Review", icon: Eye, color: "bg-secondary", path: "/portal/admin/feedback" },
-              { label: "Assignments", icon: ClipboardList, color: "bg-coral", path: "/portal/admin/assignments" },
-            ].map((action) => (
-              <Link key={action.label} to={action.path}>
-                <Button variant="outline" className="h-auto py-4 flex-col gap-2 w-full">
-                  <div className={`w-10 h-10 ${action.color} rounded-xl flex items-center justify-center`}>
-                    <action.icon className="w-5 h-5 text-card" />
-                  </div>
-                  <span className="text-xs text-center">{action.label}</span>
-                </Button>
+      {/* ── Quick Links ── */}
+      <motion.div custom={1} variants={fadeUp} initial="hidden" animate="show">
+        <h2 className="text-sm font-extrabold uppercase tracking-widest text-gray-400 mb-4">Quick Access</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+          {quickLinks.map((ql, i) => (
+            <motion.div key={ql.label} custom={i} variants={fadeUp} initial="hidden" animate="show">
+              <Link
+                to={ql.path}
+                className="group flex flex-col items-center gap-2 bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-md hover:-translate-y-1 transition-all"
+              >
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${ql.gradient} flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform`}>
+                  <ql.icon className={`w-5 h-5 ${ql.text ?? "text-white"}`} />
+                </div>
+                <span className="text-xs font-bold text-gray-700 text-center leading-tight">{ql.label}</span>
               </Link>
-            ))}
-          </div>
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
 
-          <div className="playful-card p-6">
-            <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-primary" /> Recent Activity</h3>
-            <div className="space-y-3">
-              {statsData?.announcements?.length > 0 ? (
-                statsData.announcements.slice(0, 5).map((activity: any, i: number) => (
-                  <div key={i} className="flex flex-col gap-1 p-3 bg-muted/50 rounded-xl">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-secondary rounded-full" />
-                      <span className="text-sm font-semibold">{activity.title}</span>
-                    </div>
-                    <span className="text-xs text-muted-foreground ml-4">{activity.content}</span>
+      {/* ── Bottom two columns ── */}
+      <div className="grid lg:grid-cols-2 gap-6">
+
+        {/* Recent Announcements */}
+        <motion.div custom={2} variants={fadeUp} initial="hidden" animate="show" className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#0a2342] to-[#1a5276] flex items-center justify-center">
+                <Activity className="w-3.5 h-3.5 text-white" />
+              </div>
+              <h3 className="font-extrabold text-gray-900 text-sm">Recent Announcements</h3>
+            </div>
+            <Link to="/portal/admin/announcements" className="text-xs text-primary font-bold hover:underline flex items-center gap-1">
+              View all <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {isLoading ? (
+              <div className="p-5 space-y-3">
+                {[1, 2, 3].map(i => <div key={i} className="h-10 bg-gray-100 rounded-xl animate-pulse" />)}
+              </div>
+            ) : statsData?.announcements?.length > 0 ? (
+              statsData.announcements.slice(0, 5).map((a: any, i: number) => (
+                <div key={i} className="px-5 py-3.5 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-2 h-2 rounded-full bg-yellow-400 shrink-0" />
+                    <p className="text-sm font-semibold text-gray-900 truncate">{a.title}</p>
                   </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground px-2">No recent activity.</p>
-              )}
-            </div>
+                  {a.content && <p className="text-xs text-gray-400 mt-0.5 ml-4.5 line-clamp-1">{a.content}</p>}
+                </div>
+              ))
+            ) : (
+              <div className="px-5 py-8 text-center">
+                <Bell className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                <p className="text-sm text-gray-400">No announcements yet.</p>
+              </div>
+            )}
           </div>
+        </motion.div>
 
-          <div className="playful-card p-6 mt-8">
-            <div className="flex items-center justify-between gap-3 mb-4">
-              <h3 className="font-bold text-lg flex items-center gap-2">
-                <ClipboardList className="w-5 h-5 text-coral" /> Assignments
-              </h3>
-              <Link to="/portal/admin/assignments">
-                <Button size="sm" variant="outline">Open Feed</Button>
-              </Link>
+        {/* Recent Assignments */}
+        <motion.div custom={3} variants={fadeUp} initial="hidden" animate="show" className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center">
+                <ClipboardList className="w-3.5 h-3.5 text-gray-900" />
+              </div>
+              <h3 className="font-extrabold text-gray-900 text-sm">Recent Assignments</h3>
             </div>
-            <div className="space-y-3">
-              {statsData?.assignments?.length > 0 ? (
-                statsData.assignments.slice(0, 3).map((assignment: any) => (
-                  <div key={assignment._id} className="flex flex-col gap-1 p-3 bg-muted/50 rounded-xl">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-semibold">{assignment.title}</span>
-                      <span className="text-xs text-muted-foreground">{assignment.submission_count || 0} submissions</span>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {assignment.teacher?.name || 'Unknown Teacher'} • {assignment.subject_name} • {assignment.class_name}
+            <Link to="/portal/admin/assignments" className="text-xs text-primary font-bold hover:underline flex items-center gap-1">
+              View all <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {isLoading ? (
+              <div className="p-5 space-y-3">
+                {[1, 2, 3].map(i => <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />)}
+              </div>
+            ) : statsData?.assignments?.length > 0 ? (
+              statsData.assignments.slice(0, 5).map((a: any) => (
+                <div key={a._id} className="px-5 py-3.5 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{a.title}</p>
+                    <span className="text-xs bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded-full shrink-0">
+                      {a.submission_count || 0} submitted
                     </span>
                   </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground px-2">No assignments posted yet.</p>
-              )}
-            </div>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {a.teacher?.name || "Unknown"} · {a.subject_name} · {a.class_name}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <div className="px-5 py-8 text-center">
+                <ClipboardList className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                <p className="text-sm text-gray-400">No assignments posted yet.</p>
+              </div>
+            )}
           </div>
         </motion.div>
       </div>
+
     </div>
   );
 };

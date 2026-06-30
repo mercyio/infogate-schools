@@ -1,29 +1,18 @@
 import { Request, Response } from 'express';
 import Timetable from '../models/Timetable';
 import ClassSubject from '../models/ClassSubject';
+import Class from '../models/Class';
 
 const isValidTime = (value: string): boolean => /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
+const VALID_LEVELS = ['nursery', 'primary', 'secondary', 'vocational'];
 
 export const getTimetables = async (req: Request, res: Response): Promise<void> => {
     try {
         const filter: Record<string, unknown> = {};
-        if (req.query.class_id) {
-            const classSubjects = await ClassSubject.find({ class_id: req.query.class_id }).select('_id');
-            filter.class_subject_id = { $in: classSubjects.map((item) => item._id) };
-        }
+        if (req.query.level) filter.level = (req.query.level as string).toLowerCase();
 
         const timetables = await Timetable.find(filter)
-            .populate({
-                path: 'class_subject_id',
-                populate: [
-                    { path: 'class_id', select: 'name level academic_year' },
-                    { path: 'subject_id', select: 'name code' },
-                    {
-                        path: 'teacher_id',
-                        populate: { path: 'user_id', select: 'full_name email' },
-                    },
-                ],
-            })
+            .populate('subject_id', 'name code')
             .sort({ day_of_week: 1, start_time: 1 });
 
         res.json(timetables);
@@ -32,23 +21,27 @@ export const getTimetables = async (req: Request, res: Response): Promise<void> 
     }
 };
 
-export const getTimetableClassSubjects = async (req: Request, res: Response): Promise<void> => {
+// Returns unique subjects assigned to any class under the given level
+export const getSubjectsByLevel = async (req: Request, res: Response): Promise<void> => {
     try {
-        const filter: Record<string, unknown> = {};
-        if (req.query.class_id) {
-            filter.class_id = req.query.class_id;
+        const { level } = req.query;
+        if (!level) {
+            res.status(400).json({ message: 'level query param is required' });
+            return;
         }
 
-        const classSubjects = await ClassSubject.find(filter)
-            .populate('class_id', 'name level academic_year')
-            .populate('subject_id', 'name code')
-            .populate({
-                path: 'teacher_id',
-                populate: { path: 'user_id', select: 'full_name email' },
-            })
-            .sort({ createdAt: -1 });
+        const classes = await Class.find({ level: (level as string).toLowerCase() }).select('_id');
+        const classSubjects = await ClassSubject.find({
+            class_id: { $in: classes.map((c) => c._id) },
+        }).populate('subject_id', 'name code');
 
-        res.json(classSubjects);
+        const seen = new Map<string, any>();
+        classSubjects.forEach((cs) => {
+            const s = cs.subject_id as any;
+            if (s?._id && !seen.has(String(s._id))) seen.set(String(s._id), s);
+        });
+
+        res.json(Array.from(seen.values()));
     } catch (error) {
         res.status(500).json({ message: 'Server error', error });
     }
@@ -56,10 +49,15 @@ export const getTimetableClassSubjects = async (req: Request, res: Response): Pr
 
 export const createTimetable = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { class_subject_id, day_of_week, start_time, end_time, room_number } = req.body;
+        const { level, subject_id, day_of_week, start_time, end_time, room_number } = req.body;
 
-        if (!class_subject_id || day_of_week === undefined || !start_time || !end_time) {
-            res.status(400).json({ message: 'class_subject_id, day_of_week, start_time and end_time are required' });
+        if (!level || !subject_id || day_of_week === undefined || !start_time || !end_time) {
+            res.status(400).json({ message: 'level, subject_id, day_of_week, start_time and end_time are required' });
+            return;
+        }
+
+        if (!VALID_LEVELS.includes(level)) {
+            res.status(400).json({ message: `level must be one of: ${VALID_LEVELS.join(', ')}` });
             return;
         }
 
@@ -73,32 +71,13 @@ export const createTimetable = async (req: Request, res: Response): Promise<void
             return;
         }
 
-        const classSubject = await ClassSubject.findById(class_subject_id).select('_id');
-        if (!classSubject) {
-            res.status(404).json({ message: 'Class-subject mapping not found' });
-            return;
-        }
-
-        const duplicate = await Timetable.findOne({
-            class_subject_id,
-            day_of_week,
-            start_time,
-            end_time,
-        });
-
+        const duplicate = await Timetable.findOne({ level, subject_id, day_of_week, start_time, end_time });
         if (duplicate) {
-            res.status(409).json({ message: 'This timetable slot already exists for the selected class and subject' });
+            res.status(409).json({ message: 'This timetable slot already exists for this level and subject' });
             return;
         }
 
-        const timetable = await Timetable.create({
-            class_subject_id,
-            day_of_week,
-            start_time,
-            end_time,
-            room_number,
-        });
-
+        const timetable = await Timetable.create({ level, subject_id, day_of_week, start_time, end_time, room_number });
         res.status(201).json(timetable);
     } catch (error) {
         res.status(400).json({ message: 'Invalid data', error });
@@ -114,77 +93,60 @@ export const createTimetableBulk = async (req: Request, res: Response): Promise<
             return;
         }
 
-        const normalizedEntries = entries
-            .map((entry: any) => ({
-                class_subject_id: entry?.class_subject_id,
-                day_of_week: entry?.day_of_week,
-                start_time: entry?.start_time,
-                end_time: entry?.end_time,
-                room_number: entry?.room_number,
+        const normalized = entries
+            .map((e: any) => ({
+                level: e?.level ? String(e.level).toLowerCase() : undefined,
+                subject_id: e?.subject_id,
+                day_of_week: e?.day_of_week,
+                start_time: e?.start_time,
+                end_time: e?.end_time,
+                room_number: e?.room_number,
             }))
-            .filter((entry: any) => entry.class_subject_id && entry.start_time && entry.end_time && entry.day_of_week !== undefined);
+            .filter((e: any) => e.level && e.subject_id && e.start_time && e.end_time && e.day_of_week !== undefined);
 
-        if (normalizedEntries.length === 0) {
-            res.status(400).json({ message: 'No valid timetable rows were provided' });
+        if (normalized.length === 0) {
+            res.status(400).json({ message: 'No valid timetable rows provided' });
             return;
         }
 
-        for (const entry of normalizedEntries) {
+        for (const entry of normalized) {
+            if (!VALID_LEVELS.includes(entry.level)) {
+                res.status(400).json({ message: `Invalid level "${entry.level}"` });
+                return;
+            }
             if (!isValidTime(entry.start_time) || !isValidTime(entry.end_time)) {
-                res.status(400).json({ message: 'All start_time and end_time values must be in HH:mm format' });
+                res.status(400).json({ message: 'All times must be in HH:mm format' });
                 return;
             }
-
             if (entry.start_time >= entry.end_time) {
-                res.status(400).json({ message: 'Every row must have end_time later than start_time' });
+                res.status(400).json({ message: 'end_time must be later than start_time for every row' });
                 return;
             }
-
             if (entry.day_of_week < 0 || entry.day_of_week > 6) {
-                res.status(400).json({ message: 'day_of_week must be between 0 and 6 for all rows' });
+                res.status(400).json({ message: 'day_of_week must be 0–6' });
                 return;
             }
         }
 
-        const classSubjectIds = [...new Set(normalizedEntries.map((entry: any) => String(entry.class_subject_id)))];
-        const classSubjects = await ClassSubject.find({ _id: { $in: classSubjectIds } }).select('_id class_id');
-
-        if (classSubjects.length !== classSubjectIds.length) {
-            res.status(404).json({ message: 'One or more class-subject mappings were not found' });
+        // Ensure all entries target a single level
+        const levels = [...new Set(normalized.map((e: any) => e.level))];
+        if (levels.length > 1) {
+            res.status(400).json({ message: 'Bulk save must target one level at a time' });
             return;
         }
 
-        const classIds = [...new Set(classSubjects.map((item) => String(item.class_id)))];
-        if (classIds.length > 1) {
-            res.status(400).json({ message: 'Bulk timetable save must target one class at a time' });
-            return;
-        }
-
+        // Duplicate check within request
         const uniquenessSet = new Set<string>();
-        for (const entry of normalizedEntries) {
-            const key = `${entry.class_subject_id}:${entry.day_of_week}:${entry.start_time}:${entry.end_time}`;
+        for (const entry of normalized) {
+            const key = `${entry.subject_id}:${entry.day_of_week}:${entry.start_time}:${entry.end_time}`;
             if (uniquenessSet.has(key)) {
-                res.status(409).json({ message: 'Duplicate timetable rows detected in request' });
+                res.status(409).json({ message: 'Duplicate rows detected in request' });
                 return;
             }
             uniquenessSet.add(key);
         }
 
-        const existingRows = await Timetable.find({
-            $or: normalizedEntries.map((entry: any) => ({
-                class_subject_id: entry.class_subject_id,
-                day_of_week: entry.day_of_week,
-                start_time: entry.start_time,
-                end_time: entry.end_time,
-            })),
-        }).select('_id');
-
-        if (existingRows.length > 0) {
-            res.status(409).json({ message: 'Some timetable rows already exist' });
-            return;
-        }
-
-        const created = await Timetable.insertMany(normalizedEntries);
+        const created = await Timetable.insertMany(normalized);
         res.status(201).json({ data: created, total: created.length });
     } catch (error) {
         res.status(400).json({ message: 'Invalid data', error });
@@ -193,36 +155,27 @@ export const createTimetableBulk = async (req: Request, res: Response): Promise<
 
 export const updateTimetable = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { day_of_week, start_time, end_time } = req.body;
+        const { start_time, end_time, day_of_week } = req.body;
 
         if (start_time && !isValidTime(start_time)) {
             res.status(400).json({ message: 'start_time must be in HH:mm format' });
             return;
         }
-
         if (end_time && !isValidTime(end_time)) {
             res.status(400).json({ message: 'end_time must be in HH:mm format' });
             return;
         }
-
         if (start_time && end_time && start_time >= end_time) {
             res.status(400).json({ message: 'end_time must be later than start_time' });
             return;
         }
-
         if (day_of_week !== undefined && (day_of_week < 0 || day_of_week > 6)) {
-            res.status(400).json({ message: 'day_of_week must be between 0 and 6' });
+            res.status(400).json({ message: 'day_of_week must be 0–6' });
             return;
         }
 
         const updated = await Timetable.findByIdAndUpdate(req.params.id, req.body, { new: true })
-            .populate({
-                path: 'class_subject_id',
-                populate: [
-                    { path: 'class_id', select: 'name level academic_year' },
-                    { path: 'subject_id', select: 'name code' },
-                ],
-            });
+            .populate('subject_id', 'name code');
 
         if (!updated) {
             res.status(404).json({ message: 'Timetable entry not found' });
@@ -235,6 +188,20 @@ export const updateTimetable = async (req: Request, res: Response): Promise<void
     }
 };
 
+export const deleteTimetablesByLevel = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const level = req.params.level?.toLowerCase();
+        if (!level || !VALID_LEVELS.includes(level)) {
+            res.status(400).json({ message: 'Invalid level' });
+            return;
+        }
+        const result = await Timetable.deleteMany({ level });
+        res.json({ deleted: result.deletedCount });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error });
+    }
+};
+
 export const deleteTimetable = async (req: Request, res: Response): Promise<void> => {
     try {
         const deleted = await Timetable.findByIdAndDelete(req.params.id);
@@ -242,7 +209,6 @@ export const deleteTimetable = async (req: Request, res: Response): Promise<void
             res.status(404).json({ message: 'Timetable entry not found' });
             return;
         }
-
         res.json({ message: 'Timetable entry deleted successfully' });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error });

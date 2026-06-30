@@ -33,9 +33,10 @@ const generateRandomPassword = (): string => {
 
 export const getStudents = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { class_id } = req.query;
+        const { class_id, include_inactive } = req.query;
         const filter: any = {};
         if (class_id) filter.class_id = class_id;
+        if (include_inactive !== 'true') filter.status = { $ne: 'inactive' };
 
         const students = await Student.find(filter)
             .populate({
@@ -162,8 +163,12 @@ export const createTeacher = async (req: Request, res: Response): Promise<void> 
             credentials: { reg_number, password },
             teacher
         });
-    } catch (error) {
-        res.status(500).json({ message: 'Server error', error });
+    } catch (error: any) {
+        console.error('createTeacher error:', error);
+        const message = error?.code === 11000
+            ? 'A user with that email or employee ID already exists.'
+            : error?.message || 'Server error';
+        res.status(500).json({ message });
     }
 };
 

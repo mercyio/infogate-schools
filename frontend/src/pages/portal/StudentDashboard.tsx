@@ -39,14 +39,12 @@ const dayHeaderClass = (dayIndex: number) => {
 
 interface TimetableItem {
   _id: string;
+  level: string;
   day_of_week: number;
   start_time: string;
   end_time: string;
   room_number?: string;
-  class_subject_id?: {
-    subject_id?: { name?: string; code?: string };
-    class_id?: { name?: string };
-  };
+  subject_id?: { name?: string; code?: string };
 }
 
 interface AssignmentItem {
@@ -170,7 +168,7 @@ const StudentDashboard = () => {
                       <div className="flex items-center gap-3">
                         <Clock className="w-4 h-4 text-primary shrink-0" />
                         <span className="text-sm font-semibold">{item.start_time} – {item.end_time}</span>
-                        <span className="text-sm">{item.class_subject_id?.subject_id?.name ?? "—"}</span>
+                        <span className="text-sm">{item.subject_id?.name ?? "—"}</span>
                       </div>
                       {item.room_number && (
                         <span className="text-xs text-muted-foreground">{item.room_number}</span>
@@ -203,7 +201,7 @@ const StudentDashboard = () => {
                       <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl hover:bg-muted/70 transition-colors cursor-pointer">
                         <div>
                           <p className="text-sm font-medium">{item.title}</p>
-                          <p className="text-xs text-muted-foreground">{item.class_subject_id?.subject_id?.name}</p>
+                          <p className="text-xs text-muted-foreground">{item.subject_id?.name}</p>
                         </div>
                         <span className="text-xs px-2 py-1 bg-coral/10 text-coral rounded-full font-semibold shrink-0">
                           {item.due_date ? format(new Date(item.due_date), "MMM d") : "No date"}
@@ -273,7 +271,7 @@ const StudentDashboard = () => {
                                 {cells.map((item) => (
                                   <div key={item._id} className="rounded-md border bg-background p-2">
                                     <p className="text-xs font-semibold leading-snug">
-                                      {item.class_subject_id?.subject_id?.name ?? "—"}
+                                      {item.subject_id?.name ?? "—"}
                                     </p>
                                     {item.room_number && (
                                       <p className="text-[11px] text-muted-foreground mt-0.5">{item.room_number}</p>
