@@ -1,33 +1,28 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Shield,
-  Bell,
-  LogOut,
-  ArrowLeft,
+  Megaphone,
   Plus,
   Edit,
   Trash2,
-  Calendar,
   Users,
-  Megaphone,
-  X,
+  MoreHorizontal,
   Heart,
   MessageCircle,
   Share2,
-  MoreHorizontal,
-  Sparkles,
-  TrendingUp,
+  X,
+  AlertTriangle,
+  Info,
+  Flame,
+  Search,
+  Filter,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import api from "@/lib/api";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
 
-// Types
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 interface Announcement {
   _id: string;
   title: string;
@@ -35,12 +30,7 @@ interface Announcement {
   createdAt: string;
   target_audience: string[];
   priority: string;
-  author: {
-    _id: string;
-    full_name: string;
-    role: string;
-    avatar_url?: string;
-  };
+  author: { _id: string; full_name: string; role: string };
   likes: number;
   comments: number;
   liked?: boolean;
@@ -53,278 +43,176 @@ interface FormData {
   priority: string;
 }
 
-// Constants
-// No hardcoded data here anymore
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-
-const PRIORITY_STYLES: Record<
-  string,
-  {
-    bg: string;
-    text: string;
-    dot: string;
-    badge: string;
-    color: string;
-    glow: string;
-  }
-> = {
-  High: {
-    bg: "bg-red-50/50 border-l-4 border-l-red-500",
-    text: "text-red-700",
-    dot: "bg-red-600",
-    badge: "bg-red-100/80 text-red-700 border border-red-200",
-    color: "text-red-600",
-    glow: "shadow-red-500/10",
-  },
-  Medium: {
-    bg: "bg-amber-50/50 border-l-4 border-l-amber-500",
-    text: "text-amber-700",
-    dot: "bg-amber-600",
-    badge: "bg-amber-100/80 text-amber-700 border border-amber-200",
-    color: "text-amber-600",
-    glow: "shadow-amber-500/10",
-  },
-  Normal: {
-    bg: "bg-blue-50/50 border-l-4 border-l-blue-500",
-    text: "text-slate-600",
-    dot: "bg-blue-400",
-    badge: "bg-blue-100/80 text-blue-700 border border-blue-200",
-    color: "text-blue-600",
-    glow: "shadow-blue-500/10",
-  },
+const PRIORITY_META: Record<string, { icon: typeof Info; label: string; strip: string; badge: string; dot: string }> = {
+  High:   { icon: Flame,         label: "High",   strip: "bg-red-500",    badge: "bg-red-50 text-red-700 border-red-200",    dot: "bg-red-500" },
+  Medium: { icon: AlertTriangle, label: "Medium", strip: "bg-amber-400",  badge: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-400" },
+  Normal: { icon: Info,          label: "Normal", strip: "bg-blue-500",   badge: "bg-blue-50 text-blue-700 border-blue-200",  dot: "bg-blue-400" },
 };
 
-const AUDIENCE_COLORS: Record<string, string> = {
-  All: "bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-700",
-  Students: "bg-gradient-to-r from-green-100 to-emerald-100 text-green-700",
-  Teachers: "bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700",
-  Parents: "bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700",
+const AUDIENCE_BADGE: Record<string, string> = {
+  all:      "bg-gray-100 text-gray-600",
+  students: "bg-green-100 text-green-700",
+  teachers: "bg-purple-100 text-purple-700",
+  parents:  "bg-orange-100 text-orange-700",
 };
 
-const AVATAR_COLORS: Record<string, string> = {
-  SJ: "bg-gradient-to-br from-pink-500 via-rose-500 to-red-500",
-  JW: "bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-500",
-  ED: "bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500",
-  LM: "bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500",
-  AD: "bg-gradient-to-br from-indigo-600 via-blue-600 to-cyan-600",
-};
-
-// Components
-const PageHeader = () => (
-  <header className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 border-b border-slate-200/50 shadow-sm">
-    <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <div className="w-12 h-12 bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30 group hover:shadow-blue-500/50 transition-shadow">
-          <Megaphone className="w-6 h-6 text-white group-hover:scale-110 transition-transform" />
-        </div>
-        <div>
-          <h1 className="font-bold text-slate-900">School Announcements</h1>
-          <p className="text-xs text-slate-500">Community Feed</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="hover:bg-blue-50 text-slate-600 hover:text-blue-600 transition-all"
-        >
-          <Bell className="w-5 h-5" />
-        </Button>
-        <Link to="/login">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hover:bg-red-50 text-slate-600 hover:text-red-600 transition-all"
-          >
-            <LogOut className="w-5 h-5" />
-          </Button>
-        </Link>
-      </div>
-    </div>
-  </header>
-);
-
-interface CreatePostFormProps {
-  onCancel: () => void;
-  onSubmit: (data: FormData) => void;
+function avatarGradient(name: string) {
+  const palette = [
+    "from-blue-600 to-cyan-500",
+    "from-purple-600 to-pink-500",
+    "from-green-600 to-teal-500",
+    "from-orange-500 to-amber-400",
+    "from-indigo-600 to-blue-500",
+    "from-rose-600 to-pink-500",
+  ];
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
+  return palette[h % palette.length];
 }
 
-const CreatePostForm = ({ onCancel, onSubmit }: CreatePostFormProps) => {
-  const [formData, setFormData] = useState<FormData>({
-    title: "",
-    content: "",
-    audience: "all",
-    priority: "normal",
-  });
+function initials(name: string) {
+  return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+}
 
-  const handleSubmit = (e: React.FormEvent) => {
+function normPriority(p: string) {
+  const s = (p || "normal").toLowerCase();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// ─── Compose box ──────────────────────────────────────────────────────────────
+
+function ComposeBox({ onSubmit, loading }: { onSubmit: (d: FormData) => void; loading: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<FormData>({ title: "", content: "", audience: "all", priority: "normal" });
+
+  const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.title.trim() && formData.content.trim()) {
-      onSubmit(formData);
-      setFormData({
-        title: "",
-        content: "",
-        audience: "all",
-        priority: "normal",
-      });
-    }
+    if (!form.title.trim() || !form.content.trim()) return;
+    onSubmit(form);
+    setForm({ title: "", content: "", audience: "all", priority: "normal" });
+    setOpen(false);
   };
 
   return (
-    <motion.form
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      onSubmit={handleSubmit}
-      className="bg-gradient-to-br from-white to-blue-50 border border-slate-200/60 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all sticky top-20 group"
-    >
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-pink-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
-
-      <div className="relative">
-        <div className="flex items-start gap-4 mb-4">
-          <div className="relative">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/40">
-              <span className="text-white font-bold text-sm">AD</span>
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      {/* Prompt row */}
+      {!open ? (
+        <button
+          onClick={() => setOpen(true)}
+          className="w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-50 transition-colors text-left"
+        >
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0a2342] to-[#1a5276] flex items-center justify-center shrink-0">
+            <span className="text-white font-extrabold text-xs">AD</span>
+          </div>
+          <span className="flex-1 text-sm text-gray-400 border border-gray-200 rounded-xl px-4 py-2.5 bg-gray-50 hover:border-gray-300 transition-colors">
+            Post an announcement…
+          </span>
+          <div className="w-9 h-9 bg-yellow-400 hover:bg-yellow-300 rounded-xl flex items-center justify-center transition-colors shrink-0">
+            <Plus className="w-4 h-4 text-gray-900" />
+          </div>
+        </button>
+      ) : (
+        <AnimatePresence>
+          <motion.form
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            onSubmit={submit}
+            className="p-5 space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0a2342] to-[#1a5276] flex items-center justify-center">
+                  <span className="text-white font-extrabold text-xs">AD</span>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-gray-900">School Administrator</p>
+                  <div className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500" /><span className="text-[10px] text-gray-400">Online</span></div>
+                </div>
+              </div>
+              <button type="button" onClick={() => setOpen(false)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors">
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-md" />
-          </div>
-          <div>
-            <p className="font-semibold text-slate-900">School Administrator</p>
-            <p className="text-xs text-slate-500">Online now</p>
-          </div>
-        </div>
 
-        <div className="space-y-4">
-          <Input
-            placeholder="What's on your mind?"
-            value={formData.title}
-            onChange={(e) =>
-              setFormData({ ...formData, title: e.target.value })
-            }
-            className="text-sm placeholder:text-slate-400 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-lg h-10 bg-white/80 backdrop-blur"
-            required
-          />
+            <input
+              required
+              value={form.title}
+              onChange={e => setForm({ ...form, title: e.target.value })}
+              placeholder="Announcement title…"
+              className="w-full h-10 px-4 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-[#0a2342] focus:ring-2 focus:ring-[#0a2342]/10 bg-gray-50"
+            />
+            <textarea
+              required
+              value={form.content}
+              onChange={e => setForm({ ...form, content: e.target.value })}
+              placeholder="Share your message with the school community…"
+              rows={3}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm resize-none focus:outline-none focus:border-[#0a2342] focus:ring-2 focus:ring-[#0a2342]/10 bg-gray-50"
+            />
 
-          <textarea
-            placeholder="Share your announcement with the school community..."
-            value={formData.content}
-            onChange={(e) =>
-              setFormData({ ...formData, content: e.target.value })
-            }
-            className="w-full min-h-[100px] rounded-lg border border-slate-200 bg-white/80 px-4 py-3 text-sm resize-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all placeholder:text-slate-400 backdrop-blur"
-            required
-          />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Audience</label>
+                <select
+                  value={form.audience}
+                  onChange={e => setForm({ ...form, audience: e.target.value })}
+                  className="w-full h-9 px-3 rounded-xl border border-gray-200 text-xs bg-white focus:outline-none focus:border-[#0a2342] cursor-pointer font-medium"
+                >
+                  <option value="all">Everyone</option>
+                  <option value="students">Students</option>
+                  <option value="teachers">Teachers</option>
+                  <option value="parents">Parents</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1">Priority</label>
+                <select
+                  value={form.priority}
+                  onChange={e => setForm({ ...form, priority: e.target.value })}
+                  className="w-full h-9 px-3 rounded-xl border border-gray-200 text-xs bg-white focus:outline-none focus:border-[#0a2342] cursor-pointer font-medium"
+                >
+                  <option value="normal">Normal</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+            </div>
 
-          <div className="grid grid-cols-2 gap-3 bg-white/50 backdrop-blur-sm p-3 rounded-lg border border-slate-100">
-            <div>
-              <label className="text-xs font-semibold text-slate-700 mb-1 block">
-                Audience
-              </label>
-              <select
-                value={formData.audience}
-                onChange={(e) =>
-                  setFormData({ ...formData, audience: e.target.value })
-                }
-                className="w-full h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer font-medium"
+            <div className="flex justify-end gap-2 pt-1 border-t border-gray-100">
+              <button type="button" onClick={() => setOpen(false)} className="px-4 py-2 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-100 transition-colors">
+                Discard
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-5 py-2 rounded-xl text-sm font-bold bg-gradient-to-r from-[#0a2342] to-[#1a5276] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
               >
-                <option value="all">All</option>
-                <option value="students">Students</option>
-                <option value="teachers">Teachers</option>
-                <option value="parents">Parents</option>
-              </select>
+                {loading ? "Posting…" : "Post Announcement"}
+              </button>
             </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-700 mb-1 block">
-                Priority
-              </label>
-              <select
-                value={formData.priority}
-                onChange={(e) =>
-                  setFormData({ ...formData, priority: e.target.value })
-                }
-                className="w-full h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer font-medium"
-              >
-                <option value="normal">Normal</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onCancel}
-              className="rounded-lg text-xs hover:bg-slate-100"
-            >
-              Discard
-            </Button>
-            <Button
-              type="submit"
-              size="sm"
-              className="gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:shadow-lg hover:shadow-blue-500/50 transition-all text-xs font-semibold"
-            >
-              <Plus className="w-3 h-3" />
-              Post
-            </Button>
-          </div>
-        </div>
-      </div>
-    </motion.form>
-  );
-};
-
-interface CreatePostPromptProps {
-  onCreateClick: () => void;
-}
-
-const CreatePostPrompt = ({ onCreateClick }: CreatePostPromptProps) => (
-  <motion.button
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    onClick={onCreateClick}
-    className="w-full bg-gradient-to-br from-white to-blue-50 border border-slate-200 rounded-2xl p-4 hover:shadow-xl transition-all flex items-center gap-4 group sticky top-20 hover:border-blue-300"
-  >
-    <div className="relative">
-      <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform shadow-lg shadow-blue-500/40">
-        <span className="text-white font-bold text-sm">AD</span>
-      </div>
-      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white" />
+          </motion.form>
+        </AnimatePresence>
+      )}
     </div>
-    <span className="text-slate-500 group-hover:text-slate-700 transition-colors text-sm font-medium">
-      What's on your mind?
-    </span>
-  </motion.button>
-);
-
-interface EditPostModalProps {
-  announcement: Announcement | null;
-  onCancel: () => void;
-  onSubmit: (id: string, data: FormData) => void;
+  );
 }
 
-const EditPostModal = ({
-  announcement,
-  onCancel,
-  onSubmit,
-}: EditPostModalProps) => {
-  const [formData, setFormData] = useState<FormData>(
-    announcement
-      ? {
-          title: announcement.title,
-          content: announcement.content,
-          audience: announcement.target_audience[0] || "all",
-          priority: announcement.priority.toLowerCase(),
-        }
-      : { title: "", content: "", audience: "all", priority: "normal" }
-  );
+// ─── Edit Modal ───────────────────────────────────────────────────────────────
+
+function EditModal({ announcement, onClose, onSave, loading }: {
+  announcement: Announcement | null;
+  onClose: () => void;
+  onSave: (id: string, d: FormData) => void;
+  loading: boolean;
+}) {
+  const [form, setForm] = useState<FormData>({ title: "", content: "", audience: "all", priority: "normal" });
 
   useEffect(() => {
     if (announcement) {
-      setFormData({
+      setForm({
         title: announcement.title,
         content: announcement.content,
         audience: announcement.target_audience[0] || "all",
@@ -333,116 +221,78 @@ const EditPostModal = ({
     }
   }, [announcement]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (announcement && formData.title.trim() && formData.content.trim()) {
-      onSubmit(announcement._id, formData);
-    }
-  };
-
   return (
     <AnimatePresence>
       {announcement && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ opacity: 0, scale: 0.96, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="bg-gradient-to-br from-white to-blue-50 rounded-3xl p-8 max-w-2xl w-full shadow-2xl border border-slate-200/50"
+            exit={{ opacity: 0, scale: 0.96, y: 16 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
           >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                <Sparkles className="w-6 h-6 text-blue-600" />
-                Edit Announcement
-              </h2>
-              <button
-                onClick={onCancel}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <X className="w-6 h-6 text-slate-600" />
+            <div className="bg-gradient-to-br from-[#0a2342] via-[#0d3460] to-[#1a5276] px-6 py-5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-yellow-400 rounded-xl flex items-center justify-center">
+                  <Edit className="w-4 h-4 text-gray-900" />
+                </div>
+                <h2 className="text-lg font-extrabold text-white">Edit Announcement</h2>
+              </div>
+              <button onClick={onClose} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form
+              onSubmit={e => { e.preventDefault(); onSave(announcement._id, form); }}
+              className="p-6 space-y-4"
+            >
               <div>
-                <label className="text-sm font-semibold text-slate-900 mb-2 block">
-                  Title
-                </label>
-                <Input
-                  value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
-                  }
-                  className="h-12 rounded-lg border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block mb-1.5">Title</label>
+                <input
+                  value={form.title}
+                  onChange={e => setForm({ ...form, title: e.target.value })}
+                  className="w-full h-10 px-4 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-[#0a2342] focus:ring-2 focus:ring-[#0a2342]/10"
+                  required
                 />
               </div>
-
               <div>
-                <label className="text-sm font-semibold text-slate-900 mb-2 block">
-                  Content
-                </label>
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block mb-1.5">Content</label>
                 <textarea
-                  value={formData.content}
-                  onChange={(e) =>
-                    setFormData({ ...formData, content: e.target.value })
-                  }
-                  className="w-full min-h-[120px] rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm resize-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  value={form.content}
+                  onChange={e => setForm({ ...form, content: e.target.value })}
+                  rows={4}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm resize-none focus:outline-none focus:border-[#0a2342] focus:ring-2 focus:ring-[#0a2342]/10"
+                  required
                 />
               </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-semibold text-slate-900 mb-2 block">
-                    Audience
-                  </label>
-                  <select
-                    value={formData.audience}
-                    onChange={(e) =>
-                      setFormData({ ...formData, audience: e.target.value })
-                    }
-                    className="w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
-                  >
-                    <option value="all">All (Everyone)</option>
-                    <option value="students">Students Only</option>
-                    <option value="teachers">Teachers Only</option>
-                    <option value="parents">Parents Only</option>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block mb-1.5">Audience</label>
+                  <select value={form.audience} onChange={e => setForm({ ...form, audience: e.target.value })}
+                    className="w-full h-10 px-3 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none focus:border-[#0a2342] cursor-pointer">
+                    <option value="all">Everyone</option>
+                    <option value="students">Students</option>
+                    <option value="teachers">Teachers</option>
+                    <option value="parents">Parents</option>
                   </select>
                 </div>
-
                 <div>
-                  <label className="text-sm font-semibold text-slate-900 mb-2 block">
-                    Priority
-                  </label>
-                  <select
-                    value={formData.priority}
-                    onChange={(e) =>
-                      setFormData({ ...formData, priority: e.target.value })
-                    }
-                    className="w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
-                  >
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block mb-1.5">Priority</label>
+                  <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}
+                    className="w-full h-10 px-3 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none focus:border-[#0a2342] cursor-pointer">
                     <option value="normal">Normal</option>
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
                   </select>
                 </div>
               </div>
-
-              <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={onCancel}
-                  className="rounded-lg"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  className="gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:shadow-lg transition-all"
-                >
-                  <Edit className="w-4 h-4" />
-                  Update Announcement
-                </Button>
+              <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+                <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-100 transition-colors">Cancel</button>
+                <button type="submit" disabled={loading}
+                  className="px-5 py-2 rounded-xl text-sm font-bold bg-gradient-to-r from-[#0a2342] to-[#1a5276] text-white hover:opacity-90 transition-opacity disabled:opacity-50">
+                  {loading ? "Saving…" : "Save Changes"}
+                </button>
               </div>
             </form>
           </motion.div>
@@ -450,473 +300,371 @@ const EditPostModal = ({
       )}
     </AnimatePresence>
   );
-};
-
-interface DeleteConfirmModalProps {
-  announcementId: string | null;
-  title: string | null;
-  onCancel: () => void;
-  onConfirm: () => void;
 }
 
-const DeleteConfirmModal = ({
-  announcementId,
-  title,
-  onCancel,
-  onConfirm,
-}: DeleteConfirmModalProps) => {
+// ─── Delete Confirm ───────────────────────────────────────────────────────────
+
+function DeleteModal({ id, title, onClose, onConfirm, loading }: {
+  id: string | null; title: string | null; onClose: () => void; onConfirm: () => void; loading: boolean;
+}) {
   return (
     <AnimatePresence>
-      {announcementId && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      {id && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-slate-200/50"
+            exit={{ opacity: 0, scale: 0.96 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center"
           >
-            <div className="w-16 h-16 bg-gradient-to-br from-red-100 to-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Trash2 className="w-8 h-8 text-red-600" />
+            <div className="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-6 h-6 text-red-600" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 text-center mb-2">
-              Delete Announcement?
-            </h2>
-            <p className="text-slate-600 text-center mb-8">
-              Are you sure you want to delete "{title}"? This action cannot be
-              undone.
+            <h3 className="text-lg font-extrabold text-gray-900 mb-2">Delete Announcement?</h3>
+            <p className="text-sm text-gray-500 mb-6">
+              "<span className="font-semibold text-gray-700">{title}</span>" will be permanently removed.
             </p>
             <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={onCancel}
-                className="flex-1 rounded-lg"
-              >
-                Keep It
-              </Button>
-              <Button
-                onClick={onConfirm}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-lg"
-              >
-                Delete
-              </Button>
+              <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">Keep It</button>
+              <button onClick={onConfirm} disabled={loading}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-colors disabled:opacity-50">
+                {loading ? "Deleting…" : "Delete"}
+              </button>
             </div>
           </motion.div>
         </div>
       )}
     </AnimatePresence>
   );
-};
-
-interface AnnouncementPostProps {
-  announcement: Announcement;
-  index: number;
-  onEdit: (announcement: Announcement) => void;
-  onDelete: (id: string, title: string) => void;
-  onLike: (id: string) => void;
 }
 
-const AnnouncementPost = ({
-  announcement,
-  index,
-  onEdit,
-  onDelete,
-  onLike,
-}: AnnouncementPostProps) => {
-  const [showMenu, setShowMenu] = useState(false);
-  const priority = (announcement.priority?.charAt(0).toUpperCase() + announcement.priority?.slice(1)) || "Normal";
-  const priorityStyle = PRIORITY_STYLES[priority] || PRIORITY_STYLES.Normal;
-  const audience = announcement.target_audience[0] || "All";
-  const audienceBg = AUDIENCE_COLORS[audience.charAt(0).toUpperCase() + audience.slice(1)] || AUDIENCE_COLORS.All;
-  
+// ─── Post Card ────────────────────────────────────────────────────────────────
+
+function PostCard({ announcement, index, onEdit, onDelete, onLike }: {
+  announcement: Announcement;
+  index: number;
+  onEdit: (a: Announcement) => void;
+  onDelete: (id: string, title: string) => void;
+  onLike: (id: string) => void;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const priority = normPriority(announcement.priority);
+  const pm = PRIORITY_META[priority] || PRIORITY_META.Normal;
+  const PriorityIcon = pm.icon;
+  const audience = (announcement.target_audience[0] || "all").toLowerCase();
+  const audienceBadge = AUDIENCE_BADGE[audience] || AUDIENCE_BADGE.all;
   const authorName = announcement.author?.full_name || "School Admin";
-  const avatarInitials = authorName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-  const avatarBg = AVATAR_COLORS[avatarInitials] || "bg-gradient-to-br from-indigo-600 via-blue-600 to-cyan-600";
+  const grad = avatarGradient(authorName);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
-      className={cn(
-        "group rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden",
-        priorityStyle.bg,
-        "border border-slate-200/80"
-      )}
+      transition={{ delay: index * 0.07 }}
+      className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow group"
     >
-      {/* Post Header */}
-      <div
-        className={cn(
-          "p-5 border-b border-slate-100 bg-white/50",
-          priorityStyle.glow
-        )}
-      >
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-3 flex-1">
-            <div
-              className={`w-12 h-12 ${avatarBg} rounded-full flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30 ring-2 ring-white`}
-            >
-              <span className="text-white font-bold text-sm">
-                {avatarInitials}
-              </span>
-            </div>
-            <div>
-              <p className="font-semibold text-slate-900 text-sm">
-                {authorName}
-              </p>
-              <p className="text-xs text-slate-500">{format(new Date(announcement.createdAt), 'MMM dd, yyyy')}</p>
-            </div>
-          </div>
+      {/* Priority strip */}
+      <div className={`h-1 ${pm.strip}`} />
 
-          {/* Menu Button */}
+      {/* Header */}
+      <div className="px-5 pt-4 pb-3 flex items-start justify-between">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${grad} flex items-center justify-center shrink-0 shadow-md`}>
+            <span className="text-white font-extrabold text-xs">{initials(authorName)}</span>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-gray-900">{authorName}</p>
+            <p className="text-xs text-gray-400">{format(new Date(announcement.createdAt), "MMM d, yyyy · h:mm a")}</p>
+          </div>
+        </div>
+
+        {/* Priority badge */}
+        <div className="flex items-center gap-2">
+          <span className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold border ${pm.badge}`}>
+            <PriorityIcon className="w-3 h-3" /> {pm.label}
+          </span>
+
+          {/* Menu */}
           <div className="relative">
             <button
-              onClick={() => setShowMenu(!showMenu)}
-              className="p-2 hover:bg-white/60 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+              onClick={() => setMenuOpen(m => !m)}
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 opacity-0 group-hover:opacity-100 transition-all"
             >
-              <MoreHorizontal className="w-5 h-5 text-slate-600" />
+              <MoreHorizontal className="w-4 h-4" />
             </button>
-
-            {/* Dropdown Menu */}
             <AnimatePresence>
-              {showMenu && (
+              {menuOpen && (
                 <motion.div
-                  initial={{ opacity: 0, y: -10 }}
+                  initial={{ opacity: 0, y: -6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-20 overflow-hidden"
+                  exit={{ opacity: 0, y: -6 }}
+                  className="absolute right-0 top-8 w-44 bg-white border border-gray-100 rounded-xl shadow-xl z-20 overflow-hidden"
                 >
                   <button
-                    onClick={() => {
-                      onEdit(announcement);
-                      setShowMenu(false);
-                    }}
-                    className="w-full flex items-center gap-2 px-4 py-3 hover:bg-blue-50 text-slate-700 text-sm font-medium border-b border-slate-100 transition-colors"
+                    onClick={() => { onEdit(announcement); setMenuOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-50 transition-colors"
                   >
-                    <Edit className="w-4 h-4 text-blue-600" />
-                    Edit Post
+                    <Edit className="w-3.5 h-3.5 text-[#0a2342]" /> Edit Post
                   </button>
                   <button
-                    onClick={() => {
-                      onDelete(announcement._id, announcement.title);
-                      setShowMenu(false);
-                    }}
-                    className="w-full flex items-center gap-2 px-4 py-3 hover:bg-red-50 text-red-600 text-sm font-medium transition-colors"
+                    onClick={() => { onDelete(announcement._id, announcement.title); setMenuOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
                   >
-                    <Trash2 className="w-4 h-4" />
-                    Delete Post
+                    <Trash2 className="w-3.5 h-3.5" /> Delete Post
                   </button>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
         </div>
+      </div>
 
-        {/* Priority Badge */}
-        <div className="flex items-center gap-2">
-          <div
-            className={`w-2 h-2 rounded-full ${priorityStyle.dot} animate-pulse`}
-          />
-          <span
-            className={`text-xs font-bold ${priorityStyle.badge} px-3 py-1 rounded-full`}
-          >
-            {priority} Priority
+      {/* Body */}
+      <div className="px-5 pb-4">
+        <h3 className="font-extrabold text-gray-900 mb-1.5 leading-snug break-words">{announcement.title}</h3>
+        <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap break-words overflow-wrap-anywhere">{announcement.content}</p>
+
+        {/* Audience badge */}
+        <div className="mt-3 flex items-center gap-2 flex-wrap">
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${audienceBadge}`}>
+            <Users className="w-3 h-3" />
+            {audience.charAt(0).toUpperCase() + audience.slice(1)}
+          </span>
+          <span className={`sm:hidden inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold border ${pm.badge}`}>
+            <PriorityIcon className="w-3 h-3" /> {pm.label}
           </span>
         </div>
       </div>
 
-      {/* Post Content */}
-      <div className="p-5 border-b border-slate-200/40">
-        <h3 className="font-bold text-slate-900 mb-2 text-base leading-tight break-words">
-          {announcement.title}
-        </h3>
-        <p className="text-slate-700 leading-relaxed text-sm mb-4 whitespace-pre-wrap break-words">
-          {announcement.content}
-        </p>
-
-        {/* Audience Badge */}
-        <div
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold ${audienceBg} backdrop-blur-sm border border-white/40`}
-        >
-          <Users className="w-3 h-3" />
-          {audience}
+      {/* Stats + Actions */}
+      <div className="border-t border-gray-50 px-5 py-2 flex items-center justify-between">
+        <div className="flex items-center gap-4 text-xs text-gray-400">
+          <span className="flex items-center gap-1">
+            <span className={`w-1.5 h-1.5 rounded-full ${pm.dot}`} />
+            <span className="font-semibold text-gray-600">{announcement.likes}</span> likes
+          </span>
+          <span><span className="font-semibold text-gray-600">{announcement.comments}</span> comments</span>
         </div>
-      </div>
-
-      {/* Post Stats */}
-      <div className="px-5 py-3 border-b border-slate-200/40 text-xs text-slate-600 flex items-center justify-between bg-white/30 backdrop-blur-sm">
-        <span className="flex items-center gap-1">
-          <TrendingUp className="w-3 h-3 text-blue-600" />
-          <span className="font-semibold text-slate-900">
-            {announcement.likes}
-          </span>{" "}
-          likes
-        </span>
-        <span>
-          <span className="font-semibold text-slate-900">
-            {announcement.comments}
-          </span>{" "}
-          comments
-        </span>
-      </div>
-
-      {/* Post Actions */}
-      <div className="p-3 flex items-center justify-around bg-white/50 backdrop-blur-sm">
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => onLike(announcement._id)}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium text-xs transition-all ${
-            announcement.liked
-              ? "text-red-600 bg-red-50/60 backdrop-blur"
-              : "text-slate-600 hover:bg-white/80"
-          }`}
-        >
-          <Heart
-            className={`w-4 h-4 ${
-              announcement.liked ? "fill-current" : ""
-            } transition-transform ${announcement.liked ? "scale-125" : ""}`}
-          />
-          Like
-        </motion.button>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg font-medium text-xs text-slate-600 hover:bg-white/80 transition-all"
-        >
-          <MessageCircle className="w-4 h-4" />
-          Comment
-        </motion.button>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg font-medium text-xs text-slate-600 hover:bg-white/80 transition-all"
-        >
-          <Share2 className="w-4 h-4" />
-          Share
-        </motion.button>
+        <div className="flex items-center gap-1">
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => onLike(announcement._id)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+              announcement.liked ? "text-red-600 bg-red-50" : "text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            }`}
+          >
+            <Heart className={`w-3.5 h-3.5 ${announcement.liked ? "fill-current" : ""}`} />
+            Like
+          </motion.button>
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+            <MessageCircle className="w-3.5 h-3.5" /> Comment
+          </button>
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+            <Share2 className="w-3.5 h-3.5" /> Share
+          </button>
+        </div>
       </div>
     </motion.div>
   );
-};
-
-interface AnnouncementFeedProps {
-  announcements: Announcement[];
-  isLoading: boolean;
-  onEdit: (announcement: Announcement) => void;
-  onDelete: (id: string, title: string) => void;
-  onLike: (id: string) => void;
 }
 
-const AnnouncementFeed = ({
-  announcements,
-  isLoading,
-  onEdit,
-  onDelete,
-  onLike,
-}: AnnouncementFeedProps) => {
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="bg-white/50 backdrop-blur h-48 rounded-3xl animate-pulse border border-slate-200/60" />
-        ))}
-      </div>
-    );
-  }
-  if (announcements.length === 0) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-br from-white to-blue-50 border border-slate-200/60 rounded-3xl p-12 text-center shadow-sm backdrop-blur-sm"
-      >
-        <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Megaphone className="w-8 h-8 text-blue-600" />
-        </div>
-        <p className="text-slate-700 text-lg font-semibold">
-          No announcements yet
-        </p>
-        <p className="text-slate-500 text-sm mt-2">
-          Be the first to post an announcement!
-        </p>
-      </motion.div>
-    );
-  }
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
-  return (
-    <div className="space-y-4">
-      {announcements.map((announcement, index) => (
-        <AnnouncementPost
-          key={announcement._id}
-          announcement={announcement}
-          index={index}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onLike={onLike}
-        />
-      ))}
-    </div>
-  );
-};
-
-// Main Component
 const Announcements = () => {
   const queryClient = useQueryClient();
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingAnnouncement, setEditingAnnouncement] =
-    useState<Announcement | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deletingTitle, setDeletingTitle] = useState<string | null>(null);
+  const [editTarget, setEditTarget] = useState<Announcement | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteTitle, setDeleteTitle] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState("all");
 
-  // Queries
-  const { data: announcements = [], isLoading } = useQuery({
-    queryKey: ['announcements'],
-    queryFn: async () => {
-      const res = await api.get('/announcements');
-      return res.data;
-    }
+  const { data: announcements = [], isLoading } = useQuery<Announcement[]>({
+    queryKey: ["announcements"],
+    queryFn: async () => { const r = await api.get("/announcements"); return r.data; },
   });
 
-  // Mutations
   const createMutation = useMutation({
-    mutationFn: (newPost: any) => api.post('/announcements', newPost),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['announcements'] });
-      setShowCreateForm(false);
-    }
+    mutationFn: (d: any) => api.post("/announcements", d),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["announcements"] }),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => api.put(`/announcements/${id}`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['announcements'] });
-      setEditingAnnouncement(null);
-    }
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["announcements"] }); setEditTarget(null); },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/announcements/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['announcements'] });
-      setDeletingId(null);
-      setDeletingTitle(null);
-    }
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["announcements"] }); setDeleteId(null); setDeleteTitle(null); },
   });
-
-  const handleCreateAnnouncement = (data: FormData) => {
-    createMutation.mutate({
-      title: data.title,
-      content: data.content,
-      target_audience: [data.audience],
-      priority: data.priority,
-    });
-  };
-
-  const handleEditAnnouncement = (id: string, data: FormData) => {
-    updateMutation.mutate({
-      id,
-      data: {
-        title: data.title,
-        content: data.content,
-        target_audience: [data.audience],
-        priority: data.priority,
-      }
-    });
-  };
-
-  const handleDeleteAnnouncement = () => {
-    if (deletingId) {
-      deleteMutation.mutate(deletingId);
-    }
-  };
 
   const likeMutation = useMutation({
     mutationFn: (id: string) => api.post(`/announcements/${id}/like`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['announcements'] });
-    }
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["announcements"] }),
   });
 
-  const handleLike = (id: string) => {
-    likeMutation.mutate(id);
-  };
+  const filtered = announcements.filter(a => {
+    const matchSearch = a.title.toLowerCase().includes(search.toLowerCase()) || a.content.toLowerCase().includes(search.toLowerCase());
+    const matchPriority = priorityFilter === "all" || normPriority(a.priority).toLowerCase() === priorityFilter;
+    return matchSearch && matchPriority;
+  });
+
+  const highCount = announcements.filter(a => normPriority(a.priority) === "High").length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/10 to-cyan-400/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-purple-400/10 to-pink-400/10 rounded-full blur-3xl" />
-      </div>
+    <div className="min-h-screen bg-gray-50">
 
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-[#0a2342] via-[#0d3460] to-[#1a5276]">
+        <div className="absolute inset-0 opacity-5" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
+        <div className="relative z-10 container mx-auto px-4 py-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-yellow-400 rounded-xl flex items-center justify-center shadow-md">
+                <Megaphone className="w-5 h-5 text-gray-900" />
+              </div>
+              <div>
+                <h1 className="text-2xl md:text-3xl font-extrabold text-white">Community Feed</h1>
+                <p className="text-white/50 text-sm">School announcements &amp; updates</p>
+              </div>
+            </div>
 
-      <div className="container mx-auto px-4 py-8 relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          {/* Back Button */}
-
-          {/* Page Title */}
-          <div className="mb-10">
-            <motion.h2
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-4xl font-bold text-slate-900 mb-3 flex items-center gap-3"
-            >
-              Community Feed
-            </motion.h2>
-            <p className="text-slate-600 text-lg">
-              Share announcements and stay connected with your school community
-            </p>
-          </div>
-
-          {/* Two Column Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column - Create Post */}
-            <div className="order-1 lg:order-1">
-              {!showCreateForm ? (
-                <CreatePostPrompt
-                  onCreateClick={() => setShowCreateForm(true)}
-                />
-              ) : (
-                <CreatePostForm
-                  onCancel={() => setShowCreateForm(false)}
-                  onSubmit={handleCreateAnnouncement}
-                />
+            {/* Stats chips */}
+            <div className="flex items-center gap-3">
+              <div className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-center">
+                <p className="text-white font-extrabold text-lg leading-none">{announcements.length}</p>
+                <p className="text-white/50 text-[10px] font-bold uppercase tracking-wide">Total</p>
+              </div>
+              {highCount > 0 && (
+                <div className="px-4 py-2 rounded-xl bg-red-500/20 border border-red-400/30 text-center">
+                  <p className="text-red-300 font-extrabold text-lg leading-none">{highCount}</p>
+                  <p className="text-red-300/70 text-[10px] font-bold uppercase tracking-wide">High Priority</p>
+                </div>
               )}
             </div>
+          </div>
 
-            {/* Right Column - Feed */}
-            <div className="lg:col-span-2 order-2 lg:order-2">
-              <AnnouncementFeed
-                announcements={announcements}
-                isLoading={isLoading}
-                onEdit={setEditingAnnouncement}
-                onDelete={(id, title) => {
-                  setDeletingId(id);
-                  setDeletingTitle(title);
-                }}
-                onLike={handleLike}
+          {/* Search + Filter bar */}
+          <div className="mt-5 flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search announcements…"
+                className="w-full pl-10 pr-4 h-10 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm focus:outline-none focus:bg-white/20 transition-colors"
               />
             </div>
+            <div className="flex gap-2">
+              {["all", "high", "medium", "normal"].map(p => (
+                <button
+                  key={p}
+                  onClick={() => setPriorityFilter(p)}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all capitalize ${
+                    priorityFilter === p
+                      ? "bg-yellow-400 text-gray-900 border-yellow-400"
+                      : "bg-white/10 text-white/70 border-white/20 hover:bg-white/20"
+                  }`}
+                >
+                  {p === "all" ? "All" : p}
+                </button>
+              ))}
+            </div>
           </div>
-        </motion.div>
+        </div>
       </div>
 
-      {/* Edit Modal */}
-      <EditPostModal
-        announcement={editingAnnouncement}
-        onCancel={() => setEditingAnnouncement(null)}
-        onSubmit={handleEditAnnouncement}
-      />
+      {/* ── Body ─────────────────────────────────────────────────────────────── */}
+      <div className="container mx-auto px-4 py-6">
+        <div className="grid lg:grid-cols-3 gap-6">
 
-      {/* Delete Confirmation Modal */}
-      <DeleteConfirmModal
-        announcementId={deletingId}
-        title={deletingTitle}
-        onCancel={() => {
-          setDeletingId(null);
-          setDeletingTitle(null);
-        }}
-        onConfirm={handleDeleteAnnouncement}
+          {/* Compose (left sticky panel) */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-4 space-y-4">
+              <ComposeBox
+                onSubmit={d => createMutation.mutate({ title: d.title, content: d.content, target_audience: [d.audience], priority: d.priority })}
+                loading={createMutation.isPending}
+              />
+
+              {/* Quick info card */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Priority Guide</p>
+                <div className="space-y-2.5">
+                  {Object.entries(PRIORITY_META).map(([key, m]) => {
+                    const Icon = m.icon;
+                    return (
+                      <div key={key} className="flex items-center gap-2.5">
+                        <div className={`w-2 h-2 rounded-full ${m.dot}`} />
+                        <Icon className={`w-3.5 h-3.5 ${key === "High" ? "text-red-500" : key === "Medium" ? "text-amber-500" : "text-blue-500"}`} />
+                        <span className="text-xs text-gray-600 font-medium">{key}</span>
+                        <span className="ml-auto text-[10px] text-gray-400">
+                          {announcements.filter(a => normPriority(a.priority) === key).length} posts
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Feed */}
+          <div className="lg:col-span-2 space-y-4">
+            {filtered.length > 0 && (
+              <div className="flex items-center justify-between px-1">
+                <p className="text-xs text-gray-400 font-medium">{filtered.length} announcement{filtered.length !== 1 ? "s" : ""}</p>
+                {(search || priorityFilter !== "all") && (
+                  <button onClick={() => { setSearch(""); setPriorityFilter("all"); }} className="text-xs font-bold text-[#0a2342] flex items-center gap-1 hover:underline">
+                    <X className="w-3 h-3" /> Clear filters
+                  </button>
+                )}
+              </div>
+            )}
+
+            {isLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="bg-white rounded-2xl h-48 animate-pulse border border-gray-100" />
+                ))}
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-dashed border-gray-200 py-20 text-center">
+                <Megaphone className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                <p className="font-semibold text-gray-400">
+                  {announcements.length === 0 ? "No announcements yet" : "No results match your filters"}
+                </p>
+              </div>
+            ) : (
+              <AnimatePresence mode="popLayout">
+                {filtered.map((a, i) => (
+                  <PostCard
+                    key={a._id}
+                    announcement={a}
+                    index={i}
+                    onEdit={setEditTarget}
+                    onDelete={(id, title) => { setDeleteId(id); setDeleteTitle(title); }}
+                    onLike={id => likeMutation.mutate(id)}
+                  />
+                ))}
+              </AnimatePresence>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Modals */}
+      <EditModal
+        announcement={editTarget}
+        onClose={() => setEditTarget(null)}
+        onSave={(id, d) => updateMutation.mutate({ id, data: { title: d.title, content: d.content, target_audience: [d.audience], priority: d.priority } })}
+        loading={updateMutation.isPending}
+      />
+      <DeleteModal
+        id={deleteId}
+        title={deleteTitle}
+        onClose={() => { setDeleteId(null); setDeleteTitle(null); }}
+        onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
+        loading={deleteMutation.isPending}
       />
     </div>
   );
