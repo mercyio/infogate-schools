@@ -16,12 +16,14 @@ import {
   School,
   Activity,
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import api from "@/lib/api";
 
 const EnrollmentReport = () => {
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
 
   // 1. Data Fetching
   const { data: students = [], isLoading: isLoadingStudents } = useQuery({
@@ -139,6 +141,18 @@ const EnrollmentReport = () => {
       unassignedCount: unassigned
     };
   }, [students, classes]);
+
+  useEffect(() => {
+    if (searchParams.get("print") === "1" && !isLoadingStudents && !isLoadingClasses) {
+      const t = setTimeout(() => {
+        const originalTitle = document.title;
+        document.title = `Enrollment_Report_${new Date().getFullYear()}`;
+        window.print();
+        document.title = originalTitle;
+      }, 800);
+      return () => clearTimeout(t);
+    }
+  }, [searchParams, isLoadingStudents, isLoadingClasses]);
 
   if (isLoadingStudents || isLoadingClasses) {
     return (

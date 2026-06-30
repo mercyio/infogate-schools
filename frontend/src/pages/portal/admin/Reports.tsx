@@ -24,47 +24,53 @@ import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 
 const reports = [
-  { 
-    title: "Student Enrollment Report", 
+  {
+    title: "Student Enrollment Report",
     description: "Overview of student enrollment across all programs",
     icon: Users,
     color: "bg-primary",
-    lastUpdated: "Today"
+    lastUpdated: "Today",
+    route: "/portal/admin/enrollment-report"
   },
-  { 
-    title: "Academic Performance", 
+  {
+    title: "Academic Performance",
     description: "Grade analysis and performance trends",
     icon: TrendingUp,
     color: "bg-secondary",
-    lastUpdated: "Yesterday"
+    lastUpdated: "Yesterday",
+    route: "/portal/admin/academic-report"
   },
-  { 
-    title: "Attendance Report", 
+  {
+    title: "Attendance Report",
     description: "Daily and monthly attendance statistics",
     icon: Calendar,
     color: "bg-accent",
-    lastUpdated: "Today"
+    lastUpdated: "Today",
+    route: "/portal/admin/attendance-report"
   },
-  { 
-    title: "Financial Summary", 
+  {
+    title: "Financial Summary",
     description: "Fee collection and revenue reports",
     icon: DollarSign,
     color: "bg-coral",
-    lastUpdated: "This week"
+    lastUpdated: "This week",
+    route: "/portal/admin/financial-report"
   },
-  { 
-    title: "Teacher Performance", 
+  {
+    title: "Teacher Performance",
     description: "Teaching staff evaluation and metrics",
     icon: GraduationCap,
     color: "bg-lavender",
-    lastUpdated: "This month"
+    lastUpdated: "This month",
+    route: "/portal/admin/teacher-performance-report"
   },
-  { 
-    title: "Custom Report", 
+  {
+    title: "Custom Report",
     description: "Generate custom reports with specific criteria",
     icon: FileText,
     color: "bg-admin",
-    lastUpdated: "N/A"
+    lastUpdated: "N/A",
+    route: "/portal/admin/custom-report"
   },
 ];
 
@@ -106,28 +112,10 @@ const Reports = () => {
     },
   ];
 
-  const handleStudentEnrollmentClick = () => {
-    navigate('/portal/admin/enrollment-report');
-  };
-
-  const handleAcademicPerformanceClick = () => {
-    navigate('/portal/admin/academic-report');
-  };
-
-  const handleAttendanceClick = () => {
-    navigate('/portal/admin/attendance-report');
-  };
-
-  const handleFinancialClick = () => {
-    navigate('/portal/admin/financial-report');
-  };
-
-  const handleTeacherPerformanceClick = () => {
-    navigate('/portal/admin/teacher-performance-report');
-  };
-
-  const handleCustomReportClick = () => {
-    navigate('/portal/admin/custom-report');
+  const handleReportClick = (route: string) => navigate(route);
+  const handleDownloadClick = (e: React.MouseEvent, route: string) => {
+    e.stopPropagation();
+    navigate(`${route}?print=1`);
   };
 
   return (
@@ -178,43 +166,19 @@ const Reports = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
                 whileHover={{ y: -5 }}
-                onClick={
-                  report.title === "Student Enrollment Report" 
-                    ? handleStudentEnrollmentClick 
-                    : report.title === "Academic Performance"
-                    ? handleAcademicPerformanceClick
-                    : report.title === "Attendance Report"
-                    ? handleAttendanceClick
-                    : report.title === "Financial Summary"
-                    ? handleFinancialClick
-                    : report.title === "Teacher Performance"
-                    ? handleTeacherPerformanceClick
-                    : report.title === "Custom Report"
-                    ? handleCustomReportClick
-                    : undefined
-                }
-                className={`bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-all ${
-                  report.title === "Student Enrollment Report" || report.title === "Academic Performance" || report.title === "Attendance Report" || report.title === "Financial Summary" || report.title === "Teacher Performance" || report.title === "Custom Report"
-                    ? 'cursor-pointer group' 
-                    : ''
-                }`}
+                onClick={() => handleReportClick(report.route)}
+                className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-all cursor-pointer group"
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div className={`w-12 h-12 ${report.color} rounded-xl flex items-center justify-center ${
-                    report.title === "Student Enrollment Report" || report.title === "Academic Performance" || report.title === "Attendance Report" || report.title === "Financial Summary" || report.title === "Teacher Performance" || report.title === "Custom Report"
-                      ? 'group-hover:scale-110' 
-                      : ''
-                  } transition-transform`}>
+                  <div className={`w-12 h-12 ${report.color} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform`}>
                     <report.icon className="w-6 h-6 text-white" />
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     className="h-8 w-8 text-slate-600 hover:text-slate-900"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Handle download
-                    }}
+                    title="Download PDF"
+                    onClick={(e) => handleDownloadClick(e, report.route)}
                   >
                     <Download className="w-4 h-4" />
                   </Button>

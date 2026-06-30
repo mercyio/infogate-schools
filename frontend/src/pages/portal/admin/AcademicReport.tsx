@@ -1,11 +1,13 @@
 import { motion } from "framer-motion";
 import { Shield, Award, BookOpen, PieChart, BarChart3, Download, Printer, ArrowLeft } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import api from "@/lib/api";
 
 const AcademicReport = () => {
+  const [searchParams] = useSearchParams();
   const { data: reportData, isLoading } = useQuery({
     queryKey: ["academicReport"],
     queryFn: async () => {
@@ -16,6 +18,14 @@ const AcademicReport = () => {
 
   const performanceBySubject = reportData?.performanceBySubject || [];
   const gradeDistribution = reportData?.gradeDistribution || [];
+
+  useEffect(() => {
+    if (searchParams.get("print") === "1" && !isLoading) {
+      const t = setTimeout(() => { handleDownloadPDF(); }, 800);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, isLoading]);
 
   const handleDownloadPDF = () => {
     const originalTitle = document.title;

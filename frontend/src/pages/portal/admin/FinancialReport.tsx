@@ -1,22 +1,67 @@
+import React from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
-  Shield,
   ArrowLeft,
   Download,
   Printer,
-  DollarSign,
   PieChart,
-  Wallet,
   CheckCircle,
   AlertCircle,
   TrendingUp,
+  Trophy,
+  Clock,
+  XCircle,
 } from "lucide-react";
+import { useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 
+function StudentList({
+  title, subtitle, icon: Icon, iconClass, headerClass, amountClass, badgeBg, rows, emptyMsg,
+}: {
+  title: string; subtitle: string; icon: React.ElementType; iconClass: string;
+  headerClass: string; amountClass: string; badgeBg: string;
+  rows: { name: string; amount: number }[]; emptyMsg: string;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.5 }}
+      className={`bg-white rounded-xl border border-border shadow-sm border-t-4 ${headerClass} overflow-hidden`}
+    >
+      <div className="p-5 border-b border-slate-100">
+        <h3 className="font-bold text-slate-900 flex items-center gap-2">
+          <Icon className={`w-4 h-4 ${iconClass}`} /> {title}
+        </h3>
+        <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-center text-slate-400 text-sm py-10 italic">{emptyMsg}</p>
+      ) : (
+        <div className="divide-y divide-slate-50">
+          {rows.map((r, i) => (
+            <div key={i} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/60 transition-colors">
+              <span className={`w-6 h-6 rounded-full ${badgeBg} ${amountClass} text-xs font-extrabold flex items-center justify-center shrink-0`}>
+                {i + 1}
+              </span>
+              <span className="flex-1 text-sm text-slate-800 font-medium truncate">{r.name}</span>
+              <span className={`text-sm font-extrabold ${amountClass} shrink-0`}>
+                ₦{r.amount.toLocaleString()}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 const FinancialReport = () => {
+  const [searchParams] = useSearchParams();
   const { data: reportData, isLoading } = useQuery({
     queryKey: ["financialReport"],
     queryFn: async () => {
@@ -28,6 +73,17 @@ const FinancialReport = () => {
   const totalRevenue = reportData?.totalRevenue || 0;
   const outstanding = reportData?.outstanding || 0;
   const paymentStats = reportData?.paymentStats || [];
+  const topPaid: { name: string; amount: number }[] = reportData?.topPaid || [];
+  const topPending: { name: string; amount: number }[] = reportData?.topPending || [];
+  const topOverdue: { name: string; amount: number }[] = reportData?.topOverdue || [];
+
+  useEffect(() => {
+    if (searchParams.get("print") === "1" && !isLoading) {
+      const t = setTimeout(() => { handleDownloadPDF(); }, 800);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, isLoading]);
 
   const handleDownloadPDF = () => {
     const originalTitle = document.title;
@@ -122,8 +178,8 @@ const FinancialReport = () => {
           </motion.div>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Status Breakdown */}
+        {/* Status Breakdown + Insights */}
+        <div className="grid lg:grid-cols-2 gap-8 mb-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -137,11 +193,7 @@ const FinancialReport = () => {
               {paymentStats.map((stat: any) => {
                 const total = paymentStats.reduce((acc: number, s: any) => acc + s.count, 0);
                 const perc = total > 0 ? Math.round((stat.count / total) * 100) : 0;
-                const colors: Record<string, string> = {
-                  'Paid': 'bg-mint',
-                  'Pending': 'bg-sunny',
-                  'Overdue': 'bg-coral'
-                };
+                const colors: Record<string, string> = { Paid: 'bg-mint', Pending: 'bg-sunny', Overdue: 'bg-coral' };
                 return (
                   <div key={stat.status}>
                     <div className="flex justify-between items-center mb-2">
@@ -149,10 +201,7 @@ const FinancialReport = () => {
                       <span className="text-sm font-bold">{stat.count} accounts</span>
                     </div>
                     <div className="w-full bg-slate-100 rounded-full h-3">
-                      <div
-                        className={`h-3 rounded-full ${colors[stat.status] || 'bg-slate-400'}`}
-                        style={{ width: `${perc}%` }}
-                      />
+                      <div className={`h-3 rounded-full ${colors[stat.status] || 'bg-slate-400'}`} style={{ width: `${perc}%` }} />
                     </div>
                   </div>
                 );
@@ -160,7 +209,6 @@ const FinancialReport = () => {
             </div>
           </motion.div>
 
-          {/* Quick Insights */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -184,6 +232,46 @@ const FinancialReport = () => {
               </p>
             </div>
           </motion.div>
+        </div>
+
+        {/* Student Leaderboards */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Top Paid */}
+          <StudentList
+            title="Top Paid Students"
+            subtitle="Highest total amount paid"
+            icon={Trophy}
+            iconClass="text-green-600"
+            headerClass="border-t-green-500"
+            amountClass="text-green-700"
+            badgeBg="bg-green-50"
+            rows={topPaid}
+            emptyMsg="No paid fees recorded"
+          />
+          {/* Top Pending */}
+          <StudentList
+            title="Top Pending Students"
+            subtitle="Highest outstanding pending amount"
+            icon={Clock}
+            iconClass="text-amber-600"
+            headerClass="border-t-amber-500"
+            amountClass="text-amber-700"
+            badgeBg="bg-amber-50"
+            rows={topPending}
+            emptyMsg="No pending fees"
+          />
+          {/* Top Overdue */}
+          <StudentList
+            title="Top Overdue Students"
+            subtitle="Highest overdue balance — needs action"
+            icon={XCircle}
+            iconClass="text-red-600"
+            headerClass="border-t-red-500"
+            amountClass="text-red-700"
+            badgeBg="bg-red-50"
+            rows={topOverdue}
+            emptyMsg="No overdue fees"
+          />
         </div>
       </div>
     </div>

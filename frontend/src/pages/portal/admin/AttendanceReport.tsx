@@ -17,12 +17,14 @@ import {
   Activity,
   CheckCircle,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 
 const AttendanceReport = () => {
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['admin-dashboard-stats'],
@@ -33,6 +35,14 @@ const AttendanceReport = () => {
   });
 
   const attendanceRate = stats?.attendanceRate || 0;
+
+  useEffect(() => {
+    if (searchParams.get("print") === "1" && !isLoading) {
+      const t = setTimeout(() => { handleDownloadPDF(); }, 800);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, isLoading]);
 
   const handleDownloadPDF = () => {
     const originalTitle = document.title;

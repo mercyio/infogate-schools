@@ -137,18 +137,39 @@ export const getAcademicReport = async (req: Request, res: Response): Promise<vo
 
 export const getFinancialReport = async (req: Request, res: Response): Promise<void> => {
     try {
-        const fees = await Fee.find();
+        const fees = await Fee.find().populate({
+            path: 'student_id',
+            populate: { path: 'user_id', select: 'full_name' },
+        });
+
         const totalRevenue = fees.filter(f => f.status === 'paid').reduce((sum, f) => sum + f.amount, 0);
         const outstanding = fees.filter(f => f.status !== 'paid').reduce((sum, f) => sum + f.amount, 0);
+
+        // Aggregate per-student totals per status
+        const studentMap: Record<string, { name: string; paid: number; pending: number; overdue: number }> = {};
+        for (const fee of fees) {
+            const s = fee.student_id as any;
+            const id = String(s?._id || fee.student_id);
+            const name = s?.user_id?.full_name || 'Unknown Student';
+            if (!studentMap[id]) studentMap[id] = { name, paid: 0, pending: 0, overdue: 0 };
+            studentMap[id][fee.status as 'paid' | 'pending' | 'overdue'] += fee.amount;
+        }
+
+        const rows = Object.values(studentMap);
+        const sort = (arr: typeof rows, key: 'paid' | 'pending' | 'overdue') =>
+            [...arr].sort((a, b) => b[key] - a[key]).slice(0, 10).map(r => ({ name: r.name, amount: r[key] }));
 
         res.json({
             totalRevenue,
             outstanding,
             paymentStats: [
-                { status: 'Paid', count: fees.filter(f => f.status === 'paid').length },
+                { status: 'Paid',    count: fees.filter(f => f.status === 'paid').length },
                 { status: 'Pending', count: fees.filter(f => f.status === 'pending').length },
                 { status: 'Overdue', count: fees.filter(f => f.status === 'overdue').length },
-            ]
+            ],
+            topPaid:    sort(rows, 'paid'),
+            topPending: sort(rows, 'pending'),
+            topOverdue: sort(rows, 'overdue'),
         });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error });
@@ -158,23 +179,47 @@ export const getFinancialReport = async (req: Request, res: Response): Promise<v
 export const getTeacherPerformanceReport = async (req: Request, res: Response): Promise<void> => {
     try {
         const teachers = await Teacher.find().populate('user_id');
-        
+
         const teacherData = await Promise.all(teachers.map(async (t) => {
-            const marked = await TeacherAttendance.countDocuments({ teacher_id: t._id });
-            const present = await TeacherAttendance.countDocuments({ 
-                teacher_id: t._id, 
-                status: { $in: ['present', 'late'] } 
-            });
-            const rate = marked > 0 ? Math.round((present / marked) * 100) : 0;
+            const [marked, present, late, absent, assignmentsCount, classSubjectsCount] = await Promise.all([
+                TeacherAttendance.countDocuments({ teacher_id: t._id }),
+                TeacherAttendance.countDocuments({ teacher_id: t._id, status: 'present' }),
+                TeacherAttendance.countDocuments({ teacher_id: t._id, status: 'late' }),
+                TeacherAttendance.countDocuments({ teacher_id: t._id, status: 'absent' }),
+                Assignment.countDocuments({ teacher_id: t._id }),
+                ClassSubject.countDocuments({ teacher_id: t._id }),
+            ]);
+
+            const attendanceRate = marked > 0 ? Math.round(((present + late) / marked) * 100) : null;
 
             return {
                 name: (t.user_id as any)?.full_name || 'Unknown',
-                specialization: t.specialization,
-                attendance: marked > 0 ? `${rate}%` : 'No Data'
+                email: (t.user_id as any)?.email || '',
+                specialization: t.specialization || 'General',
+                attendanceRate,         // number | null
+                attendanceDays: { marked, present, late, absent },
+                assignmentsCount,
+                classesCount: classSubjectsCount,
             };
         }));
 
-        res.json({ teachers: teacherData });
+        const ratedTeachers = teacherData.filter(t => t.attendanceRate !== null);
+        const avgAttendance = ratedTeachers.length > 0
+            ? Math.round(ratedTeachers.reduce((s, t) => s + (t.attendanceRate as number), 0) / ratedTeachers.length)
+            : 0;
+
+        const topPerformer = ratedTeachers.sort((a, b) => (b.attendanceRate as number) - (a.attendanceRate as number))[0] || null;
+        const atRisk = teacherData.filter(t => t.attendanceRate !== null && (t.attendanceRate as number) < 75).length;
+
+        res.json({
+            teachers: teacherData,
+            summary: {
+                total: teachers.length,
+                avgAttendance,
+                topPerformer: topPerformer?.name || null,
+                atRisk,
+            }
+        });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error });
     }
