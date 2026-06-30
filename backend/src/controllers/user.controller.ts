@@ -279,7 +279,9 @@ export const deleteStudent = async (req: Request, res: Response): Promise<void> 
 
 export const getTeacherById = async (req: Request, res: Response): Promise<void> => {
     try {
-        const teacher = await Teacher.findById(req.params.id).populate('user_id', '-passwordHash');
+        const teacher = await Teacher.findById(req.params.id)
+            .populate('user_id', '-passwordHash')
+            .populate('assigned_class', 'name');
         if (!teacher) { res.status(404).json({ message: 'Teacher not found' }); return; }
         res.json(teacher);
     } catch (error) {

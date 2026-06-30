@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export type SchoolLevel = 'nursery' | 'primary' | 'secondary' | 'vocational';
+export type SchoolLevel = 'creche' | 'nursery' | 'primary' | 'secondary' | 'vocational';
 
 export interface IClass extends Document {
     name: string;
@@ -23,7 +23,7 @@ export interface IClass extends Document {
 const ClassSchema: Schema = new Schema(
     {
         name: { type: String, required: true },
-        level: { type: String, enum: ['nursery', 'primary', 'secondary', 'vocational'], required: true },
+        level: { type: String, enum: ['creche', 'nursery', 'primary', 'secondary', 'vocational'], required: true },
         capacity: { type: Number, required: true },
         order: { type: Number, default: 99 },
         class_teacher_id: { type: Schema.Types.ObjectId, ref: 'Teacher' },

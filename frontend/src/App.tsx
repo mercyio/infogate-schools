@@ -62,6 +62,7 @@ import ManageParents from "./pages/portal/admin/ManageParents";
 import AssignmentsPage from "./pages/portal/student/AssignmentsPage";
 import AttendanceMonitor from "./pages/portal/admin/AttendanceMonitor";
 import NotFound from "./pages/NotFound";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const globalErrorHandler = (error: any) => {
   if (error?.response?.status !== 401) { // 401s are handled quietly by AuthContext logic

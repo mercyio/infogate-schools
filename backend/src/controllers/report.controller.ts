@@ -14,22 +14,20 @@ import { AuthRequest } from '../middleware/auth.middleware';
 
 export const getAdminDashboardStats = async (req: Request, res: Response): Promise<void> => {
     try {
-        const totalStudents = await Student.countDocuments();
-        const totalTeachers = await Teacher.countDocuments();
+        const [totalStudents, totalTeachers, paidFees, attendanceRecords] = await Promise.all([
+            Student.countDocuments(),
+            Teacher.countDocuments(),
+            Fee.find({ status: 'paid' }),
+            Attendance.find({}, { status: 1 }),
+        ]);
 
-        // Sum up paid fees
-        const fees = await Fee.find({ status: 'paid' });
-        const revenue = fees.reduce((sum, fee) => sum + fee.amount, 0);
+        const revenue = paidFees.reduce((sum, fee) => sum + fee.amount, 0);
 
-        // Calculate real attendance rate
+        const totalMarked = attendanceRecords.length;
+        const presentCount = attendanceRecords.filter((a: any) => a.status === 'present' || a.status === 'late').length;
         const attendanceRate = totalMarked > 0 ? Math.round((presentCount / totalMarked) * 100) : 0;
 
-        res.json({
-            totalStudents,
-            totalTeachers,
-            revenue,
-            attendanceRate
-        });
+        res.json({ totalStudents, totalTeachers, revenue, attendanceRate });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error });
     }

@@ -265,7 +265,8 @@ const AdminDashboard = () => {
                 statsData.assignments.slice(0, 5).map((a: any) => {
                   const subjectName = a.subject_name || a.class_subject_id?.subject_id?.name || "Subject";
                   const grad = subjectColor(subjectName);
-                  const due = a.due_date ? new Date(a.due_date) : null;
+                  const dueRaw = a.due_date ? new Date(a.due_date) : null;
+                  const due = dueRaw && !isNaN(dueRaw.getTime()) ? dueRaw : null;
                   const overdue = due && due < now;
                   return (
                     <div key={a._id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50/70 transition-colors">

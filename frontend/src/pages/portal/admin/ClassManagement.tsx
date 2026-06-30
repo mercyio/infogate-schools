@@ -40,7 +40,7 @@ interface Teacher {
 interface Class {
   id: number;
   name: string;
-  level: "Nursery" | "Primary" | "Secondary" | "Vocational";
+  level: "Creche" | "Nursery" | "Primary" | "Secondary" | "Vocational";
   students: number;
   teacherId: number;
   teacherName: string;
@@ -124,7 +124,7 @@ const AddClassModal = ({
 }: AddClassModalProps) => {
   const [formData, setFormData] = useState({
     name: "",
-    level: "Nursery" as "Nursery" | "Primary" | "Secondary" | "Vocational",
+    level: "Creche" as "Creche" | "Nursery" | "Primary" | "Secondary" | "Vocational",
   });
 
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
@@ -142,7 +142,7 @@ const AddClassModal = ({
         subjects: selectedSubjects // Now sending subjects!
       };
       onAdd(newClass);
-      setFormData({ name: "", level: "Nursery" });
+      setFormData({ name: "", level: "Creche" });
       setSelectedSubjects([]);
       onClose();
     }
@@ -220,6 +220,7 @@ const AddClassModal = ({
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   {[
+                    { value: "Creche", label: "Creche" },
                     { value: "Nursery", label: "Nursery" },
                     { value: "Primary", label: "Primary" },
                     { value: "Secondary", label: "Secondary" },
@@ -232,6 +233,7 @@ const AddClassModal = ({
                         setFormData({
                           ...formData,
                           level: level.value as
+                            | "Creche"
                             | "Nursery"
                             | "Primary"
                             | "Secondary"
@@ -535,7 +537,7 @@ const ClassManagement = () => {
                 />
               </div>
               <div className="flex gap-2 flex-wrap">
-                {["All", "Nursery", "Primary", "Secondary", "Vocational"].map(
+                {["All", "Creche", "Nursery", "Primary", "Secondary", "Vocational"].map(
                   (level) => (
                     <button
                       key={level}

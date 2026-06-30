@@ -87,6 +87,25 @@ const StudentDetail = () => {
     enabled: !!studentId,
   });
 
+  // Must be declared before any early returns to satisfy Rules of Hooks
+  const recordPaymentMutation = useMutation({
+    mutationFn: async (paymentData: any) => {
+      const res = await api.post(`/users/students/${studentId}/payments`, paymentData);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['student', studentId] });
+      toast.success("Payment recorded successfully");
+      setPaymentDialogOpen(false);
+      setPaymentAmount("");
+      setPaymentMethod("");
+      setPaymentDescription("");
+    },
+    onError: () => {
+      toast.error("Failed to record payment");
+    }
+  });
+
   const sfProp = (obj: any, path: string) => {
     return path.split('.').reduce((acc, part) => acc && acc[part], obj);
   };
@@ -192,24 +211,6 @@ const StudentDetail = () => {
     return "text-orange-500";
   };
 
-  const recordPaymentMutation = useMutation({
-    mutationFn: async (paymentData: any) => {
-      const res = await api.post(`/users/students/${studentId}/payments`, paymentData);
-      return res.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['student', studentId] });
-      toast.success("Payment recorded successfully");
-      setPaymentDialogOpen(false);
-      setPaymentAmount("");
-      setPaymentMethod("");
-      setPaymentDescription("");
-    },
-    onError: () => {
-      toast.error("Failed to record payment");
-    }
-  });
-
   const handleRecordPayment = () => {
     recordPaymentMutation.mutate({
       description: paymentDescription,
@@ -220,353 +221,365 @@ const StudentDetail = () => {
   };
 
   return (
-    <div className="min-h-screen bg-muted/30 pb-12">
-      <div className="bg-white border-b border-primary/10 mb-8 sticky top-0 z-30">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate(-1)} 
-            className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back
-          </Button>
-          <div className="flex items-center gap-2">
-             <Badge variant="outline" className="bg-primary/5 text-primary border-primary/10">
-               Student ID: {studentId}
-             </Badge>
+    <div className="min-h-screen bg-gray-50">
+
+      {/* ── Navy header ── */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-[#0a2342] via-[#0d3460] to-[#1a5276]">
+        <div className="absolute inset-0 opacity-5" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
+        <div className="relative z-10 container mx-auto px-4 py-8">
+          <div className="flex items-center gap-4 mb-6">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-bold transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back
+            </button>
+            <span className="px-3 py-1.5 rounded-xl bg-yellow-400/20 border border-yellow-400/30 text-yellow-200 text-xs font-bold">
+              Reg No: {student.admissionNo}
+            </span>
           </div>
+
         </div>
       </div>
-      <div className="container mx-auto px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-6"
-        >
-          {/* Student Profile Card */}
-          <div className="grid lg:grid-cols-3 gap-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="lg:col-span-1 playful-card p-6 bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20"
-            >
-              <div className="text-center mb-6">
-                <div 
-                  className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-white shadow-xl text-white font-bold text-2xl"
-                  style={{
-                    background: "linear-gradient(to bottom right, #4f46e5, #7c3aed)"
-                  }}
+
+      <div className="container mx-auto px-4 py-6">
+        <div className="grid lg:grid-cols-3 gap-6">
+
+          {/* ── Left sidebar ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="lg:col-span-1 space-y-4"
+          >
+            {/* Info card */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              {/* Avatar + name */}
+              <div className="text-center pt-7 pb-5 px-5 border-b border-gray-50">
+                <div
+                  className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-xl text-white font-extrabold text-2xl"
+                  style={{ background: "linear-gradient(135deg, #0a2342 0%, #1a5276 100%)" }}
                 >
-                  {studentName
-                    .split(' ')
-                    .map(n => n[0])
-                    .join('')
-                    .toUpperCase()
-                    .slice(0, 2)}
+                  {studentName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
                 </div>
-                <h2 className="font-bold text-xl">{student.name}</h2>
-                <p className="text-muted-foreground">{student.admissionNo}</p>
-                <Badge className="mt-2 bg-primary text-primary-foreground" variant="default">
-                  {student.class}
-                </Badge>
+                <h2 className="font-extrabold text-xl text-gray-900">{student.name}</h2>
+                <p className="text-gray-400 text-sm mt-0.5">{student.admissionNo}</p>
+                <span className="inline-block mt-2 px-3 py-1 rounded-full bg-yellow-400 text-gray-900 text-xs font-extrabold">
+                  {student.class || "No Class"}
+                </span>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 text-sm p-2 rounded-lg bg-card border border-border/50">
-                  <Calendar className="w-4 h-4 text-primary" />
-                  <span>
-                    DOB: {student.dateOfBirth}
-                  </span>
+              <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#0a2342] to-[#1a5276] flex items-center justify-center">
+                  <User className="w-3 h-3 text-white" />
                 </div>
-                <div className="flex items-center gap-3 text-sm p-2 rounded-lg bg-card border border-border/50">
-                  <User className="w-4 h-4 text-primary" />
-                  <span>Gender: {student.gender}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm p-2 rounded-lg bg-card border border-border/50">
-                  <Shield className="w-4 h-4 text-primary" />
-                  <span className="truncate">Login Password: {loginPassword}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm p-2 rounded-lg bg-card border border-border/50">
-                  <MapPin className="w-4 h-4 text-primary" />
-                  <span className="truncate">{student.address}</span>
-                </div>
+                <h3 className="font-extrabold text-gray-900 text-sm">Personal Info</h3>
               </div>
-
-              <div className="mt-8 pt-6 border-t border-border/50">
-                <h3 className="font-semibold text-sm mb-4 flex items-center gap-2">
-                  <Users className="w-4 h-4 text-primary" />
-                  Contact Information
-                </h3>
-                <div className="space-y-3">
-                  <div className="text-sm">
-                    <p className="text-muted-foreground text-xs">Parent/Guardian</p>
-                    <p className="font-medium">{student.parentName}</p>
-                  </div>
-                  <div className="text-sm">
-                    <p className="text-muted-foreground text-xs">Phone</p>
-                    <p className="font-medium">{student.parentPhone}</p>
-                  </div>
-                  <div className="text-sm">
-                    <p className="text-muted-foreground text-xs">Email</p>
-                    <p className="font-medium">{student.parentEmail}</p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Main Content */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="lg:col-span-2"
-            >
-              <Tabs defaultValue="academics" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 rounded-xl p-1 bg-muted/50 mb-6 h-12">
-                  <TabsTrigger 
-                    value="academics" 
-                    className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2"
-                  >
-                    <Award className="w-4 h-4" /> Academics
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="attendance" 
-                    className="rounded-lg data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground flex items-center gap-2"
-                  >
-                    <Clock className="w-4 h-4" /> Attendance
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="fees" 
-                    className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2"
-                  >
-                    <CreditCard className="w-4 h-4" /> Fees & Payments
-                  </TabsTrigger>
-                </TabsList>
-
-                {/* Academics Tab */}
-                <TabsContent value="academics" className="space-y-6">
-                  <div className="playful-card p-6 border-t-4 border-t-primary">
-                    <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
-                      <Zap className="w-5 h-5 text-primary" /> Academic Summary
-                    </h3>
-                    <div className="grid sm:grid-cols-2 gap-4 mb-6">
-                      <div className="p-4 rounded-xl bg-primary/10 border border-primary/20">
-                        <p className="text-sm text-muted-foreground mb-1">Current GPA</p>
-                        <p className="text-3xl font-bold text-primary">{(Number(student.gpa) || 0).toFixed(2)}</p>
-                      </div>
-                      <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20">
-                        <p className="text-sm text-muted-foreground mb-1">Grade Level</p>
-                        <p className="text-3xl font-bold text-secondary">{student.gradeLevel}</p>
-                      </div>
+              <div className="p-5 space-y-3">
+                {[
+                  { icon: Calendar, label: "Date of Birth", value: student.dateOfBirth },
+                  { icon: User,     label: "Gender",        value: student.gender },
+                  { icon: MapPin,   label: "Address",       value: student.address },
+                  { icon: Shield,   label: "Login Password",value: loginPassword },
+                ].map(({ icon: Icon, label, value }) => (
+                  <div key={label} className="flex items-start gap-3 p-3 rounded-xl bg-gray-50">
+                    <div className="w-7 h-7 rounded-lg bg-[#0a2342]/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <Icon className="w-3.5 h-3.5 text-[#0a2342]" />
                     </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">{label}</p>
+                      <p className="text-sm font-semibold text-gray-800 break-words">{value}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-                    <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                      <BookOpen className="w-5 h-5 text-primary" /> Subject Performance
-                    </h3>
-                    <div className="rounded-xl border border-border overflow-hidden">
-                      <Table>
-                        <TableHeader className="bg-muted/50">
-                          <TableRow>
-                            <TableHead>Subject</TableHead>
-                            <TableHead className="text-center">Score</TableHead>
-                            <TableHead className="text-center">Grade</TableHead>
+            {/* Contact card */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center">
+                  <Users className="w-3 h-3 text-gray-900" />
+                </div>
+                <h3 className="font-extrabold text-gray-900 text-sm">Parent / Guardian</h3>
+              </div>
+              <div className="p-5 space-y-3">
+                {[
+                  { label: "Name",  value: student.parentName },
+                  { label: "Phone", value: student.parentPhone },
+                  { label: "Email", value: student.parentEmail },
+                ].map(({ label, value }) => (
+                  <div key={label} className="p-3 rounded-xl bg-gray-50">
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">{label}</p>
+                    <p className="text-sm font-semibold text-gray-800 break-words mt-0.5">{value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+
+          {/* ── Tabs ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="lg:col-span-2"
+          >
+            <Tabs defaultValue="academics" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 rounded-xl p-1 bg-white border border-gray-100 shadow-sm mb-5 h-11">
+                <TabsTrigger
+                  value="academics"
+                  className="rounded-lg text-xs font-bold data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#0a2342] data-[state=active]:to-[#1a5276] data-[state=active]:text-white flex items-center gap-1.5"
+                >
+                  <Award className="w-3.5 h-3.5" /> Academics
+                </TabsTrigger>
+                <TabsTrigger
+                  value="attendance"
+                  className="rounded-lg text-xs font-bold data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#0a2342] data-[state=active]:to-[#1a5276] data-[state=active]:text-white flex items-center gap-1.5"
+                >
+                  <Clock className="w-3.5 h-3.5" /> Attendance
+                </TabsTrigger>
+                <TabsTrigger
+                  value="fees"
+                  className="rounded-lg text-xs font-bold data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#0a2342] data-[state=active]:to-[#1a5276] data-[state=active]:text-white flex items-center gap-1.5"
+                >
+                  <CreditCard className="w-3.5 h-3.5" /> Fees
+                </TabsTrigger>
+              </TabsList>
+
+              {/* ── Academics ── */}
+              <TabsContent value="academics" className="space-y-4">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="bg-gradient-to-br from-[#0a2342] to-[#1a5276] rounded-2xl p-5 text-white">
+                    <p className="text-white/50 text-xs font-bold uppercase tracking-wide mb-1">Current GPA</p>
+                    <p className="text-4xl font-extrabold">{(Number(student.gpa) || 0).toFixed(2)}</p>
+                  </div>
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wide mb-1">Grade Level</p>
+                    <p className="text-4xl font-extrabold text-[#0a2342]">{student.gradeLevel || "N/A"}</p>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-[#0a2342]/10 flex items-center justify-center">
+                      <BookOpen className="w-3 h-3 text-[#0a2342]" />
+                    </div>
+                    <h3 className="font-extrabold text-gray-900 text-sm">Subject Performance</h3>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50">
+                        <TableHead className="font-extrabold text-gray-500 text-xs uppercase">Subject</TableHead>
+                        <TableHead className="text-center font-extrabold text-gray-500 text-xs uppercase">Score</TableHead>
+                        <TableHead className="text-center font-extrabold text-gray-500 text-xs uppercase">Grade</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {academicPerformance.length > 0 ? (
+                        academicPerformance.map((p: any, idx: number) => (
+                          <TableRow key={idx} className="hover:bg-gray-50/70">
+                            <TableCell className="font-semibold text-gray-900">{p.subject || "N/A"}</TableCell>
+                            <TableCell className="text-center font-extrabold text-[#0a2342]">{p.score || 0}</TableCell>
+                            <TableCell className="text-center">
+                              <span className="px-2.5 py-1 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 text-xs font-extrabold">
+                                {p.grade || "N/A"}
+                              </span>
+                            </TableCell>
                           </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {academicPerformance.length > 0 ? (
-                            academicPerformance.map((performance: any, idx: number) => (
-                              <TableRow key={idx}>
-                                <TableCell className="font-medium">{performance.subject || 'N/A'}</TableCell>
-                                <TableCell className="text-center font-bold text-primary">{performance.score || 0}</TableCell>
-                                <TableCell className="text-center">
-                                  <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20">
-                                    {performance.grade || 'N/A'}
-                                  </Badge>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          ) : (
-                            <TableRow>
-                              <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
-                                No academic records found
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center py-10 text-gray-400 text-sm">
+                            No academic records found
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </TabsContent>
+
+              {/* ── Attendance ── */}
+              <TabsContent value="attendance" className="space-y-4">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="bg-gradient-to-br from-[#0a2342] to-[#1a5276] rounded-2xl p-5 text-white">
+                    <p className="text-white/50 text-xs font-bold uppercase tracking-wide mb-1">Overall Rate</p>
+                    <p className="text-4xl font-extrabold">{student.attendanceRate}%</p>
+                    <div className="mt-3 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${(student.attendanceRate || 0) >= 80 ? "bg-green-400" : (student.attendanceRate || 0) >= 60 ? "bg-yellow-400" : "bg-red-400"}`}
+                        style={{ width: `${student.attendanceRate || 0}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                    <p className="text-gray-400 text-xs font-bold uppercase tracking-wide mb-1">Academic Level</p>
+                    <p className="text-2xl font-extrabold text-[#0a2342] mt-1">{student.level}</p>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-[#0a2342]/10 flex items-center justify-center">
+                      <Clock className="w-3 h-3 text-[#0a2342]" />
+                    </div>
+                    <h3 className="font-extrabold text-gray-900 text-sm">Monthly Status</h3>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50">
+                        <TableHead className="font-extrabold text-gray-500 text-xs uppercase">Month</TableHead>
+                        <TableHead className="text-center font-extrabold text-gray-500 text-xs uppercase">Rate</TableHead>
+                        <TableHead className="text-center font-extrabold text-gray-500 text-xs uppercase">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {attendanceHistory.length > 0 ? (
+                        attendanceHistory.map((month: any, idx: number) => {
+                          const rate = Number(month.rate) || 0;
+                          const good = rate >= 75;
+                          return (
+                            <TableRow key={idx} className="hover:bg-gray-50/70">
+                              <TableCell className="font-semibold text-gray-900">{month.month || "N/A"}</TableCell>
+                              <TableCell className="text-center font-extrabold text-[#0a2342]">{rate}%</TableCell>
+                              <TableCell className="text-center">
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-extrabold ${good ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+                                  {good ? "Excellent" : "Needs Improvement"}
+                                </span>
                               </TableCell>
                             </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
-                </TabsContent>
+                          );
+                        })
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center py-10 text-gray-400 text-sm">
+                            No attendance records found
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </TabsContent>
 
-                {/* Attendance Tab */}
-                <TabsContent value="attendance" className="space-y-6">
-                  <div className="playful-card p-6 border-t-4 border-t-secondary">
-                    <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
-                      <Clock className="w-5 h-5 text-secondary" /> Attendance Overview
-                    </h3>
-                    <div className="grid sm:grid-cols-2 gap-4 mb-6">
-                      <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20">
-                        <p className="text-sm text-muted-foreground mb-1">Overall Rate</p>
-                        <p className="text-3xl font-bold text-secondary">{student.attendanceRate}%</p>
-                      </div>
-                      <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
-                        <p className="text-sm text-muted-foreground mb-1">Academic Level</p>
-                        <p className="text-3xl font-bold text-primary">{student.level}</p>
-                      </div>
-                    </div>
-
-                    <h3 className="font-bold text-lg mb-4">Monthly Status</h3>
-                    <div className="rounded-xl border border-border overflow-hidden">
-                      <Table>
-                        <TableHeader className="bg-muted/50">
-                          <TableRow>
-                            <TableHead>Month</TableHead>
-                            <TableHead className="text-center">Rate</TableHead>
-                            <TableHead className="text-center">Status</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {attendanceHistory.length > 0 ? (
-                            attendanceHistory.map((month: any, idx: number) => (
-                              <TableRow key={idx}>
-                                <TableCell className="font-medium">{month.month || 'N/A'}</TableCell>
-                                <TableCell className="text-center font-bold text-secondary">{month.rate || 0}%</TableCell>
-                                <TableCell className="text-center">
-                                  <Badge className={getAttendanceColor(Number(month.rate) || 0) + " bg-current/10"}>
-                                    {(Number(month.rate) || 0) >= 75 ? "Excellent" : "Needs Improvement"}
-                                  </Badge>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          ) : (
-                            <TableRow>
-                              <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
-                                No attendance records found
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
-                </TabsContent>
-
-                {/* Fees Tab */}
-                <TabsContent value="fees" className="space-y-6">
-                  <div className="playful-card p-6 border-t-4 border-t-primary">
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="font-bold text-lg flex items-center gap-2">
-                        <CreditCard className="w-5 h-5 text-primary" /> Financial Status
-                      </h3>
-                      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-                        <DialogTrigger asChild>
-                          <Button className="gap-2 bg-primary hover:bg-primary/90 text-white border-none">
-                            <Plus className="w-4 h-4" /> Record Payment
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl">
-                          <DialogHeader className="bg-primary/10 -m-6 mb-6 p-6 rounded-t-lg border-b border-primary/20">
-                            <DialogTitle className="text-2xl font-bold text-primary">Record Payment</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-4 py-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label>Payment Method</Label>
-                                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                                  <SelectTrigger><SelectValue placeholder="Select method" /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="transfer">Bank Transfer</SelectItem>
-                                    <SelectItem value="cash">Cash</SelectItem>
-                                    <SelectItem value="card">Online Card</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="space-y-2">
-                                <Label>Amount (₦)</Label>
-                                <Input 
-                                  type="number"
-                                  placeholder="0.00" 
-                                  value={paymentAmount} 
-                                  onChange={(e) => setPaymentAmount(e.target.value)} 
-                                />
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Description</Label>
-                              <Input 
-                                placeholder="e.g. Q1 Tuition Balance" 
-                                value={paymentDescription} 
-                                onChange={(e) => setPaymentDescription(e.target.value)} 
-                              />
-                            </div>
-                            <Button 
-                              className="w-full bg-primary hover:bg-primary/90 mt-4 h-11 text-lg font-semibold" 
-                              onClick={handleRecordPayment}
-                              disabled={!paymentAmount || !paymentMethod || !paymentDescription}
-                            >
-                              Confirm Payment
-                            </Button>
+              {/* ── Fees ── */}
+              <TabsContent value="fees" className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div />
+                  <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+                    <DialogTrigger asChild>
+                      <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#0a2342] to-[#1a5276] text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-md">
+                        <Plus className="w-4 h-4" /> Record Payment
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <div className="bg-gradient-to-br from-[#0a2342] to-[#1a5276] -m-6 mb-5 p-6 rounded-t-xl">
+                          <DialogTitle className="text-white font-extrabold text-lg flex items-center gap-2">
+                            <CreditCard className="w-5 h-5 text-yellow-400" /> Record Payment
+                          </DialogTitle>
+                          <p className="text-white/50 text-xs mt-1">{student.name}</p>
+                        </div>
+                      </DialogHeader>
+                      <div className="space-y-4 pt-2">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Method</Label>
+                            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                              <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="transfer">Bank Transfer</SelectItem>
+                                <SelectItem value="cash">Cash</SelectItem>
+                                <SelectItem value="card">Online Card</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-
-                    <div className="grid sm:grid-cols-2 gap-4 mb-6">
-                      <div className="p-4 rounded-xl bg-primary/10 border border-primary/20">
-                        <p className="text-sm text-muted-foreground mb-1">Total Paid</p>
-                        <p className="text-3xl font-bold text-primary">₦{(Number(student.paidFees) || 0).toLocaleString()}</p>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Amount (₦)</Label>
+                            <Input type="number" placeholder="0.00" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} className="rounded-xl" />
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Description</Label>
+                          <Input placeholder="e.g. Q1 Tuition Balance" value={paymentDescription} onChange={(e) => setPaymentDescription(e.target.value)} className="rounded-xl" />
+                        </div>
+                        <button
+                          onClick={handleRecordPayment}
+                          disabled={!paymentAmount || !paymentMethod || !paymentDescription || recordPaymentMutation.isPending}
+                          className="w-full py-3 rounded-xl bg-gradient-to-r from-[#0a2342] to-[#1a5276] text-white font-extrabold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+                        >
+                          {recordPaymentMutation.isPending ? "Saving…" : "Confirm Payment"}
+                        </button>
                       </div>
-                      <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20">
-                        <p className="text-sm text-muted-foreground mb-1">Outstanding</p>
-                        <p className="text-3xl font-bold text-secondary">₦{(Number(outstanding) || 0).toLocaleString()}</p>
-                      </div>
-                    </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
 
-                    <div className="space-y-2 mb-8">
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">Payment Completion</span>
-                        <span className="font-bold">{paymentProgress.toFixed(0)}%</span>
-                      </div>
-                      <Progress value={paymentProgress} className="h-2" />
-                    </div>
-
-                    <h3 className="font-bold text-lg mb-4">Payment History</h3>
-                    <div className="rounded-xl border border-border overflow-hidden">
-                      <Table>
-                        <TableHeader className="bg-muted/50">
-                          <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Reference</TableHead>
-                            <TableHead className="text-right">Amount</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {paymentHistory.length > 0 ? (
-                            paymentHistory.map((payment: any, index: number) => (
-                              <TableRow key={index}>
-                                <TableCell>{payment.date ? new Date(payment.date).toLocaleDateString() : "N/A"}</TableCell>
-                                <TableCell className="font-mono text-xs">{payment.reference || "N/A"}</TableCell>
-                                <TableCell className="text-right font-bold text-primary">₦{(Number(payment.amount) || 0).toLocaleString()}</TableCell>
-                              </TableRow>
-                            ))
-                          ) : (
-                            <TableRow>
-                              <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
-                                No payment history available
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="bg-gradient-to-br from-[#0a2342] to-[#1a5276] rounded-2xl p-5 text-white">
+                    <p className="text-white/50 text-xs font-bold uppercase tracking-wide mb-1">Total Paid</p>
+                    <p className="text-3xl font-extrabold">₦{(Number(student.paidFees) || 0).toLocaleString()}</p>
                   </div>
-                </TabsContent>
-              </Tabs>
-            </motion.div>
-          </div>
-        </motion.div>
+                  <div className="bg-white rounded-2xl border border-red-100 shadow-sm p-5">
+                    <p className="text-red-400 text-xs font-bold uppercase tracking-wide mb-1">Outstanding</p>
+                    <p className="text-3xl font-extrabold text-red-600">₦{outstanding.toLocaleString()}</p>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                  <div className="flex justify-between items-center text-sm mb-2">
+                    <span className="text-gray-500 font-semibold">Payment Completion</span>
+                    <span className="font-extrabold text-[#0a2342]">{paymentProgress.toFixed(0)}%</span>
+                  </div>
+                  <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${paymentProgress}%` }}
+                      transition={{ duration: 1, ease: "easeOut" }}
+                      className={`h-full rounded-full ${paymentProgress >= 80 ? "bg-green-500" : paymentProgress >= 40 ? "bg-yellow-400" : "bg-red-400"}`}
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-[#0a2342]/10 flex items-center justify-center">
+                      <CreditCard className="w-3 h-3 text-[#0a2342]" />
+                    </div>
+                    <h3 className="font-extrabold text-gray-900 text-sm">Payment History</h3>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50">
+                        <TableHead className="font-extrabold text-gray-500 text-xs uppercase">Date</TableHead>
+                        <TableHead className="font-extrabold text-gray-500 text-xs uppercase">Reference</TableHead>
+                        <TableHead className="text-right font-extrabold text-gray-500 text-xs uppercase">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paymentHistory.length > 0 ? (
+                        paymentHistory.map((payment: any, index: number) => (
+                          <TableRow key={index} className="hover:bg-gray-50/70">
+                            <TableCell className="text-gray-700 text-sm">{payment.date ? new Date(payment.date).toLocaleDateString() : "N/A"}</TableCell>
+                            <TableCell className="font-mono text-xs text-gray-500">{payment.reference || "N/A"}</TableCell>
+                            <TableCell className="text-right font-extrabold text-[#0a2342]">₦{(Number(payment.amount) || 0).toLocaleString()}</TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center py-10 text-gray-400 text-sm">
+                            No payment history available
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </motion.div>
+        </div>
       </div>
     </div>
   );
