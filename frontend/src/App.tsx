@@ -7,6 +7,15 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 import PublicLayout from "./components/layout/PublicLayout";
+import PublicNavbar from "./components/layout/PublicNavbar";
+import { Outlet } from "react-router-dom";
+
+const NavbarOnlyLayout = () => (
+  <div className="min-h-screen flex flex-col">
+    <PublicNavbar />
+    <main className="flex-1"><Outlet /></main>
+  </div>
+);
 import Home from "./pages/Home";
 import About from "./pages/About";
 import Admissions from "./pages/Admissions";
@@ -91,7 +100,9 @@ const App = () => (
               <Route path="/contact" element={<Contact />} />
               <Route path="/gallery" element={<Gallery />} />
             </Route>
-            <Route path="/login" element={<Login />} />
+            <Route element={<NavbarOnlyLayout />}>
+              <Route path="/login" element={<Login />} />
+            </Route>
             <Route path="/register-success" element={<RegisterSuccessPage />} />
             {/* Admin Portal */}
             <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
