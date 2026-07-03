@@ -110,7 +110,7 @@ export const createTimetableBulk = async (req: Request, res: Response): Promise<
         }
 
         for (const entry of normalized) {
-            if (!VALID_LEVELS.includes(entry.level)) {
+            if (!VALID_LEVELS.includes(entry.level as string)) {
                 res.status(400).json({ message: `Invalid level "${entry.level}"` });
                 return;
             }
