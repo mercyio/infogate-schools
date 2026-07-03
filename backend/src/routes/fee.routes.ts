@@ -1,6 +1,7 @@
 import express from 'express';
 import {
     getFees,
+    getStudentFees,
     getFeeById,
     createFee,
     updateFee,
@@ -11,6 +12,7 @@ import { protect, authorize } from '../middleware/auth.middleware';
 const router = express.Router();
 
 router.get('/', protect, getFees);
+router.get('/student/:studentId', protect, getStudentFees);
 router.get('/:id', protect, getFeeById);
 
 // Admin can manage fees

@@ -17,7 +17,7 @@ router.post('/students', protect, authorize('admin'), createStudent);
 router.get('/students/:id', protect, getStudentById);
 router.put('/students/:id', protect, authorize('admin'), updateStudent);
 router.delete('/students/:id', protect, authorize('admin'), deleteStudent);
-router.post('/students/:id/payments', protect, authorize('admin'), recordStudentPayment);
+router.post('/students/:id/payments', protect, authorize('admin', 'parent'), recordStudentPayment);
 
 // Teachers
 router.get('/teachers', protect, getTeachers);

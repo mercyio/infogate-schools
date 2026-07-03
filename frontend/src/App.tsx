@@ -28,6 +28,7 @@ import AdminDashboard from "./pages/portal/AdminDashboard";
 import TeacherDashboard from "./pages/portal/TeacherDashboard";
 import StudentDashboard from "./pages/portal/StudentDashboard";
 import ParentDashboard from "./pages/portal/ParentDashboard";
+import ParentChildDetail from "./pages/portal/ParentChildDetail";
 import ManageStudents from "./pages/portal/admin/ManageStudents";
 import ManageTeachers from "./pages/portal/admin/ManageTeachers";
 import StudentRegistration from "./pages/portal/admin/StudentRegistration";
@@ -157,6 +158,7 @@ const App = () => (
             </Route>
             <Route element={<ProtectedRoute allowedRoles={['parent']} />}>
               <Route path="/portal/parent" element={<ParentDashboard />} />
+              <Route path="/portal/parent/child/:studentId" element={<ParentChildDetail />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

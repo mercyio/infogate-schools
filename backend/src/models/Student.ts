@@ -20,6 +20,7 @@ export interface IStudent extends Document {
     parent_phone?: string;
     medical_info?: string;
     paid_fees?: number;
+    outstanding_carried?: number;   // arrears carried over from previous term(s)
     payment_history?: {
         id: string;
         date: Date;
@@ -27,6 +28,8 @@ export interface IStudent extends Document {
         method: string;
         reference: string;
         description: string;
+        term?: string;
+        outstanding_after?: number;
     }[];
     createdAt: Date;
     updatedAt: Date;
@@ -51,6 +54,7 @@ const StudentSchema: Schema = new Schema(
         parent_phone: { type: String },
         medical_info: { type: String },
         paid_fees: { type: Number, default: 0 },
+        outstanding_carried: { type: Number, default: 0 },
         payment_history: [
             {
                 id: { type: String },
@@ -59,6 +63,8 @@ const StudentSchema: Schema = new Schema(
                 method: { type: String, required: true },
                 reference: { type: String },
                 description: { type: String },
+                term: { type: String },
+                outstanding_after: { type: Number },
             }
         ],
     },

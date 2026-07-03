@@ -562,20 +562,28 @@ export const getTeacherStudentsGrouped = async (req: AuthRequest, res: Response)
 };
 export const recordStudentPayment = async (req: Request, res: Response): Promise<void> => {
     try {
-        const student = await Student.findById(req.params.id);
+        const student = await Student.findById(req.params.id).populate('class_id');
         if (!student) { res.status(404).json({ message: 'Student not found' }); return; }
 
         const { amount, method, reference, description } = req.body;
-        
-        let newPaidFees = (student.paid_fees || 0) + Number(amount);
-        
+
+        const newPaidFees = (student.paid_fees || 0) + Number(amount);
+
+        // Compute outstanding after this payment
+        const classDoc = student.class_id as any;
+        const termTotal = Number(classDoc?.fee_structure?.total) || 0;
+        const outstandingCarried = Number((student as any).outstanding_carried) || 0;
+        const currentOutstanding = Math.max(0, termTotal - newPaidFees);
+        const outstandingAfter = currentOutstanding + outstandingCarried;
+
         const payment = {
             id: Math.random().toString(36).substr(2, 9),
             date: new Date(),
             amount: Number(amount),
             method,
             reference,
-            description
+            description,
+            outstanding_after: outstandingAfter,
         };
 
         const updatedStudent = await Student.findByIdAndUpdate(req.params.id, {

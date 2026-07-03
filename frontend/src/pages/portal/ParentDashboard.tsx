@@ -1,16 +1,37 @@
-import { motion } from "framer-motion";
-import { Users, Calendar, Award, Bell, LogOut, FileText, BookOpen, Clock } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Link, useNavigate } from "react-router-dom";
+import { LogOut, ChevronDown, Bell, Menu, X, Phone, User, ChevronRight } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
-import { format } from "date-fns";
 
-const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const navLinks = [
+  { name: "Home", path: "/" },
+  { name: "About", path: "/about" },
+  { name: "Admissions", path: "/admissions" },
+  { name: "Events", path: "/events" },
+  { name: "Gallery", path: "/gallery" },
+  { name: "Contact", path: "/contact" },
+];
 
 const ParentDashboard = () => {
   const { user, logout } = useAuth();
-  const todayIndex = new Date().getDay();
+  const navigate = useNavigate();
+  const displayName = (user as any)?.full_name ?? user?.name;
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [userDropdown, setUserDropdown] = useState(false);
+  const [logoutModal, setLogoutModal] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node))
+        setUserDropdown(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
 
   const { data: children = [], isLoading } = useQuery({
     queryKey: ["my-children"],
@@ -20,181 +41,242 @@ const ParentDashboard = () => {
     },
   });
 
-  // Fetch timetable and assignments for first child's class
-  const firstChild = children[0];
-  const classId = firstChild?.class_id?._id;
+  const initials = (name: string) =>
+    (name || "?").split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
 
-  const { data: timetables = [] } = useQuery({
-    queryKey: ["parent-timetable", classId],
-    enabled: !!classId,
-    queryFn: async () => {
-      const res = await api.get(`/timetables?class_id=${classId}`);
-      return Array.isArray(res.data) ? res.data : [];
-    },
-  });
-
-  const { data: assignments = [] } = useQuery({
-    queryKey: ["parent-assignments", classId],
-    enabled: !!classId,
-    queryFn: async () => {
-      const res = await api.get("/assignments");
-      return Array.isArray(res.data) ? res.data : [];
-    },
-  });
-
-  const todaysClasses = timetables
-    .filter((t: any) => t.day_of_week === todayIndex)
-    .sort((a: any, b: any) => a.start_time.localeCompare(b.start_time));
+  const levelColors: Record<string, string> = {
+    creche: "bg-pink-100 text-pink-700",
+    nursery: "bg-purple-100 text-purple-700",
+    primary: "bg-blue-100 text-blue-700",
+    secondary: "bg-green-100 text-green-700",
+    vocational: "bg-orange-100 text-orange-700",
+  };
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      <header className="bg-card border-b border-border sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-              <Users className="w-5 h-5 text-primary-foreground" />
+    <div className="min-h-screen bg-gray-50">
+
+      {/* Announcement bar */}
+      <div className="bg-primary text-primary-foreground text-xs py-2 text-center px-4 flex items-center justify-center gap-2">
+        <Phone className="w-3 h-3 shrink-0" />
+        <span>Admissions open for 2024/2025 — Call us: <strong>+234 800 000 0000</strong></span>
+      </div>
+
+      {/* Navbar */}
+      <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-border/50 shadow-sm">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            <Link to="/" className="flex items-center gap-3 shrink-0">
+              <img src="/infogate-school-badge.svg" alt="Infogate Schools" className="h-12 w-auto" />
+              <div className="hidden sm:block">
+                <p className="font-extrabold text-primary text-base leading-tight">Infogate</p>
+                <p className="text-xs text-muted-foreground font-semibold tracking-wide uppercase">Schools</p>
+              </div>
+            </Link>
+
+            <div className="hidden lg:flex items-center gap-1">
+              {navLinks.map((link) => (
+                <Link key={link.path} to={link.path}
+                  className="px-4 py-2 rounded-xl font-semibold text-sm text-foreground/70 hover:text-foreground hover:bg-muted transition-all"
+                >
+                  {link.name}
+                </Link>
+              ))}
             </div>
-            <div>
-              <h1 className="font-bold">Parent Portal</h1>
-              <p className="text-xs text-muted-foreground">Infogate Schools</p>
+
+            <div className="flex items-center gap-3">
+              <button className="relative w-9 h-9 rounded-xl flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-all">
+                <Bell className="w-5 h-5" />
+              </button>
+              <div className="relative hidden sm:block" ref={dropdownRef}>
+                <button onClick={() => setUserDropdown((o) => !o)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted hover:bg-muted/80 transition-colors"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
+                    <span className="text-primary-foreground font-extrabold text-xs">
+                      {displayName?.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <span className="text-sm font-bold text-gray-700 hidden md:block">{displayName}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${userDropdown ? "rotate-180" : ""}`} />
+                </button>
+                {userDropdown && (
+                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-50">
+                    <div className="px-4 py-3 border-b border-gray-50">
+                      <p className="text-xs font-extrabold text-gray-900 truncate">{displayName}</p>
+                      <p className="text-[10px] text-gray-400">Parent Portal</p>
+                    </div>
+                    <button onClick={() => { setUserDropdown(false); setLogoutModal(true); }}
+                      className="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" /> Sign out
+                    </button>
+                  </div>
+                )}
+              </div>
+              <button onClick={() => setMobileOpen((o) => !o)} className="lg:hidden p-2 rounded-xl hover:bg-muted transition-colors">
+                {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
             </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon"><Bell className="w-5 h-5" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => logout()}><LogOut className="w-5 h-5" /></Button>
           </div>
         </div>
-      </header>
 
-      <div className="container mx-auto px-4 py-8 space-y-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <h2 className="text-2xl font-bold">Welcome, {user?.name?.split(" ")[0] || "Parent"}! 👨‍👩‍👧</h2>
-        </motion.div>
+        <AnimatePresence>
+          {mobileOpen && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+              className="lg:hidden bg-white border-t border-border overflow-hidden"
+            >
+              <div className="container mx-auto px-4 py-4 flex flex-col gap-1">
+                {navLinks.map((link) => (
+                  <Link key={link.path} to={link.path} onClick={() => setMobileOpen(false)}
+                    className="px-4 py-3 rounded-xl font-semibold text-base text-foreground hover:bg-muted"
+                  >
+                    {link.name}
+                  </Link>
+                ))}
+                <div className="pt-4 mt-2 border-t border-border">
+                  <button onClick={() => { setMobileOpen(false); setLogoutModal(true); }}
+                    className="flex items-center gap-2 w-full px-4 py-3 rounded-xl text-red-600 font-semibold hover:bg-red-50"
+                  >
+                    <LogOut className="w-4 h-4" /> Sign out
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </nav>
+
+      {/* Page content */}
+      <div className="container mx-auto px-4 py-8 max-w-2xl">
+
+        {/* Greeting */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-extrabold text-gray-900">
+            Welcome, {displayName || "Parent"}
+          </h1>
+          <p className="text-gray-400 mt-1">Select a child to view their school information</p>
+        </div>
 
         {isLoading ? (
-          <div className="flex justify-center py-16">
-            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+          <div className="flex justify-center py-24">
+            <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full" />
           </div>
         ) : children.length === 0 ? (
-          <div className="playful-card p-10 text-center text-muted-foreground">
-            <Users className="mx-auto mb-3 opacity-40" size={36} />
-            <p className="font-semibold">No children linked to your account yet.</p>
-            <p className="text-sm mt-1">Ask the school admin to link your child to your account.</p>
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-14 text-center">
+            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
+              <User className="w-10 h-10 text-gray-300" />
+            </div>
+            <p className="font-extrabold text-gray-700 text-xl">No children linked yet</p>
+            <p className="text-gray-400 mt-2 max-w-xs mx-auto leading-relaxed">
+              Please contact the school admin to link your child's profile to your account.
+            </p>
           </div>
         ) : (
-          <>
-            {/* Child cards */}
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {children.map((child: any) => (
+          <div className="grid sm:grid-cols-2 gap-5">
+            {children.map((child: any, i: number) => {
+              const name = child?.user_id?.full_name ?? "Unknown";
+              const cls = child?.class_id?.name ?? "No class";
+              const level = child?.class_id?.level ?? "";
+              const admNo = child?.admission_number ?? "—";
+              const status = child?.status ?? "active";
+              const ini = initials(name);
+              // Alternate card accent colours so multiple children look distinct
+              const accents = [
+                { dot: "bg-yellow-400", badge: "bg-yellow-400 text-gray-900" },
+                { dot: "bg-sky-400",    badge: "bg-sky-400 text-white" },
+                { dot: "bg-pink-400",   badge: "bg-pink-400 text-white" },
+                { dot: "bg-emerald-400",badge: "bg-emerald-400 text-white" },
+              ];
+              const accent = accents[i % accents.length];
+
+              return (
                 <motion.div
                   key={child._id}
-                  initial={{ opacity: 0, y: 12 }}
+                  initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="playful-card p-5 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent"
+                  transition={{ delay: i * 0.1 }}
+                  whileHover={{ y: -3 }}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center text-primary-foreground font-bold text-xl">
-                      {(child.user_id?.full_name ?? "?").split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
-                    </div>
-                    <div>
-                      <p className="font-bold text-base">{child.user_id?.full_name}</p>
-                      <p className="text-sm text-muted-foreground">{child.class_id?.name ?? "No class assigned"}</p>
-                      <p className="text-xs text-muted-foreground">{child.admission_number}</p>
-                    </div>
-                  </div>
-                  {child.class_id && (
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                      <div className="bg-muted/50 rounded-lg px-3 py-2">
-                        <p className="text-muted-foreground">Level</p>
-                        <p className="font-semibold">{child.class_id.level ?? "—"}</p>
-                      </div>
-                      <div className="bg-muted/50 rounded-lg px-3 py-2">
-                        <p className="text-muted-foreground">Status</p>
-                        <p className="font-semibold capitalize">{child.status ?? "active"}</p>
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
-              ))}
-            </div>
+                  <button
+                    onClick={() => navigate(`/portal/parent/child/${child._id}`)}
+                    className="w-full text-left rounded-3xl overflow-hidden shadow-md hover:shadow-xl transition-shadow"
+                  >
+                    {/* Full-card navy background */}
+                    <div className="bg-gradient-to-br from-[#0a2342] via-[#0d3460] to-[#1a5276] p-6 relative overflow-hidden">
+                      {/* Dot pattern */}
+                      <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "18px 18px" }} />
 
-            {/* Stats */}
-            <div className="grid sm:grid-cols-3 gap-4">
-              {[
-                { label: "Today's Classes", value: todaysClasses.length, icon: Calendar, color: "bg-student" },
-                { label: "Assignments", value: assignments.length, icon: FileText, color: "bg-coral" },
-                { label: "Class", value: firstChild?.class_id?.name ?? "—", icon: BookOpen, color: "bg-lavender" },
-              ].map((stat, i) => (
-                <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.08 }}
-                  className="playful-card p-5"
-                >
-                  <div className={`w-10 h-10 ${stat.color} rounded-xl flex items-center justify-center mb-3`}>
-                    <stat.icon className="w-5 h-5 text-card" />
-                  </div>
-                  <p className="text-2xl font-extrabold truncate">{stat.value}</p>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                </motion.div>
-              ))}
-            </div>
+                      {/* Large decorative circle */}
+                      <div className="absolute -right-8 -top-8 w-36 h-36 rounded-full bg-white/5" />
+                      <div className="absolute -right-2 -bottom-10 w-24 h-24 rounded-full bg-white/5" />
 
-            <div className="grid lg:grid-cols-2 gap-6">
-              {/* Today's timetable */}
-              <div className="playful-card p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-lg">📅 Today's Classes</h3>
-                  <span className="text-xs text-muted-foreground">{DAYS[todayIndex]}</span>
-                </div>
-                {todaysClasses.length === 0 ? (
-                  <p className="text-sm text-muted-foreground p-3">No classes scheduled for today.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {todaysClasses.map((item: any) => (
-                      <div key={item._id} className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
-                        <div className="flex items-center gap-3">
-                          <Clock className="w-4 h-4 text-primary shrink-0" />
-                          <span className="text-sm font-semibold">{item.start_time} – {item.end_time}</span>
-                          <span className="text-sm">{item.class_subject_id?.subject_id?.name ?? "—"}</span>
+                      <div className="relative z-10">
+                        {/* Top row: avatar + status */}
+                        <div className="flex items-start justify-between mb-5">
+                          <div className={`w-16 h-16 rounded-2xl ${accent.dot} flex items-center justify-center text-gray-900 font-extrabold text-2xl shadow-lg`}>
+                            {ini}
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wide ${
+                            status === "active" ? "bg-green-400/20 text-green-300 border border-green-400/30" : "bg-white/10 text-white/50 border border-white/15"
+                          }`}>
+                            {status}
+                          </span>
                         </div>
-                        {item.room_number && (
-                          <span className="text-xs text-muted-foreground">{item.room_number}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
 
-              {/* Assignments */}
-              <div className="playful-card p-6">
-                <h3 className="font-bold text-lg mb-4">📝 Assignments</h3>
-                {assignments.length === 0 ? (
-                  <p className="text-sm text-muted-foreground p-3">No assignments yet.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {assignments.slice(0, 5).map((item: any) => (
-                      <div key={item._id} className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
-                        <div>
-                          <p className="text-sm font-medium">{item.title}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {item.class_subject_id?.subject_id?.name}
-                          </p>
+                        {/* Name & class */}
+                        <h2 className="text-white font-extrabold text-xl leading-tight">{name}</h2>
+                        <p className="text-white/50 text-sm mt-1">{cls}</p>
+
+                        {/* Divider */}
+                        <div className="my-4 border-t border-white/10" />
+
+                        {/* Bottom row: level + admission + arrow */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold uppercase tracking-wide ${accent.badge}`}>
+                              {level || "—"}
+                            </span>
+                            <span className="text-white/40 text-xs font-semibold">{admNo}</span>
+                          </div>
+                          <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
+                            <ChevronRight className="w-4 h-4 text-white/60" />
+                          </div>
                         </div>
-                        <span className="text-xs px-2 py-1 bg-coral/10 text-coral rounded-full font-semibold shrink-0">
-                          {item.due_date ? format(new Date(item.due_date), "MMM d") : "No date"}
-                        </span>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </>
+                    </div>
+                  </button>
+                </motion.div>
+              );
+            })}
+          </div>
         )}
       </div>
+
+      {/* Logout modal */}
+      {logoutModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden"
+          >
+            <div className="bg-gradient-to-br from-[#0a2342] to-[#1a5276] px-6 py-6">
+              <div className="w-12 h-12 rounded-2xl bg-red-500/20 flex items-center justify-center mb-3">
+                <LogOut className="w-6 h-6 text-red-300" />
+              </div>
+              <h2 className="text-white font-extrabold text-xl">Sign out?</h2>
+              <p className="text-white/60 text-sm mt-1">You'll need to log back in to see your child's information.</p>
+            </div>
+            <div className="px-6 py-5 flex gap-3">
+              <button onClick={() => setLogoutModal(false)}
+                className="flex-1 py-3 rounded-2xl border border-gray-200 text-base font-bold text-gray-600 hover:bg-gray-50"
+              >Cancel</button>
+              <button onClick={() => { logout(); navigate("/login"); }}
+                className="flex-1 py-3 rounded-2xl bg-red-500 hover:bg-red-600 text-white text-base font-extrabold"
+              >Yes, Sign out</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
