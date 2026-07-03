@@ -2,16 +2,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, User, Calendar, Clock,
+  ArrowLeft, User,
   BookOpen, CreditCard, Award, CheckCircle,
-  AlertCircle, XCircle, FileText, X, Banknote, Download,
-  TrendingUp, ChevronRight,
+  AlertCircle, XCircle, FileText, Banknote, Download,
+  TrendingUp,
 } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { format, isPast } from "date-fns";
 import PublicNavbar from "@/components/layout/PublicNavbar";
-import { toast } from "sonner";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const sf = (obj: any, path: string) => path.split(".").reduce((acc, p) => acc && acc[p], obj);
@@ -28,31 +27,11 @@ type Tab = typeof TABS[number]["key"];
 const ParentChildDetail = () => {
   const { studentId } = useParams();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const todayIndex = new Date().getDay();
 
   const [activeTab, setActiveTab] = useState<Tab>("fees");
-  const [payModal, setPayModal] = useState(false);
-  const [payAmount, setPayAmount] = useState("");
-  const [payMethod, setPayMethod] = useState("");
-  const [payDesc, setPayDesc] = useState("");
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
-
-  const payMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await api.post(`/users/students/${studentId}/payments`, data);
-      return res.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["child-detail", studentId] });
-      queryClient.invalidateQueries({ queryKey: ["child-fees", studentId] });
-      toast.success("Payment recorded successfully!");
-      setPayModal(false);
-      setPayAmount(""); setPayMethod(""); setPayDesc("");
-    },
-    onError: () => toast.error("Payment failed. Please try again."),
-  });
 
   const { data: raw, isLoading } = useQuery({
     queryKey: ["child-detail", studentId],
@@ -577,97 +556,116 @@ const ParentChildDetail = () => {
                       </div>
                     </Card>
 
-                    {/* Make Payment */}
-                    <button
-                      onClick={() => setPayModal(true)}
-                      className="w-full flex items-center justify-between px-5 py-4 bg-gradient-to-r from-[#0a2342] to-[#1a5276] rounded-2xl text-white font-extrabold hover:opacity-90 transition-opacity shadow-sm"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-yellow-400/20 flex items-center justify-center">
-                          <Banknote className="w-5 h-5 text-yellow-300" />
-                        </div>
-                        <span>Make Payment</span>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-white/50" />
-                    </button>
-
                     {/* Payment History */}
-                    <Card title="Payment History" action={
-                      paymentHistory.length > 0 ? (
-                        <button onClick={downloadPaymentHistory} className="flex items-center gap-1.5 text-xs font-bold text-[#0a2342] hover:opacity-70 transition-opacity">
-                          <Download className="w-3.5 h-3.5" /> Download PDF
-                        </button>
-                      ) : undefined
-                    }>
-                      {paymentHistory.length === 0 ? (
-                        <p className="text-center text-gray-400 text-sm py-6">No payments recorded yet</p>
-                      ) : (
-                        <div className="space-y-4">
-                          {/* Date filter */}
-                          <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+
+                      {/* Card header */}
+                      <div className="bg-gradient-to-r from-[#0a2342] to-[#1a5276] px-6 py-5">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="font-extrabold text-white text-base">Payment History</h3>
+                            <p className="text-white/40 text-xs mt-0.5">{paymentHistory.length} transaction{paymentHistory.length !== 1 ? "s" : ""} recorded</p>
+                          </div>
+                          {paymentHistory.length > 0 && (
+                            <button
+                              onClick={downloadPaymentHistory}
+                              className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-white text-xs font-bold transition-colors"
+                            >
+                              <Download className="w-3.5 h-3.5" /> Download PDF
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Date filter inside header */}
+                        {paymentHistory.length > 0 && (
+                          <div className="mt-4 grid grid-cols-2 gap-2">
                             <div>
-                              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">From</label>
+                              <label className="block text-[10px] font-bold text-white/40 uppercase tracking-wide mb-1">From</label>
                               <input
                                 type="date"
                                 value={filterFrom}
                                 onChange={e => setFilterFrom(e.target.value)}
-                                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0a2342]/20"
+                                className="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-white/30 [color-scheme:dark]"
                               />
                             </div>
                             <div>
-                              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">To</label>
+                              <label className="block text-[10px] font-bold text-white/40 uppercase tracking-wide mb-1">To</label>
                               <input
                                 type="date"
                                 value={filterTo}
                                 onChange={e => setFilterTo(e.target.value)}
-                                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0a2342]/20"
+                                className="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-white/30 [color-scheme:dark]"
                               />
                             </div>
                           </div>
-                          {(filterFrom || filterTo) && (
-                            <button onClick={() => { setFilterFrom(""); setFilterTo(""); }} className="text-xs text-gray-400 hover:text-gray-600 font-bold -mt-1">
-                              Clear filter
-                            </button>
-                          )}
+                        )}
+                        {(filterFrom || filterTo) && (
+                          <button onClick={() => { setFilterFrom(""); setFilterTo(""); }} className="mt-2 text-xs text-white/40 hover:text-white/70 font-bold transition-colors">
+                            ✕ Clear filter
+                          </button>
+                        )}
+                      </div>
 
-                          {filteredHistory.length === 0 ? (
-                            <p className="text-center text-gray-400 text-sm py-4">No payments in this date range</p>
-                          ) : (
-                            <div className="space-y-3">
-                              {filteredHistory.map((p: any, i: number) => (
-                                <div key={i} className="bg-gray-50 rounded-2xl p-4 space-y-3">
-                                  <div className="flex items-start gap-3">
-                                    <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center shrink-0 mt-0.5">
-                                      <Banknote className="w-4 h-4 text-green-600" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="font-bold text-gray-800 truncate">{p.description || "Payment"}</p>
-                                      <p className="text-xs text-gray-400 mt-0.5">
-                                        {p.date ? format(new Date(p.date), "MMM d, yyyy") : "—"}
-                                        {p.method ? ` · ${p.method}` : ""}
-                                        {p.term ? ` · ${p.term}` : ""}
-                                      </p>
-                                    </div>
+                      {/* Transactions */}
+                      <div className="p-6">
+                      {paymentHistory.length === 0 ? (
+                        <div className="text-center py-8">
+                          <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                            <Banknote className="w-6 h-6 text-gray-300" />
+                          </div>
+                          <p className="text-gray-400 font-semibold text-sm">No payments recorded yet</p>
+                        </div>
+                      ) : filteredHistory.length === 0 ? (
+                        <p className="text-center text-gray-400 text-sm py-6">No payments in this date range</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {filteredHistory.map((p: any, i: number) => {
+                            const outstanding = Number(p.outstanding_after) || 0;
+                            return (
+                            <div key={i} className="relative pl-10">
+                              {/* Timeline line */}
+                              {i < filteredHistory.length - 1 && (
+                                <div className="absolute left-[15px] top-8 bottom-0 w-px bg-gray-100" />
+                              )}
+                              {/* Timeline dot */}
+                              <div className="absolute left-0 top-1.5 w-8 h-8 rounded-full bg-green-100 border-2 border-white shadow-sm flex items-center justify-center">
+                                <Banknote className="w-3.5 h-3.5 text-green-600" />
+                              </div>
+
+                              <div className="bg-gray-50 rounded-2xl p-4 ml-2">
+                                {/* Top row */}
+                                <div className="flex items-start justify-between gap-2 mb-3">
+                                  <div className="min-w-0">
+                                    <p className="font-extrabold text-gray-900 truncate">{p.description || "Payment"}</p>
+                                    <p className="text-xs text-gray-400 mt-0.5 capitalize">
+                                      {p.date ? format(new Date(p.date), "dd MMM yyyy") : "—"}
+                                      {p.method ? ` · ${p.method}` : ""}
+                                    </p>
                                   </div>
-                                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-gray-100">
-                                    <div>
-                                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Amount Paid</p>
-                                      <p className="font-extrabold text-green-700 text-base mt-0.5">₦{(Number(p.amount) || 0).toLocaleString()}</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Outstanding After</p>
-                                      <p className={`font-extrabold text-base mt-0.5 ${(Number(p.outstanding_after) || 0) > 0 ? "text-red-600" : "text-green-600"}`}>
-                                        ₦{(Number(p.outstanding_after) || 0).toLocaleString()}
-                                      </p>
-                                    </div>
+                                  <span className="shrink-0 text-xs font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-700">Paid</span>
+                                </div>
+
+                                {/* Amount row */}
+                                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-200">
+                                  <div className="text-center bg-white rounded-xl py-2.5 px-3">
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Amount Paid</p>
+                                    <p className="font-extrabold text-green-700 text-lg mt-0.5">₦{(Number(p.amount) || 0).toLocaleString()}</p>
+                                  </div>
+                                  <div className="text-center bg-white rounded-xl py-2.5 px-3">
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Outstanding After</p>
+                                    <p className={`font-extrabold text-lg mt-0.5 ${outstanding > 0 ? "text-red-600" : "text-green-600"}`}>
+                                      ₦{outstanding.toLocaleString()}
+                                    </p>
                                   </div>
                                 </div>
-                              ))}
+                              </div>
                             </div>
-                          )}
+                          )})}
                         </div>
                       )}
-                    </Card>
+                      </div>
+                    </div>
+
                   </>
                 )}
               </div>
@@ -899,83 +897,6 @@ const ParentChildDetail = () => {
         <div className="h-10" />
       </div>
 
-      {/* ── Payment Modal ── */}
-      <AnimatePresence>
-        {payModal && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-            <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 40 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden"
-            >
-              <div className="bg-gradient-to-br from-[#0a2342] to-[#1a5276] px-6 py-5 flex items-start justify-between">
-                <div>
-                  <div className="w-10 h-10 rounded-xl bg-yellow-400/20 flex items-center justify-center mb-3">
-                    <Banknote className="w-5 h-5 text-yellow-300" />
-                  </div>
-                  <h2 className="text-white font-extrabold text-xl">Make Payment</h2>
-                  <p className="text-white/50 text-sm mt-0.5">{name}</p>
-                </div>
-                <button onClick={() => setPayModal(false)} className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors mt-1">
-                  <X className="w-4 h-4 text-white/70" />
-                </button>
-              </div>
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-xs font-extrabold text-gray-500 uppercase tracking-widest mb-2">Amount (₦)</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-extrabold text-gray-400 text-lg">₦</span>
-                    <input
-                      type="number"
-                      placeholder="0.00"
-                      value={payAmount}
-                      onChange={(e) => setPayAmount(e.target.value)}
-                      className="w-full pl-9 pr-4 py-3.5 rounded-2xl border border-gray-200 text-lg font-extrabold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-extrabold text-gray-500 uppercase tracking-widest mb-2">Payment Method</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[{ value: "transfer", label: "Bank Transfer" }, { value: "cash", label: "Cash" }, { value: "card", label: "Card" }].map((m) => (
-                      <button
-                        key={m.value}
-                        onClick={() => setPayMethod(m.value)}
-                        className={`py-3 rounded-2xl text-xs font-extrabold border-2 transition-all ${payMethod === m.value ? "border-primary bg-primary/5 text-primary" : "border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-200"}`}
-                      >
-                        {m.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-extrabold text-gray-500 uppercase tracking-widest mb-2">Description</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. First term tuition"
-                    value={payDesc}
-                    onChange={(e) => setPayDesc(e.target.value)}
-                    className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                </div>
-                <button
-                  onClick={() => payMutation.mutate({
-                    amount: Number(payAmount),
-                    method: payMethod,
-                    description: payDesc,
-                    reference: "PAY-" + Date.now().toString().slice(-6),
-                  })}
-                  disabled={!payAmount || !payMethod || !payDesc || payMutation.isPending}
-                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#0a2342] to-[#1a5276] text-white font-extrabold text-base hover:opacity-90 transition-opacity disabled:opacity-40 mt-1"
-                >
-                  {payMutation.isPending ? "Processing…" : `Pay ₦${Number(payAmount || 0).toLocaleString()}`}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };
