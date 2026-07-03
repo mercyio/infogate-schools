@@ -389,6 +389,21 @@ export const deleteParent = async (req: Request, res: Response): Promise<void> =
     }
 };
 
+export const getMeStudent = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const student = await Student.findOne({ user_id: req.user.id })
+            .populate('user_id', '-passwordHash')
+            .populate('class_id');
+        if (!student) {
+            res.status(404).json({ message: 'Student profile not found' });
+            return;
+        }
+        res.json(student);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error });
+    }
+};
+
 export const getMeTeacher = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const teacher = await Teacher.findOne({ user_id: req.user.id }).populate('user_id', '-passwordHash').populate('assigned_class');

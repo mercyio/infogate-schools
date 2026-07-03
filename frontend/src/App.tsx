@@ -103,9 +103,7 @@ const App = () => (
               <Route path="/contact" element={<Contact />} />
               <Route path="/gallery" element={<Gallery />} />
             </Route>
-            <Route element={<NavbarOnlyLayout />}>
-              <Route path="/login" element={<Login />} />
-            </Route>
+            <Route path="/login" element={<Login />} />
             <Route path="/register-success" element={<RegisterSuccessPage />} />
             {/* Admin Portal */}
             <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
