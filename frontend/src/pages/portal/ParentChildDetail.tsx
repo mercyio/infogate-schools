@@ -40,11 +40,13 @@ const ParentChildDetail = () => {
   });
 
   const classLevel = sf(raw, "class_id.level");
+  // creche classes share nursery timetable entries (Timetable model has no "creche" level)
+  const timetableLevel = classLevel === "creche" ? "nursery" : classLevel;
 
   const { data: timetables = [] } = useQuery({
-    queryKey: ["child-timetable", classLevel],
-    enabled: !!classLevel,
-    queryFn: async () => { const res = await api.get(`/timetables?level=${classLevel}`); return Array.isArray(res.data) ? res.data : []; },
+    queryKey: ["child-timetable", timetableLevel],
+    enabled: !!timetableLevel,
+    queryFn: async () => { const res = await api.get(`/timetables?level=${timetableLevel}`); return Array.isArray(res.data) ? res.data : []; },
   });
 
   const { data: assignments = [] } = useQuery({
@@ -671,194 +673,270 @@ const ParentChildDetail = () => {
               </div>
             )}
 
-            {/* ══════════ SCHOOL (Classes + Attendance + Assignments) ══════════ */}
+            {/* ══════════ SCHOOL ══════════ */}
             {activeTab === "school" && (
-              <div className="space-y-6">
+              <div className="space-y-5">
 
                 {/* Today's Classes */}
-                <Card title="Today's Classes" sub={DAYS[todayIndex]}>
-                  {todaysClasses.length === 0 ? (
-                    <Empty text="No classes scheduled today" />
-                  ) : (
-                    <div className="space-y-3">
-                      {todaysClasses.map((t: any) => (
-                        <div key={t._id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl">
-                          <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
-                            <BookOpen className="w-5 h-5 text-blue-600" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-bold text-gray-900">{t.subject_id?.name ?? "—"}</p>
-                            <p className="text-sm text-gray-400 mt-0.5">{t.start_time} – {t.end_time}</p>
-                          </div>
-                          {t.room_number && <span className="text-xs bg-white border border-gray-200 text-gray-500 px-3 py-1 rounded-lg font-bold">{t.room_number}</span>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </Card>
-
-                {/* Attendance */}
-                <Card title="Attendance">
-                  {totalDays === 0 ? <Empty text="No attendance records yet" /> : (
-                    <div className="space-y-5">
-                      <div className="grid grid-cols-3 gap-3">
-                        {[
-                          { label: "Present", count: present, cls: "bg-green-50 border-green-100 text-green-700" },
-                          { label: "Late",    count: late,    cls: "bg-amber-50 border-amber-100 text-amber-700" },
-                          { label: "Absent",  count: absent,  cls: "bg-red-50 border-red-100 text-red-600" },
-                        ].map(({ label, count, cls }) => (
-                          <div key={label} className={`${cls} border rounded-2xl p-4 text-center`}>
-                            <p className="text-3xl font-extrabold">{count}</p>
-                            <p className="text-xs font-bold mt-1">{label}</p>
-                          </div>
-                        ))}
+                <SchoolSection label={`Today · ${DAYS[todayIndex]}`}>
+                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    <div className="flex items-center gap-3 px-4 py-3.5 border-b border-gray-50">
+                      <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                        <BookOpen className="w-4 h-4 text-blue-600" />
                       </div>
                       <div>
-                        <div className="flex justify-between text-sm mb-2">
-                          <span className="text-gray-500 font-semibold">Attendance Rate</span>
-                          <span className="font-extrabold text-[#0a2342]">{attendanceRate}%</span>
-                        </div>
-                        <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${attendanceRate}%` }}
-                            transition={{ duration: 1, ease: "easeOut" }}
-                            className={`h-full rounded-full ${attendanceRate >= 80 ? "bg-green-500" : attendanceRate >= 60 ? "bg-amber-400" : "bg-red-400"}`}
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-xs font-extrabold text-gray-400 uppercase tracking-widest">Recent Records</p>
-                        {[...attendanceRecords]
-                          .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                          .slice(0, 10)
-                          .map((r: any, i: number) => {
-                            const statusMap: Record<string, { Icon: any; cls: string }> = {
-                              present: { Icon: CheckCircle, cls: "text-green-600 bg-green-50" },
-                              late:    { Icon: AlertCircle, cls: "text-amber-600 bg-amber-50" },
-                              absent:  { Icon: XCircle,    cls: "text-red-500 bg-red-50"     },
-                            };
-                            const s = statusMap[r.status] ?? statusMap.absent;
-                            return (
-                              <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${s.cls.split(" ")[1]}`}>
-                                  <s.Icon className={`w-4 h-4 ${s.cls.split(" ")[0]}`} />
-                                </div>
-                                <p className="flex-1 text-sm font-semibold text-gray-700">
-                                  {r.date ? format(new Date(r.date), "EEE, MMM d yyyy") : "—"}
-                                </p>
-                                <span className={`text-xs font-extrabold capitalize px-2.5 py-0.5 rounded-full ${s.cls}`}>{r.status}</span>
-                              </div>
-                            );
-                          })}
+                        <p className="text-sm font-bold text-gray-900">Today's classes</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{todaysClasses.length} period{todaysClasses.length !== 1 ? "s" : ""}</p>
                       </div>
                     </div>
-                  )}
-                </Card>
+                    {todaysClasses.length === 0 ? (
+                      <div className="px-4 py-8 text-center">
+                        <p className="text-sm text-gray-400">No classes scheduled today</p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-gray-50">
+                        {todaysClasses.map((t: any) => {
+                          const name = t.subject_id?.name ?? "—";
+                          const isBreak = name.toLowerCase().includes("lunch") || name.toLowerCase().includes("break");
+                          const isAssembly = name.toLowerCase().includes("assembly");
+                          const now = new Date();
+                          const [sh, sm] = t.start_time.split(":").map(Number);
+                          const [eh, em] = t.end_time.split(":").map(Number);
+                          const start = sh * 60 + sm;
+                          const end   = eh * 60 + em;
+                          const cur   = now.getHours() * 60 + now.getMinutes();
+                          const isNow  = cur >= start && cur < end && now.getDay() === todayIndex;
+                          const isDone = cur >= end && now.getDay() === todayIndex;
+                          return (
+                            <div key={t._id} className="flex items-center gap-4 px-4 py-3">
+                              <div className="w-16 shrink-0">
+                                <p className="text-xs text-gray-400 leading-tight">{t.start_time}</p>
+                                <p className="text-xs text-gray-300 leading-tight">{t.end_time}</p>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-sm font-bold truncate ${isBreak ? "text-amber-700" : isAssembly ? "text-blue-700" : "text-gray-900"}`}>{name}</p>
+                                <p className="text-xs text-gray-400 mt-0.5">{isBreak ? "Break" : isAssembly ? "All school" : "Subject"}</p>
+                              </div>
+                              {isNow  && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 shrink-0">Now</span>}
+                              {isDone && !isNow && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-400 shrink-0">Done</span>}
+                              {isBreak && !isNow && !isDone && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0">Break</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </SchoolSection>
+
+                {/* Attendance */}
+                <SchoolSection label="Attendance">
+                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    {totalDays === 0 ? (
+                      <div className="px-4 py-8 text-center"><p className="text-sm text-gray-400">No attendance records yet</p></div>
+                    ) : (
+                      <>
+                        <div className="px-4 pt-4 pb-3">
+                          <div className="grid grid-cols-3 gap-2 mb-4">
+                            {[
+                              { label: "Present", count: present, bg: "bg-green-50",  num: "text-green-800",  sub: "text-green-600" },
+                              { label: "Late",    count: late,    bg: "bg-amber-50",  num: "text-amber-800", sub: "text-amber-600" },
+                              { label: "Absent",  count: absent,  bg: "bg-red-50",    num: "text-red-700",   sub: "text-red-500"   },
+                            ].map(({ label, count, bg, num, sub }) => (
+                              <div key={label} className={`${bg} rounded-xl p-3 text-center`}>
+                                <p className={`text-2xl font-extrabold ${num}`}>{count}</p>
+                                <p className={`text-xs font-bold mt-0.5 ${sub}`}>{label}</p>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${attendanceRate}%` }}
+                              transition={{ duration: 1, ease: "easeOut" }}
+                              className={`h-full rounded-full ${attendanceRate >= 80 ? "bg-green-500" : attendanceRate >= 60 ? "bg-amber-400" : "bg-red-400"}`}
+                            />
+                          </div>
+                          <div className="flex justify-between mt-1.5">
+                            <span className="text-xs text-gray-400">Attendance rate</span>
+                            <span className="text-xs font-bold text-gray-700">{attendanceRate}%</span>
+                          </div>
+                        </div>
+
+                        <div className="border-t border-gray-50 px-4 pt-3 pb-1">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Recent</p>
+                          <div className="divide-y divide-gray-50">
+                            {[...attendanceRecords]
+                              .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                              .slice(0, 8)
+                              .map((r: any, i: number) => {
+                                const cfg: Record<string, { dot: string; tag: string; text: string }> = {
+                                  present: { dot: "bg-green-500",  tag: "bg-green-50 text-green-700",  text: "Present" },
+                                  late:    { dot: "bg-amber-400",  tag: "bg-amber-50 text-amber-700",  text: "Late"    },
+                                  absent:  { dot: "bg-red-400",    tag: "bg-red-50 text-red-600",      text: "Absent"  },
+                                };
+                                const c = cfg[r.status] ?? cfg.absent;
+                                return (
+                                  <div key={i} className="flex items-center gap-3 py-2.5">
+                                    <div className={`w-2 h-2 rounded-full shrink-0 ${c.dot}`} />
+                                    <p className="flex-1 text-sm text-gray-600">
+                                      {r.date ? format(new Date(r.date), "EEE, MMM d yyyy") : "—"}
+                                    </p>
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${c.tag}`}>{c.text}</span>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </SchoolSection>
 
                 {/* Assignments */}
-                <Card title="Assignments">
-                  {assignments.length === 0 ? <Empty text="No assignments yet" /> : (
-                    <div className="space-y-3">
-                      {assignments.map((a: any) => {
-                        const due = a.due_date ? new Date(a.due_date) : null;
-                        const overdue = due && isPast(due);
-                        return (
-                          <div key={a._id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${overdue ? "bg-red-100" : "bg-amber-100"}`}>
-                              <FileText className={`w-5 h-5 ${overdue ? "text-red-500" : "text-amber-600"}`} />
+                <SchoolSection label="Assignments">
+                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    {assignments.length === 0 ? (
+                      <div className="px-4 py-8 text-center"><p className="text-sm text-gray-400">No assignments yet</p></div>
+                    ) : (
+                      <div className="divide-y divide-gray-50">
+                        {assignments.map((a: any) => {
+                          const due = a.due_date ? new Date(a.due_date) : null;
+                          const overdue = due && isPast(due);
+                          return (
+                            <div key={a._id} className="flex items-center gap-3 px-4 py-3.5">
+                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${overdue ? "bg-red-50" : "bg-amber-50"}`}>
+                                <FileText className={`w-4 h-4 ${overdue ? "text-red-500" : "text-amber-600"}`} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-gray-900 truncate">{a.title}</p>
+                                <p className="text-xs text-gray-400 mt-0.5">{a.class_subject_id?.subject_id?.name ?? "—"}</p>
+                              </div>
+                              {due && (
+                                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0 ${
+                                  overdue ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-700"
+                                }`}>
+                                  {overdue ? "Overdue" : format(due, "MMM d")}
+                                </span>
+                              )}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-bold text-gray-900 truncate">{a.title}</p>
-                              <p className="text-sm text-gray-400 mt-0.5">{a.class_subject_id?.subject_id?.name ?? "—"}</p>
-                            </div>
-                            {due && (
-                              <span className={`text-xs px-3 py-1 rounded-full font-extrabold shrink-0 ${overdue ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
-                                {overdue ? "Overdue" : format(due, "MMM d")}
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </Card>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </SchoolSection>
 
                 {/* Weekly Timetable */}
-                <Card title="Weekly Timetable">
-                  {timetables.length === 0 ? <Empty text="No timetable set yet" /> : (
-                    <div className="space-y-3">
-                      {["Monday","Tuesday","Wednesday","Thursday","Friday"].map((day, i) => {
-                        const dayClasses = timetables
-                          .filter((t: any) => t.day_of_week === i + 1)
-                          .sort((a: any, b: any) => a.start_time.localeCompare(b.start_time));
-                        const isToday = i + 1 === todayIndex;
-                        return (
-                          <div key={day} className={`rounded-2xl border p-4 ${isToday ? "border-[#0a2342]/30 bg-[#0a2342]/5" : "border-gray-100 bg-gray-50"}`}>
-                            <p className={`text-xs font-extrabold uppercase tracking-widest mb-3 ${isToday ? "text-[#0a2342]" : "text-gray-400"}`}>
-                              {day}{isToday ? " · Today" : ""}
-                            </p>
-                            {dayClasses.length === 0 ? (
-                              <p className="text-xs text-gray-300 font-semibold">No classes</p>
-                            ) : (
-                              <div className="space-y-2">
-                                {dayClasses.map((c: any) => (
-                                  <div key={c._id} className="flex items-center gap-3">
-                                    <span className="text-xs text-gray-400 font-mono w-24 shrink-0">{c.start_time} – {c.end_time}</span>
-                                    <span className="text-sm font-bold text-gray-800">{c.subject_id?.name ?? "—"}</span>
-                                  </div>
-                                ))}
+                <SchoolSection label="Weekly timetable">
+                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    {timetables.length === 0 ? (
+                      <div className="px-4 py-8 text-center"><p className="text-sm text-gray-400">No timetable set yet</p></div>
+                    ) : (
+                      <div className="divide-y divide-gray-100">
+                        {["Monday","Tuesday","Wednesday","Thursday","Friday"].map((day, i) => {
+                          const dayNum = i + 1;
+                          const isToday = dayNum === todayIndex;
+                          const daySlots = timetables
+                            .filter((t: any) => t.day_of_week === dayNum)
+                            .sort((a: any, b: any) => a.start_time.localeCompare(b.start_time));
+                          return (
+                            <div key={day} className="px-4 py-3">
+                              <div className="flex items-center gap-2 mb-2">
+                                <p className={`text-xs font-bold uppercase tracking-wider ${isToday ? "text-[#0a2342]" : "text-gray-400"}`}>{day}</p>
+                                {isToday && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">Today</span>}
                               </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </Card>
+                              {daySlots.length === 0 ? (
+                                <p className="text-xs text-gray-300">No classes</p>
+                              ) : (
+                                <div className="space-y-1">
+                                  {daySlots.map((s: any) => {
+                                    const sname = s.subject_id?.name ?? "—";
+                                    const isBreak = sname.toLowerCase().includes("lunch") || sname.toLowerCase().includes("break");
+                                    const isAssembly = sname.toLowerCase().includes("assembly");
+                                    return (
+                                      <div key={s._id} className={`flex items-center gap-3 px-2.5 py-1.5 rounded-lg ${
+                                        isBreak ? "bg-amber-50" : isAssembly ? "bg-blue-50" : "bg-gray-50"
+                                      }`}>
+                                        <span className="text-[11px] text-gray-400 w-20 shrink-0">{s.start_time} – {s.end_time}</span>
+                                        <span className={`text-xs font-bold ${
+                                          isBreak ? "text-amber-700" : isAssembly ? "text-blue-700" : "text-gray-800"
+                                        }`}>{sname}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </SchoolSection>
+
               </div>
             )}
 
             {/* ══════════ RESULTS ══════════ */}
             {activeTab === "results" && (
-              <div className="space-y-6">
+              <div className="space-y-5">
                 {academicResults.length === 0 ? (
-                  <Card><Empty text="No results recorded yet" /></Card>
+                  <div className="bg-white rounded-2xl border border-gray-100 px-4 py-12 text-center">
+                    <Award className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                    <p className="text-sm text-gray-400">No results recorded yet</p>
+                  </div>
                 ) : (
                   <>
+                    {/* GPA + Grade summary */}
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-gradient-to-br from-[#0a2342] to-[#1a5276] rounded-2xl p-5 text-white">
-                        <p className="text-white/50 text-xs font-bold uppercase tracking-wide mb-1">GPA</p>
-                        <p className="text-5xl font-extrabold">{(Number(raw.gpa) || 0).toFixed(1)}</p>
+                      <div className="bg-[#0a2342] rounded-2xl p-5">
+                        <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-2">GPA</p>
+                        <p className="text-4xl font-extrabold text-white">{(Number(raw.gpa) || 0).toFixed(1)}</p>
+                        <p className="text-white/30 text-xs mt-1">Current term</p>
                       </div>
-                      <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-                        <p className="text-gray-400 text-xs font-bold uppercase tracking-wide mb-1">Grade</p>
-                        <p className="text-5xl font-extrabold text-[#0a2342]">{raw.grade || raw.gradeLevel || "—"}</p>
+                      <div className="bg-white border border-gray-100 rounded-2xl p-5">
+                        <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-2">Overall grade</p>
+                        <p className="text-4xl font-extrabold text-[#0a2342]">{raw.grade || raw.gradeLevel || "—"}</p>
+                        <p className="text-gray-300 text-xs mt-1">This session</p>
                       </div>
                     </div>
 
-                    <Card title="Subject Performance">
-                      <div className="space-y-2">
-                        {academicResults.map((r: any, i: number) => {
-                          const score = Number(r.score) || 0;
-                          const good  = score >= 60;
-                          return (
-                            <div key={i} className="flex items-center gap-3 p-3.5 bg-gray-50 rounded-xl">
-                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${good ? "bg-green-100" : "bg-red-100"}`}>
-                                <Award className={`w-4 h-4 ${good ? "text-green-600" : "text-red-500"}`} />
+                    {/* Subject breakdown */}
+                    <SchoolSection label="Subject performance">
+                      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                        <div className="divide-y divide-gray-50">
+                          {academicResults.map((r: any, i: number) => {
+                            const score = Number(r.score) || 0;
+                            const grade = r.grade || (score >= 70 ? "B" : score >= 60 ? "C" : "F");
+                            const pct   = Math.min(100, score);
+                            const color = score >= 70
+                              ? { bar: "bg-green-500",  badge: "bg-green-50 text-green-700",  score: "text-green-700" }
+                              : score >= 50
+                              ? { bar: "bg-amber-400",  badge: "bg-amber-50 text-amber-700",  score: "text-amber-700" }
+                              : { bar: "bg-red-400",    badge: "bg-red-50 text-red-600",      score: "text-red-600"   };
+                            return (
+                              <div key={i} className="px-4 py-3.5">
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-sm font-bold text-gray-900">{r.subject || "—"}</p>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <span className={`text-sm font-extrabold ${color.score}`}>{score}<span className="text-xs text-gray-300">/100</span></span>
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${color.badge}`}>{grade}</span>
+                                  </div>
+                                </div>
+                                <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+                                  <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${pct}%` }}
+                                    transition={{ duration: 0.8, delay: i * 0.05, ease: "easeOut" }}
+                                    className={`h-full rounded-full ${color.bar}`}
+                                  />
+                                </div>
                               </div>
-                              <p className="flex-1 font-bold text-gray-900 text-sm">{r.subject || "—"}</p>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span className="font-extrabold text-[#0a2342]">{score}<span className="text-xs text-gray-400">/100</span></span>
-                                <span className={`px-2.5 py-1 rounded-full text-xs font-extrabold ${good ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
-                                  {r.grade || (score >= 70 ? "B" : score >= 60 ? "C" : "F")}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
                       </div>
-                    </Card>
+                    </SchoolSection>
                   </>
                 )}
               </div>
@@ -866,29 +944,68 @@ const ParentChildDetail = () => {
 
             {/* ══════════ INFO ══════════ */}
             {activeTab === "info" && (
-              <Card title="Child Information">
-                <div className="space-y-2">
-                  {[
-                    { label: "Full Name",         value: name        },
-                    { label: "Admission Number",  value: admNo       },
-                    { label: "Class",             value: cls         },
-                    { label: "Level",             value: level       },
-                    { label: "Gender",            value: gender      },
-                    { label: "Date of Birth",     value: dob         },
-                    { label: "Address",           value: address     },
-                    { label: "Parent / Guardian", value: parentName  },
-                    { label: "Parent Phone",      value: parentPhone },
-                    { label: "Parent Email",      value: parentEmail },
-                  ].filter(f => f.value && f.value !== "—").map(({ label, value }) => (
-                    <div key={label} className="flex items-start gap-3 p-3.5 bg-gray-50 rounded-xl">
-                      <div>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">{label}</p>
-                        <p className="text-sm font-bold text-gray-900 mt-0.5 capitalize">{value}</p>
+              <div className="space-y-5">
+                {/* Student */}
+                <SchoolSection label="Student details">
+                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    <div className="divide-y divide-gray-50">
+                      {[
+                        { label: "Full name",        value: name,  icon: User     },
+                        { label: "Admission number", value: admNo, icon: FileText },
+                        { label: "Class",            value: cls,   icon: BookOpen },
+                        { label: "Level",            value: level, icon: Award    },
+                        { label: "Gender",           value: gender,icon: User     },
+                        { label: "Date of birth",    value: dob,   icon: null     },
+                        { label: "Address",          value: address,icon: null    },
+                      ].filter(f => f.value && f.value !== "—").map(({ label, value, icon: Icon }) => (
+                        <div key={label} className="flex items-center gap-4 px-4 py-3.5">
+                          {Icon && (
+                            <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
+                              <Icon className="w-4 h-4 text-gray-400" />
+                            </div>
+                          )}
+                          {!Icon && <div className="w-8 h-8 shrink-0" />}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{label}</p>
+                            <p className="text-sm font-bold text-gray-900 mt-0.5 capitalize truncate">{value}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </SchoolSection>
+
+                {/* Parent / Guardian */}
+                {(parentName !== "—" || parentPhone !== "—" || parentEmail !== "—") && (
+                  <SchoolSection label="Parent / guardian">
+                    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                      {/* Avatar strip */}
+                      <div className="flex items-center gap-4 px-4 py-4 border-b border-gray-50">
+                        <div className="w-10 h-10 rounded-full bg-[#0a2342] flex items-center justify-center shrink-0">
+                          <span className="text-sm font-extrabold text-white">
+                            {parentName !== "—" ? parentName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) : "P"}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-gray-900">{parentName !== "—" ? parentName : "Guardian"}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">Parent / Guardian</p>
+                        </div>
+                      </div>
+                      <div className="divide-y divide-gray-50">
+                        {[
+                          { label: "Phone",  value: parentPhone, icon: "📞" },
+                          { label: "Email",  value: parentEmail, icon: "✉️"  },
+                        ].filter(f => f.value && f.value !== "—").map(({ label, value }) => (
+                          <div key={label} className="flex items-center justify-between px-4 py-3">
+                            <p className="text-xs text-gray-400">{label}</p>
+                            <p className="text-sm font-bold text-gray-900">{value}</p>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))}
-                </div>
-              </Card>
+                  </SchoolSection>
+                )}
+              </div>
             )}
 
           </motion.div>
@@ -935,6 +1052,13 @@ const Empty = ({ text }: { text: string }) => (
   <div className="text-center py-10">
     <CheckCircle className="w-8 h-8 text-gray-200 mx-auto mb-2" />
     <p className="text-gray-400 font-semibold text-sm">{text}</p>
+  </div>
+);
+
+const SchoolSection = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div>
+    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">{label}</p>
+    {children}
   </div>
 );
 
