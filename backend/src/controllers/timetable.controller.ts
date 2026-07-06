@@ -12,7 +12,7 @@ export const getTimetables = async (req: Request, res: Response): Promise<void> 
         if (req.query.level) filter.level = (req.query.level as string).toLowerCase();
 
         const timetables = await Timetable.find(filter)
-            .populate('subject_id', 'name code')
+            .populate('subject_id', '_id name code')
             .sort({ day_of_week: 1, start_time: 1 });
 
         res.json(timetables);

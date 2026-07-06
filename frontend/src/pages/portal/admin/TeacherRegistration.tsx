@@ -69,7 +69,7 @@ const TeacherRegistration = () => {
 
   const [formData, setFormData] = useState({
     name: "", email: "", phone: "", address: "",
-    role: "", class_id: "", subject: "",
+    role: "", class_ids: [] as string[], subject: "",
     qualification: "", specialization: "", experience: "",
   });
 
@@ -84,7 +84,9 @@ const TeacherRegistration = () => {
         phone: t.user_id?.phone || t.phone || "",
         address: t.address || "",
         role: t.role || "",
-        class_id: t.assigned_class?._id || t.assigned_class || "",
+        class_ids: (t.assigned_classes?.length
+          ? t.assigned_classes.map((c: any) => c?._id || c)
+          : t.assigned_class ? [t.assigned_class?._id || t.assigned_class] : []).filter(Boolean),
         subject: t.assigned_subject || "",
         qualification: t.qualification || "",
         specialization: t.specialization || "",
@@ -107,7 +109,7 @@ const TeacherRegistration = () => {
         phone: data.phone || undefined,
         address: data.address || undefined,
         role: data.role || undefined,
-        assigned_class: data.class_id || undefined,
+        assigned_classes: data.class_ids.length ? data.class_ids : undefined,
         assigned_subject: data.subject || undefined,
         qualification: data.qualification || undefined,
         specialization: data.specialization || undefined,
@@ -314,7 +316,7 @@ const TeacherRegistration = () => {
                   {currentStep === 2 && (
                     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
                       <Field label="Teacher Role" required>
-                        <Select value={formData.role} onValueChange={v => setFormData({ ...formData, role: v, class_id: "", subject: "" })}>
+                        <Select value={formData.role} onValueChange={v => setFormData({ ...formData, role: v, class_ids: [], subject: "" })}>
                           <SelectTrigger className={`${inputCls} w-full`}>
                             <SelectValue placeholder="Select a role…" />
                           </SelectTrigger>
@@ -339,17 +341,34 @@ const TeacherRegistration = () => {
 
                       {(formData.role === "classTeacher" || formData.role === "both") && (
                         <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}>
-                          <Field label="Assigned Class">
-                            <Select value={formData.class_id} onValueChange={v => setFormData({ ...formData, class_id: v })}>
-                              <SelectTrigger className={`${inputCls} w-full`}>
-                                <SelectValue placeholder="Select a class…" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {classes.map((cls: any) => (
-                                  <SelectItem key={cls._id} value={cls._id}>{cls.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                          <Field label={`Assigned Classes${formData.class_ids.length > 0 ? ` · ${formData.class_ids.length} selected` : ""}`}>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-52 overflow-y-auto p-1">
+                              {classes.map((cls: any) => {
+                                const selected = formData.class_ids.includes(cls._id);
+                                return (
+                                  <button
+                                    key={cls._id}
+                                    type="button"
+                                    onClick={() => setFormData(prev => ({
+                                      ...prev,
+                                      class_ids: selected
+                                        ? prev.class_ids.filter(id => id !== cls._id)
+                                        : [...prev.class_ids, cls._id],
+                                    }))}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold text-left transition-all ${
+                                      selected
+                                        ? "bg-[#0a2342] text-white border-transparent"
+                                        : "bg-white text-gray-600 border-gray-200 hover:border-[#0a2342]/30"
+                                    }`}
+                                  >
+                                    <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 ${selected ? "bg-yellow-400 border-yellow-400" : "border-gray-300"}`}>
+                                      {selected && <CheckCircle2 className="w-3 h-3 text-gray-900" />}
+                                    </span>
+                                    <span className="truncate">{cls.name}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </Field>
                         </motion.div>
                       )}
@@ -363,7 +382,7 @@ const TeacherRegistration = () => {
                             <p className="text-xs text-yellow-600">
                               {{ classTeacher: "Class Teacher", subjectTeacher: "Subject Teacher", both: "Class & Subject Teacher" }[formData.role]}
                               {formData.subject && ` · ${formData.subject}`}
-                              {formData.class_id && classes.length > 0 && ` · ${classes.find((c: any) => c._id === formData.class_id)?.name || ""}`}
+                              {formData.class_ids.length > 0 && classes.length > 0 && ` · ${formData.class_ids.map((id: string) => classes.find((c: any) => c._id === id)?.name).filter(Boolean).join(", ")}`}
                             </p>
                           </div>
                         </motion.div>
@@ -404,7 +423,7 @@ const TeacherRegistration = () => {
                             { label: "Address", value: formData.address || "—" },
                             { label: "Role", value: { classTeacher: "Class Teacher", subjectTeacher: "Subject Teacher", both: "Class & Subject" }[formData.role] || "—" },
                             { label: "Subject", value: formData.subject || "—" },
-                            { label: "Class", value: classes.find((c: any) => c._id === formData.class_id)?.name || "—" },
+                            { label: "Class(es)", value: formData.class_ids.length > 0 ? formData.class_ids.map((id: string) => classes.find((c: any) => c._id === id)?.name).filter(Boolean).join(", ") : "—" },
                             { label: "Qualification", value: formData.qualification || "—" },
                             { label: "Specialization", value: formData.specialization || "—" },
                             { label: "Experience", value: formData.experience ? `${formData.experience} year(s)` : "—" },

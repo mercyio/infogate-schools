@@ -1,14 +1,11 @@
-import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { BookOpen, FileText, Plus, Calendar, ChevronLeft, Users } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import api from "@/lib/api";
+import { useState, useEffect, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { FileText, Plus, Calendar, BookOpen, X } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import api from "@/lib/api";
+import { format } from "date-fns";
+import TeacherSubPageLayout from "@/components/layout/TeacherSubPageLayout";
 
 interface GroupedStudent {
   class_subject_id: string | null;
@@ -23,335 +20,284 @@ interface AssignmentItem {
   description?: string;
   due_date: string;
   total_marks: number;
-  class_subject_id?: {
-    _id?: string;
-    class_id?: { _id?: string; name?: string };
-    subject_id?: { _id?: string; name?: string };
-  } | string;
+  class_subject_id?: { _id?: string; class_id?: { _id?: string; name?: string }; subject_id?: { _id?: string; name?: string } } | string;
 }
 
 const AssignmentManagement = () => {
+  const qc = useQueryClient();
+  const now = new Date();
+
   const [showCreate, setShowCreate] = useState(false);
   const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    due_date: "",
-    total_marks: "100",
+  const [form, setForm] = useState({ title: "", description: "", due_date: "", total_marks: "100" });
+
+  const getGroupKey = (g: GroupedStudent) =>
+    g.class_subject_id ?? `${g.class._id}:${g.subject._id || g.subject.name}`;
+
+  const { data: groupedStudents = [], isLoading } = useQuery<GroupedStudent[]>({
+    queryKey: ["teacher-students-grouped"],
+    queryFn: async () => { const r = await api.get("/users/teacher/students/grouped"); return r.data; },
   });
 
-  const queryClient = useQueryClient();
-
-  const getGroupKey = (group: GroupedStudent) => {
-    if (group.class_subject_id) {
-      return group.class_subject_id;
-    }
-    return `${group.class._id}:${group.subject._id || group.subject.name}`;
-  };
-
-  // Fetch grouped students
-  const { data: groupedStudents = [], isLoading } = useQuery({
-    queryKey: ['teacher-students-grouped'],
-    queryFn: async () => {
-      const res = await api.get('/users/teacher/students/grouped');
-      return res.data as GroupedStudent[];
-    }
+  const { data: assignments = [] } = useQuery<AssignmentItem[]>({
+    queryKey: ["teacher-assignments"],
+    queryFn: async () => { const r = await api.get("/assignments"); return Array.isArray(r.data) ? r.data : []; },
   });
 
-  const { data: assignments = [] } = useQuery({
-    queryKey: ['teacher-assignments'],
-    queryFn: async () => {
-      const res = await api.get('/assignments');
-      return (Array.isArray(res.data) ? res.data : []) as AssignmentItem[];
-    }
-  });
-
-  const createAssignmentMutation = useMutation({
-    mutationFn: async () => {
-      const selectedGroup = groupedStudents.find((group) => getGroupKey(group) === selectedGroupKey);
-
-      if (!selectedGroup?.class_subject_id) {
-        throw new Error("This class/subject is not mapped for assignment creation yet.");
-      }
-
-      return api.post('/assignments', {
-        title: form.title.trim(),
-        description: form.description.trim(),
-        class_subject_id: selectedGroup.class_subject_id,
-        due_date: form.due_date,
-        total_marks: Number(form.total_marks),
-      });
-    },
-    onSuccess: () => {
-      toast.success("Assignment created successfully.");
-      setShowCreate(false);
-      setForm({ title: "", description: "", due_date: "", total_marks: "100" });
-      queryClient.invalidateQueries({ queryKey: ['teacher-assignments'] });
-    },
-    onError: (error: any) => {
-      const message = error?.response?.data?.message || error?.message || 'Failed to create assignment';
-      toast.error(message);
-    }
-  });
-
-  // Auto-select first class if available
   useEffect(() => {
-    if (groupedStudents?.length > 0 && !selectedGroupKey) {
+    if (groupedStudents.length > 0 && !selectedGroupKey) {
       setSelectedGroupKey(getGroupKey(groupedStudents[0]));
     }
   }, [groupedStudents, selectedGroupKey]);
 
-  const selectedGroupData = useMemo(
-    () => groupedStudents.find((group) => getGroupKey(group) === selectedGroupKey),
+  const selectedGroup = useMemo(
+    () => groupedStudents.find(g => getGroupKey(g) === selectedGroupKey),
     [groupedStudents, selectedGroupKey]
   );
 
-  const selectedGroupAssignments = useMemo(() => {
-    if (!selectedGroupData) {
-      return [];
-    }
-
-    return assignments.filter((assignment) => {
-      const assignmentClassSubjectId =
-        typeof assignment.class_subject_id === 'string'
-          ? assignment.class_subject_id
-          : assignment.class_subject_id?._id;
-
-      if (selectedGroupData.class_subject_id && assignmentClassSubjectId) {
-        return String(assignmentClassSubjectId) === String(selectedGroupData.class_subject_id);
-      }
-
-      const assignmentClassId =
-        typeof assignment.class_subject_id === 'string'
-          ? undefined
-          : assignment.class_subject_id?.class_id?._id;
-      const assignmentSubjectId =
-        typeof assignment.class_subject_id === 'string'
-          ? undefined
-          : assignment.class_subject_id?.subject_id?._id;
-
-      return (
-        String(assignmentClassId || '') === String(selectedGroupData.class._id || '') &&
-        String(assignmentSubjectId || '') === String(selectedGroupData.subject._id || '')
-      );
+  const groupAssignments = useMemo(() => {
+    if (!selectedGroup) return [];
+    return assignments.filter(a => {
+      const csId = typeof a.class_subject_id === "string" ? a.class_subject_id : a.class_subject_id?._id;
+      if (selectedGroup.class_subject_id && csId) return String(csId) === String(selectedGroup.class_subject_id);
+      const aClassId = typeof a.class_subject_id === "string" ? undefined : a.class_subject_id?.class_id?._id;
+      const aSubjId  = typeof a.class_subject_id === "string" ? undefined : a.class_subject_id?.subject_id?._id;
+      return String(aClassId || "") === String(selectedGroup.class._id || "") &&
+             String(aSubjId  || "") === String(selectedGroup.subject._id || "");
     });
-  }, [assignments, selectedGroupData]);
+  }, [assignments, selectedGroup]);
 
-  const canCreateForGroup = Boolean(selectedGroupData?.class_subject_id);
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedGroup?.class_subject_id) throw new Error("Class/subject not linked yet.");
+      return api.post("/assignments", {
+        title:            form.title.trim(),
+        description:      form.description.trim(),
+        class_subject_id: selectedGroup.class_subject_id,
+        due_date:         form.due_date,
+        total_marks:      Number(form.total_marks),
+      });
+    },
+    onSuccess: () => {
+      toast.success("Assignment created!");
+      setShowCreate(false);
+      setForm({ title: "", description: "", due_date: "", total_marks: "100" });
+      qc.invalidateQueries({ queryKey: ["teacher-assignments"] });
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message || e?.message || "Failed to create"),
+  });
 
-  const handleCreateAssignment = () => {
-    if (!form.title.trim()) {
-      toast.error('Assignment title is required');
-      return;
-    }
-
-    if (!form.due_date) {
-      toast.error('Please choose a due date');
-      return;
-    }
-
-    const marks = Number(form.total_marks);
-    if (Number.isNaN(marks) || marks <= 0) {
-      toast.error('Total marks must be greater than 0');
-      return;
-    }
-
-    createAssignmentMutation.mutate();
+  const handleCreate = () => {
+    if (!form.title.trim()) return toast.error("Title is required");
+    if (!form.due_date)     return toast.error("Due date is required");
+    if (Number(form.total_marks) <= 0) return toast.error("Total marks must be > 0");
+    createMutation.mutate();
   };
 
-  if (isLoading) return (
-    <div className="min-h-screen bg-muted/30 flex items-center justify-center">
-      <div className="text-center">
-        <BookOpen className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-30" />
-        <p className="text-muted-foreground">Loading your classes...</p>
-      </div>
-    </div>
-  );
+  const canCreate = Boolean(selectedGroup?.class_subject_id);
 
-  if (!groupedStudents || groupedStudents.length === 0) return (
-    <div className="min-h-screen bg-muted/30 flex items-center justify-center">
-      <div className="text-center">
-        <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-20" />
-        <h3 className="text-xl font-bold text-muted-foreground">No Classes Assigned</h3>
-        <p className="text-muted-foreground max-w-xs mx-auto mt-2">You have no classes assigned yet.</p>
-      </div>
-    </div>
+  const createBtn = (
+    <button
+      onClick={() => setShowCreate(s => !s)}
+      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-gray-900 text-xs font-extrabold transition-colors"
+    >
+      <Plus className="w-3.5 h-3.5" /> New
+    </button>
   );
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      <header className="bg-card border-b border-border sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link to="/portal/teacher" className="p-2 hover:bg-muted rounded-full transition-colors">
-              <ChevronLeft className="w-6 h-6 text-muted-foreground" />
-            </Link>
-            <div className="w-10 h-10 bg-teacher rounded-xl flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-teacher-foreground" />
-            </div>
-            <div><h1 className="font-bold">Assignments</h1><p className="text-xs text-muted-foreground">Manage class assignments</p></div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button onClick={() => setShowCreate(!showCreate)} className="gap-2">
-              <Plus className="w-4 h-4" /> New Assignment
-            </Button>
-          </div>
-        </div>
-      </header>
+    <TeacherSubPageLayout
+      title="Assignments"
+      subtitle={`${assignments.length} total · ${format(now, "MMM d, yyyy")}`}
+      action={createBtn}
+    >
+      {isLoading ? (
+        <div className="text-center py-16 text-gray-400 text-sm">Loading…</div>
+      ) : (
+        <div className="space-y-5">
 
-      <div className="container mx-auto px-4 py-8">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold">Your Assignments</h2>
-          </div>
+          {/* Create form */}
+          <AnimatePresence>
+            {showCreate && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-extrabold text-gray-900">Create assignment</p>
+                    <button onClick={() => setShowCreate(false)} className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-200 transition-colors">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Classes Sidebar */}
-            <div className="playful-card p-4">
-              <h3 className="font-bold text-lg mb-4">Your Classes</h3>
-              <div className="space-y-2">
-                {groupedStudents.map((group) => (
-                  <button
-                    key={getGroupKey(group)}
-                    onClick={() => {
-                      setSelectedGroupKey(getGroupKey(group));
-                    }}
-                    className={cn(
-                      "w-full text-left p-3 rounded-xl transition-all border",
-                      selectedGroupKey === getGroupKey(group)
-                        ? "bg-primary text-primary-foreground border-primary shadow-lg"
-                        : "bg-muted/40 hover:bg-muted/60 border-transparent hover:border-primary/20"
-                    )}
-                  >
-                    <div className="font-semibold text-sm truncate">{group.class.name}</div>
-                    <div className="text-xs opacity-75 truncate">{group.subject.name}</div>
-                    <div className="text-xs opacity-60">{group.students.length} students</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Main Content */}
-            <div className="lg:col-span-3">
-              {/* Create Form */}
-              {showCreate && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="playful-card p-6 mb-8">
-                  <h3 className="font-bold text-lg mb-4">Create New Assignment</h3>
-                  {!canCreateForGroup && (
-                    <p className="text-sm text-amber-700 bg-amber-100 rounded-lg px-3 py-2 mb-4">
-                      This class/subject pair is not linked in ClassSubject yet, so assignment creation is disabled.
-                    </p>
+                  {!canCreate && (
+                    <div className="text-xs bg-amber-50 text-amber-700 rounded-xl px-3 py-2.5 border border-amber-100">
+                      This class/subject pair isn't linked yet. Contact admin to set up ClassSubject.
+                    </div>
                   )}
-                  <div className="grid sm:grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Title</label>
-                      <Input
-                        placeholder="Assignment title"
+
+                  {/* Class selector (inline) */}
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Class & Subject</p>
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                      {groupedStudents.map(g => {
+                        const key = getGroupKey(g);
+                        return (
+                          <button
+                            key={key}
+                            onClick={() => setSelectedGroupKey(key)}
+                            className={`shrink-0 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+                              selectedGroupKey === key
+                                ? "bg-[#0a2342] text-white border-transparent"
+                                : "bg-gray-50 text-gray-600 border-gray-200"
+                            }`}
+                          >
+                            {g.class.name} · {g.subject.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">Title</label>
+                      <input
+                        type="text"
                         value={form.title}
-                        onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+                        onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
+                        placeholder="Assignment title"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none focus:border-[#0a2342] focus:ring-1 focus:ring-[#0a2342] transition"
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium mb-2 block">Class</label>
-                      <div className="px-4 py-2 bg-muted rounded-xl font-medium">
-                        {selectedGroupData?.class.name}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Subject</label>
-                      <div className="px-4 py-2 bg-muted rounded-xl font-medium">
-                        {selectedGroupData?.subject.name}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Due Date</label>
-                      <Input
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">Due date</label>
+                      <input
                         type="date"
                         value={form.due_date}
-                        onChange={(e) => setForm((prev) => ({ ...prev, due_date: e.target.value }))}
+                        onChange={e => setForm(p => ({ ...p, due_date: e.target.value }))}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 focus:outline-none focus:border-[#0a2342] focus:ring-1 focus:ring-[#0a2342] transition"
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium mb-2 block">Total Marks</label>
-                      <Input
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">Total marks</label>
+                      <input
                         type="number"
                         min={1}
                         value={form.total_marks}
-                        onChange={(e) => setForm((prev) => ({ ...prev, total_marks: e.target.value }))}
+                        onChange={e => setForm(p => ({ ...p, total_marks: e.target.value }))}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 focus:outline-none focus:border-[#0a2342] focus:ring-1 focus:ring-[#0a2342] transition"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">Instructions</label>
+                      <textarea
+                        rows={3}
+                        value={form.description}
+                        onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+                        placeholder="Assignment instructions…"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none focus:border-[#0a2342] focus:ring-1 focus:ring-[#0a2342] transition resize-none"
                       />
                     </div>
                   </div>
-                  <div className="mb-4">
-                    <label className="text-sm font-medium mb-2 block">Instructions</label>
-                    <Textarea
-                      placeholder="Assignment instructions..."
-                      rows={4}
-                      value={form.description}
-                      onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                    />
-                  </div>
-                  <div className="flex gap-3">
-                    <Button
-                      onClick={handleCreateAssignment}
-                      disabled={createAssignmentMutation.isPending || !canCreateForGroup}
-                    >
-                      {createAssignmentMutation.isPending ? 'Creating...' : 'Create Assignment'}
-                    </Button>
-                    <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-                  </div>
-                </motion.div>
-              )}
 
-              {/* Assignments List */}
-              <div className="space-y-4">
-                {selectedGroupData && (
-                  <div className="playful-card p-6">
-                    <h3 className="font-bold text-lg mb-2">{selectedGroupData.class.name}</h3>
-                    <p className="text-sm text-muted-foreground mb-4">{selectedGroupData.subject.name} • {selectedGroupData.students.length} students</p>
-                    {selectedGroupAssignments.length === 0 ? (
-                      <div className="text-center py-12 text-muted-foreground">
-                        <FileText className="w-16 h-16 mx-auto mb-4 opacity-20" />
-                        <p>No assignments yet for this class and subject</p>
-                        <Button
-                          variant="outline"
-                          className="mt-4"
-                          onClick={() => setShowCreate(true)}
-                        >
-                          Create First Assignment
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {selectedGroupAssignments.map((assignment) => (
-                          <div key={assignment._id} className="rounded-xl border bg-muted/20 p-4">
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <p className="font-semibold">{assignment.title}</p>
-                                {assignment.description ? (
-                                  <p className="text-sm text-muted-foreground mt-1">{assignment.description}</p>
-                                ) : null}
-                              </div>
-                              <span className="text-xs rounded-full bg-primary/10 text-primary px-2 py-1">
-                                {assignment.total_marks} marks
-                              </span>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              Due {new Date(assignment.due_date).toLocaleDateString()}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+                  <button
+                    onClick={handleCreate}
+                    disabled={createMutation.isPending || !canCreate}
+                    className="w-full py-3 rounded-xl bg-[#0a2342] hover:bg-[#0d3460] disabled:opacity-50 text-white text-sm font-extrabold transition-colors"
+                  >
+                    {createMutation.isPending ? "Creating…" : "Create Assignment"}
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Class selector */}
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Select class</p>
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              {groupedStudents.map(g => {
+                const key = getGroupKey(g);
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setSelectedGroupKey(key)}
+                    className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                      selectedGroupKey === key
+                        ? "bg-[#0a2342] text-white border-transparent shadow-md"
+                        : "bg-white text-gray-600 border-gray-200 hover:border-[#0a2342]/30"
+                    }`}
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    {g.class.name}
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                      selectedGroupKey === key ? "bg-white/20 text-white" : "bg-gray-100 text-gray-400"
+                    }`}>{g.subject.name}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
-        </motion.div>
-      </div>
-    </div>
+
+          {/* Assignment list */}
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
+              {selectedGroup ? `${selectedGroup.class.name} · ${selectedGroup.subject.name}` : "Assignments"}
+            </p>
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              {groupAssignments.length === 0 ? (
+                <div className="px-4 py-14 text-center">
+                  <FileText className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                  <p className="text-sm font-bold text-gray-400">No assignments yet</p>
+                  <button
+                    onClick={() => setShowCreate(true)}
+                    className="mt-3 flex items-center gap-1.5 text-xs font-bold text-[#0a2342] mx-auto hover:opacity-70 transition-opacity"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Create first assignment
+                  </button>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-50">
+                  {groupAssignments.map(a => {
+                    const due = a.due_date ? new Date(a.due_date) : null;
+                    const overdue = due && due < now;
+                    return (
+                      <div key={a._id} className="flex items-start gap-3 px-4 py-4">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${overdue ? "bg-red-50" : "bg-amber-50"}`}>
+                          <FileText className={`w-4 h-4 ${overdue ? "text-red-500" : "text-amber-500"}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-gray-900 truncate">{a.title}</p>
+                          {a.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{a.description}</p>}
+                          {due && (
+                            <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              Due {format(due, "MMM d, yyyy")}
+                            </p>
+                          )}
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${overdue ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-700"}`}>
+                            {overdue ? "Overdue" : due ? format(due, "MMM d") : "—"}
+                          </span>
+                          <p className="text-[10px] text-gray-400 mt-1">{a.total_marks} marks</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="h-4" />
+        </div>
+      )}
+    </TeacherSubPageLayout>
   );
 };
 

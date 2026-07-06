@@ -77,7 +77,7 @@ const TeacherDetail = () => {
     address: string;
     role: string;
     subject: string;
-    class: string;
+    assigned_classes: string[];
     qualification: string;
     specialization: string;
     experience: string;
@@ -85,22 +85,26 @@ const TeacherDetail = () => {
   }
 
   const [editForm, setEditForm] = useState<TeacherEditForm>({
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-    role: "",
-    subject: "",
-    class: "",
-    qualification: "",
-    specialization: "",
-    experience: "",
-    status: "",
+    name: "", email: "", phone: "", address: "", role: "", subject: "",
+    assigned_classes: [], qualification: "", specialization: "", experience: "", status: "",
+  });
+
+  // Fetch all classes for the multi-select picker
+  const { data: allClasses = [] } = useQuery({
+    queryKey: ["all-classes"],
+    queryFn: async () => { const r = await api.get("/classes"); return r.data; },
   });
 
   // Update edit form when data arrives
   useEffect(() => {
     if (realTeacher) {
+      const existing: string[] = (realTeacher.assigned_classes || [])
+        .map((c: any) => c?._id || c)
+        .filter(Boolean);
+      // Fallback: if no array yet but legacy single class exists
+      if (existing.length === 0 && (realTeacher.assigned_class?._id || realTeacher.assigned_class)) {
+        existing.push(realTeacher.assigned_class?._id || realTeacher.assigned_class);
+      }
       setEditForm({
         name: realTeacher.user_id?.full_name || "",
         email: realTeacher.user_id?.email || "",
@@ -108,7 +112,7 @@ const TeacherDetail = () => {
         address: realTeacher.address || "",
         role: realTeacher.role || "subjectTeacher",
         subject: realTeacher.assigned_subject || "",
-        class: realTeacher.assigned_class?._id || realTeacher.assigned_class || "",
+        assigned_classes: existing,
         qualification: realTeacher.qualification || "",
         specialization: realTeacher.specialization || "",
         experience: realTeacher.experience || "",
@@ -124,7 +128,7 @@ const TeacherDetail = () => {
         email: data.email,
         phone: data.phone,
         role: data.role,
-        assigned_class: data.class,
+        assigned_classes: data.assigned_classes,
         assigned_subject: data.subject,
         qualification: data.qualification,
         specialization: data.specialization,
@@ -147,12 +151,21 @@ const TeacherDetail = () => {
   if (isLoading) return <div className="flex items-center justify-center min-h-screen">Loading teacher profile...</div>;
   if (isError || !realTeacher) return <div className="flex items-center justify-center min-h-screen text-destructive">Error loading teacher profile.</div>;
 
+  // Derive classes array supporting both old and new field
+  const assignedClassesList: Array<{ _id: string; name: string; level?: string }> =
+    (realTeacher.assigned_classes?.length
+      ? realTeacher.assigned_classes
+      : realTeacher.assigned_class
+        ? [realTeacher.assigned_class]
+        : []
+    ).filter(Boolean);
+
   const teacher = {
     id: realTeacher._id,
     name: realTeacher.user_id?.full_name || "N/A",
     regNumber: realTeacher.user_id?.reg_number || "N/A",
     subject: realTeacher.assigned_subject || "N/A",
-    classes: realTeacher.assigned_class ? [realTeacher.assigned_class?.name || realTeacher.assigned_class] : [],
+    classes: assignedClassesList.map((c: any) => c?.name || c),
     experience: realTeacher.experience || "N/A",
     status: realTeacher.status === 'active' ? "Active" : "Inactive",
     email: realTeacher.user_id?.email || "N/A",
@@ -196,11 +209,11 @@ const TeacherDetail = () => {
             <div className="text-center sm:text-left flex-1">
               <h1 className="text-2xl font-extrabold text-white">{teacher.name}</h1>
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-1.5">
-                {teacher.classes.length > 0 && (
-                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-yellow-400 text-gray-900 text-xs font-extrabold">
-                    <Users className="w-3 h-3" /> {teacher.classes[0]} Class Teacher
+                {teacher.classes.length > 0 && teacher.classes.map((cls: string) => (
+                  <span key={cls} className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-yellow-400 text-gray-900 text-xs font-extrabold">
+                    <Users className="w-3 h-3" /> {cls}
                   </span>
-                )}
+                ))}
                 {teacher.subject && teacher.subject !== "N/A" && (
                   <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 text-white text-xs font-semibold">
                     <BookOpen className="w-3 h-3" /> {teacher.subject}
@@ -278,16 +291,48 @@ const TeacherDetail = () => {
                         </div>
                       )}
                       {(editForm.role === "classTeacher" || editForm.role === "both") && (
-                        <div className="space-y-1">
-                          <Label className="text-xs font-bold text-gray-600">Assigned Class</Label>
-                          <Select value={editForm.class} onValueChange={(v) => setEditForm({ ...editForm, class: v })}>
-                            <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select Class" /></SelectTrigger>
-                            <SelectContent>
-                              {["Daycare","Preparatory","KG 1","KG 2","Nursery 1","Nursery 2","Basic 1","Basic 2","Basic 3","Basic 4","Basic 5","JSS 1","JSS 2","JSS 3","SS 1","SS 2","SS 3","Vocational Training"].map((cls) => (
-                                <SelectItem key={cls} value={cls}>{cls}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                        <div className="col-span-2 space-y-2">
+                          <Label className="text-xs font-bold text-gray-600">
+                            Assigned Classes <span className="text-gray-400 font-normal">(select one or more)</span>
+                          </Label>
+                          {allClasses.length === 0 ? (
+                            <p className="text-xs text-gray-400">Loading classes…</p>
+                          ) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1">
+                              {allClasses.map((cls: any) => {
+                                const selected = editForm.assigned_classes.includes(cls._id);
+                                return (
+                                  <button
+                                    key={cls._id}
+                                    type="button"
+                                    onClick={() => {
+                                      setEditForm(prev => ({
+                                        ...prev,
+                                        assigned_classes: selected
+                                          ? prev.assigned_classes.filter(id => id !== cls._id)
+                                          : [...prev.assigned_classes, cls._id],
+                                      }));
+                                    }}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold text-left transition-all ${
+                                      selected
+                                        ? "bg-[#0a2342] text-white border-transparent"
+                                        : "bg-white text-gray-600 border-gray-200 hover:border-[#0a2342]/30"
+                                    }`}
+                                  >
+                                    <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 ${selected ? "bg-yellow-400 border-yellow-400" : "border-gray-300"}`}>
+                                      {selected && <CheckCircle className="w-3 h-3 text-gray-900" />}
+                                    </span>
+                                    <span className="truncate">{cls.name}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                          {editForm.assigned_classes.length > 0 && (
+                            <p className="text-xs text-[#0a2342] font-semibold">
+                              {editForm.assigned_classes.length} class{editForm.assigned_classes.length !== 1 ? "es" : ""} selected
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>

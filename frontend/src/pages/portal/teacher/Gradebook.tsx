@@ -1,285 +1,206 @@
-import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { BookOpen, Award, Save, Search, Filter, Bell, ChevronLeft, Users } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import api from "@/lib/api";
+import { BookOpen, Save, Users, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import api from "@/lib/api";
+import { Link } from "react-router-dom";
+import TeacherSubPageLayout from "@/components/layout/TeacherSubPageLayout";
 
 interface GroupedStudent {
   class: { _id: string; name: string; level: string };
   subject: { _id: string; name: string; code?: string };
-  students: Array<{
-    _id: string;
-    admission_number: string;
-    user: { _id: string; full_name: string };
-  }>;
+  students: Array<{ _id: string; admission_number: string; user: { _id: string; full_name: string } }>;
 }
 
 const Gradebook = () => {
-  const queryClient = useQueryClient();
+  const qc = useQueryClient();
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [grades, setGrades] = useState<Record<string, { ca1: number; ca2: number; exam: number }>>({});
 
-  // Fetch grouped students
-  const { data: groupedStudents = [], isLoading } = useQuery({
-    queryKey: ['teacher-students-grouped'],
-    queryFn: async () => {
-      const res = await api.get('/users/teacher/students/grouped');
-      return res.data as GroupedStudent[];
-    }
+  const { data: groupedStudents = [], isLoading } = useQuery<GroupedStudent[]>({
+    queryKey: ["teacher-students-grouped"],
+    queryFn: async () => { const r = await api.get("/users/teacher/students/grouped"); return r.data; },
   });
 
-  // Auto-select first class if available
-  React.useEffect(() => {
-    if (groupedStudents?.length > 0 && !selectedClass) {
-      setSelectedClass(groupedStudents[0].class._id);
-    }
+  useEffect(() => {
+    if (groupedStudents.length > 0 && !selectedClass) setSelectedClass(groupedStudents[0].class._id);
   }, [groupedStudents, selectedClass]);
 
-  // Initialize grades for selected class students
-  const selectedGroupData = groupedStudents.find(g => g.class._id === selectedClass);
-  React.useEffect(() => {
-    if (selectedGroupData?.students) {
-      const newGrades: Record<string, { ca1: number; ca2: number; exam: number }> = {};
-      selectedGroupData.students.forEach(s => {
-        if (!grades[s._id]) {
-          newGrades[s._id] = { ca1: 0, ca2: 0, exam: 0 };
-        }
-      });
-      if (Object.keys(newGrades).length > 0) {
-        setGrades(prev => ({ ...prev, ...newGrades }));
-      }
-    }
-  }, [selectedGroupData, selectedClass]);
+  const selectedGroup = groupedStudents.find(g => g.class._id === selectedClass);
 
-  const saveGradesMutation = useMutation({
-    mutationFn: async (gradesData: any) => {
-      return api.post('/grades', gradesData);
-    },
-    onSuccess: () => {
-      toast.success("Grades saved successfully!");
-      queryClient.invalidateQueries({ queryKey: ['teacher-students-grouped'] });
-    },
-    onError: () => toast.error("Failed to save grades")
+  useEffect(() => {
+    if (selectedGroup?.students) {
+      const init: Record<string, { ca1: number; ca2: number; exam: number }> = {};
+      selectedGroup.students.forEach(s => { if (!grades[s._id]) init[s._id] = { ca1: 0, ca2: 0, exam: 0 }; });
+      if (Object.keys(init).length > 0) setGrades(prev => ({ ...prev, ...init }));
+    }
+  }, [selectedGroup]);
+
+  const saveMutation = useMutation({
+    mutationFn: (data: any) => api.post("/grades", data),
+    onSuccess: () => { toast.success("Grades saved!"); qc.invalidateQueries({ queryKey: ["teacher-students-grouped"] }); },
+    onError: () => toast.error("Failed to save grades"),
   });
 
-  const updateGrade = (studentId: string, field: 'ca1' | 'ca2' | 'exam', value: number) => {
-    setGrades(prev => ({
-      ...prev,
-      [studentId]: { ...prev[studentId], [field]: value }
+  const total = (id: string) => { const g = grades[id]; return g ? g.ca1 + g.ca2 + g.exam : 0; };
+  const grade = (t: number) => t >= 70 ? "A" : t >= 60 ? "B" : t >= 50 ? "C" : t >= 40 ? "D" : "F";
+  const gradeColor = (g: string) =>
+    g === "A" ? "bg-green-100 text-green-700" : g === "B" ? "bg-blue-100 text-blue-700" :
+    g === "C" ? "bg-amber-100 text-amber-700" : g === "D" ? "bg-orange-100 text-orange-700" : "bg-red-100 text-red-700";
+
+  const handleSave = () => {
+    if (!selectedGroup) return;
+    const records = selectedGroup.students.map(s => ({
+      student_id: s._id,
+      class_id: selectedGroup.class._id,
+      subject_id: selectedGroup.subject._id,
+      ca1: grades[s._id]?.ca1 || 0,
+      ca2: grades[s._id]?.ca2 || 0,
+      exam: grades[s._id]?.exam || 0,
+      total: total(s._id),
+      grade: grade(total(s._id)),
     }));
+    saveMutation.mutate({ records });
   };
 
-  const calculateTotal = (studentId: string) => {
-    const g = grades[studentId];
-    if (!g) return 0;
-    return g.ca1 + g.ca2 + g.exam;
-  };
-
-  const getGrade = (total: number) => {
-    if (total >= 70) return "A";
-    if (total >= 60) return "B";
-    if (total >= 50) return "C";
-    if (total >= 40) return "D";
-    return "F";
-  };
-
-  const handleSaveAll = () => {
-    if (!selectedGroupData) return;
-    
-    const gradeRecords = selectedGroupData.students.map(student => ({
-      student_id: student._id,
-      class_id: selectedGroupData.class._id,
-      subject_id: selectedGroupData.subject._id,
-      ca1: grades[student._id]?.ca1 || 0,
-      ca2: grades[student._id]?.ca2 || 0,
-      exam: grades[student._id]?.exam || 0,
-      total: calculateTotal(student._id),
-      grade: getGrade(calculateTotal(student._id))
-    }));
-
-    saveGradesMutation.mutate({ records: gradeRecords });
-  };
-
-  if (isLoading) return (
-    <div className="min-h-screen bg-muted/30 flex items-center justify-center">
-      <div className="text-center">
-        <BookOpen className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-30" />
-        <p className="text-muted-foreground">Loading your classes...</p>
-      </div>
-    </div>
-  );
-
-  if (!groupedStudents || groupedStudents.length === 0) return (
-    <div className="min-h-screen bg-muted/30 flex items-center justify-center">
-      <div className="text-center">
-        <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-20" />
-        <h3 className="text-xl font-bold text-muted-foreground">No Classes Assigned</h3>
-        <p className="text-muted-foreground max-w-xs mx-auto mt-2">You have no classes assigned yet.</p>
-      </div>
-    </div>
+  const saveBtn = (
+    <button
+      onClick={handleSave}
+      disabled={saveMutation.isPending || !selectedGroup?.students.length}
+      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-300 disabled:opacity-50 text-gray-900 text-xs font-extrabold transition-colors"
+    >
+      <Save className="w-3.5 h-3.5" />
+      {saveMutation.isPending ? "Saving…" : "Save Grades"}
+    </button>
   );
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      <header className="bg-card border-b border-border sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link to="/portal/teacher" className="p-2 hover:bg-muted rounded-full transition-colors">
-              <ChevronLeft className="w-6 h-6 text-muted-foreground" />
-            </Link>
-            <div className="w-10 h-10 bg-teacher rounded-xl flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-teacher-foreground" />
+    <TeacherSubPageLayout title="Gradebook" subtitle="CA1 (20) + CA2 (20) + Exam (60) = 100">
+      {isLoading ? (
+        <div className="text-center py-16 text-gray-400 text-sm">Loading classes…</div>
+      ) : groupedStudents.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 py-16 text-center">
+          <Users className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+          <p className="text-sm font-bold text-gray-400">No classes assigned yet</p>
+        </div>
+      ) : (
+        <div className="space-y-5">
+
+          {/* Class selector */}
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Select class</p>
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              {groupedStudents.map(g => (
+                <button
+                  key={g.class._id}
+                  onClick={() => setSelectedClass(g.class._id)}
+                  className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                    selectedClass === g.class._id
+                      ? "bg-[#0a2342] text-white border-transparent shadow-md"
+                      : "bg-white text-gray-600 border-gray-200 hover:border-[#0a2342]/30"
+                  }`}
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  {g.class.name}
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                    selectedClass === g.class._id ? "bg-white/20 text-white" : "bg-gray-100 text-gray-400"
+                  }`}>{g.subject.name}</span>
+                </button>
+              ))}
             </div>
-            <div><h1 className="font-bold">Gradebook</h1><p className="text-xs text-muted-foreground">Enter and manage grades</p></div>
           </div>
-          <div className="flex items-center gap-4">
-            <Button 
-              onClick={handleSaveAll}
-              disabled={saveGradesMutation.isPending || !selectedGroupData?.students.length}
-              className="gap-2"
+
+          {/* Grades table */}
+          {selectedGroup && (
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
+                {selectedGroup.class.name} · {selectedGroup.students.length} students
+              </p>
+              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                {selectedGroup.students.length === 0 ? (
+                  <div className="py-14 text-center">
+                    <p className="text-sm text-gray-400">No students in this class</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-100 bg-gray-50/50">
+                          <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Student</th>
+                          <th className="text-center px-3 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">CA1 /20</th>
+                          <th className="text-center px-3 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">CA2 /20</th>
+                          <th className="text-center px-3 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Exam /60</th>
+                          <th className="text-center px-3 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total</th>
+                          <th className="text-center px-3 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Grade</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {selectedGroup.students.map(s => {
+                          const t = total(s._id);
+                          const g = grade(t);
+                          return (
+                            <tr key={s._id} className="hover:bg-gray-50/50 transition-colors">
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-8 h-8 rounded-lg bg-[#0a2342]/10 flex items-center justify-center shrink-0">
+                                    <span className="text-xs font-extrabold text-[#0a2342]">
+                                      {(s.user?.full_name ?? "?").charAt(0).toUpperCase()}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <p className="font-bold text-gray-900 text-xs">{s.user?.full_name ?? "Student"}</p>
+                                    <p className="text-[10px] text-gray-400">{s.admission_number || "—"}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              {(["ca1", "ca2", "exam"] as const).map(field => {
+                                const max = field === "exam" ? 60 : 20;
+                                return (
+                                  <td key={field} className="px-3 py-3 text-center">
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={max}
+                                      value={grades[s._id]?.[field] ?? 0}
+                                      onChange={e => setGrades(prev => ({
+                                        ...prev,
+                                        [s._id]: { ...prev[s._id], [field]: Math.min(max, Math.max(0, parseInt(e.target.value) || 0)) },
+                                      }))}
+                                      className="w-14 text-center px-2 py-1.5 rounded-lg border border-gray-200 text-sm font-bold text-gray-800 focus:outline-none focus:border-[#0a2342] focus:ring-1 focus:ring-[#0a2342] transition mx-auto block"
+                                    />
+                                  </td>
+                                );
+                              })}
+                              <td className="px-3 py-3 text-center font-extrabold text-gray-900">{t}</td>
+                              <td className="px-3 py-3 text-center">
+                                <span className={`text-xs font-extrabold px-2.5 py-1 rounded-full ${gradeColor(g)}`}>{g}</span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {selectedGroup?.students.length ? (
+            <button
+              onClick={handleSave}
+              disabled={saveMutation.isPending}
+              className="w-full py-4 rounded-2xl bg-[#0a2342] hover:bg-[#0d3460] disabled:opacity-60 text-white text-sm font-extrabold transition-colors flex items-center justify-center gap-2"
             >
               <Save className="w-4 h-4" />
-              {saveGradesMutation.isPending ? "Saving..." : "Save All"}
-            </Button>
-          </div>
+              {saveMutation.isPending ? "Saving grades…" : "Save All Grades"}
+            </button>
+          ) : null}
+
+          <div className="h-4" />
         </div>
-      </header>
-
-      <div className="container mx-auto px-4 py-8">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Classes Sidebar */}
-            <div className="playful-card p-4">
-              <h3 className="font-bold text-lg mb-4">Your Classes</h3>
-              <div className="space-y-2">
-                {groupedStudents.map((group) => (
-                  <button
-                    key={`${group.class._id}`}
-                    onClick={() => setSelectedClass(group.class._id)}
-                    className={cn(
-                      "w-full text-left p-3 rounded-xl transition-all border",
-                      selectedClass === group.class._id
-                        ? "bg-primary text-primary-foreground border-primary shadow-lg"
-                        : "bg-muted/40 hover:bg-muted/60 border-transparent hover:border-primary/20"
-                    )}
-                  >
-                    <div className="font-semibold text-sm truncate">{group.class.name}</div>
-                    <div className="text-xs opacity-75 truncate">{group.subject.name}</div>
-                    <div className="text-xs opacity-60">{group.students.length} students</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Main Content */}
-            <div className="lg:col-span-3">
-              {/* Header Info */}
-              <div className="playful-card p-4 mb-6 bg-primary/5 border-primary/20">
-                <p className="text-sm text-muted-foreground">
-                  <strong>Grading Scale:</strong> CA1 (20) + CA2 (20) + Exam (60) = 100 total
-                  <span className="ml-4 block">A: 70-100 | B: 60-69 | C: 50-59 | D: 40-49 | F: Below 40</span>
-                </p>
-              </div>
-
-              {/* Grades Table */}
-              {selectedGroupData ? (
-                <div className="playful-card p-6">
-                  <h3 className="font-bold text-lg mb-2">{selectedGroupData.class.name}</h3>
-                  <p className="text-sm text-muted-foreground mb-6">{selectedGroupData.subject.name} • {selectedGroupData.students.length} students</p>
-                  
-                  {selectedGroupData.students.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <Users className="w-16 h-16 mx-auto mb-4 opacity-20" />
-                      <p>No students in this class</p>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b">
-                            <th className="text-left py-3 px-4 font-semibold">Admission No</th>
-                            <th className="text-left py-3 px-4 font-semibold">Student Name</th>
-                            <th className="text-center py-3 px-4 font-semibold">CA1 (20)</th>
-                            <th className="text-center py-3 px-4 font-semibold">CA2 (20)</th>
-                            <th className="text-center py-3 px-4 font-semibold">Exam (60)</th>
-                            <th className="text-center py-3 px-4 font-semibold">Total</th>
-                            <th className="text-center py-3 px-4 font-semibold">Grade</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedGroupData.students.map((student) => {
-                            const total = calculateTotal(student._id);
-                            const grade = getGrade(total);
-                            return (
-                              <tr key={student._id} className="border-b last:border-0 hover:bg-muted/50">
-                                <td className="py-3 px-4 font-medium text-sm">{student.admission_number || "N/A"}</td>
-                                <td className="py-3 px-4">{student.user?.full_name || "Unknown"}</td>
-                                <td className="py-3 px-4 text-center">
-                                  <Input 
-                                    type="number" 
-                                    min={0} 
-                                    max={20} 
-                                    className="w-16 text-center mx-auto" 
-                                    value={grades[student._id]?.ca1 || 0} 
-                                    onChange={(e) => updateGrade(student._id, 'ca1', Math.min(20, parseInt(e.target.value) || 0))}
-                                  />
-                                </td>
-                                <td className="py-3 px-4 text-center">
-                                  <Input 
-                                    type="number" 
-                                    min={0} 
-                                    max={20} 
-                                    className="w-16 text-center mx-auto" 
-                                    value={grades[student._id]?.ca2 || 0} 
-                                    onChange={(e) => updateGrade(student._id, 'ca2', Math.min(20, parseInt(e.target.value) || 0))}
-                                  />
-                                </td>
-                                <td className="py-3 px-4 text-center">
-                                  <Input 
-                                    type="number" 
-                                    min={0} 
-                                    max={60} 
-                                    className="w-16 text-center mx-auto" 
-                                    value={grades[student._id]?.exam || 0} 
-                                    onChange={(e) => updateGrade(student._id, 'exam', Math.min(60, parseInt(e.target.value) || 0))}
-                                  />
-                                </td>
-                                <td className="py-3 px-4 text-center font-bold">{total}</td>
-                                <td className="py-3 px-4 text-center">
-                                  <span className={`px-3 py-1 rounded-full text-sm font-bold ${
-                                    grade === 'A' ? 'bg-secondary/20 text-secondary' :
-                                    grade === 'B' ? 'bg-primary/20 text-primary' :
-                                    grade === 'C' ? 'bg-coral/20 text-coral' :
-                                    grade === 'D' ? 'bg-accent/20 text-accent' :
-                                    'bg-destructive/20 text-destructive'
-                                  }`}>
-                                    {grade}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="playful-card p-20 text-center">
-                  <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-20" />
-                  <p className="text-muted-foreground">Select a class from the sidebar to enter grades</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </motion.div>
-      </div>
-    </div>
+      )}
+    </TeacherSubPageLayout>
   );
 };
 

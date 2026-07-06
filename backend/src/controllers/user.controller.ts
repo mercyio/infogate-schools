@@ -57,7 +57,8 @@ export const getTeachers = async (req: Request, res: Response): Promise<void> =>
     try {
         const teachers = await Teacher.find()
             .populate('user_id', '-passwordHash')
-            .populate('assigned_class');
+            .populate('assigned_class').populate('assigned_subjects')
+            .populate('assigned_classes');
         res.json(teachers);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error });
@@ -124,7 +125,15 @@ export const createStudent = async (req: Request, res: Response): Promise<void> 
 
 export const createTeacher = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { full_name, email, phone, role, assigned_class, assigned_subject, experience, address, qualification, specialization } = req.body;
+        const { full_name, email, phone, role, assigned_classes, assigned_class, assigned_subjects, assigned_subject, experience, address, qualification, specialization } = req.body;
+
+        const classIds: string[] = Array.isArray(assigned_classes)
+            ? assigned_classes.filter(Boolean)
+            : assigned_class ? [assigned_class] : [];
+
+        const subjectIds: string[] = Array.isArray(assigned_subjects)
+            ? assigned_subjects.filter(Boolean)
+            : assigned_subject ? [assigned_subject] : [];
 
         const reg_number = await generateRegNumber('teacher');
         const password = generateRandomPassword();
@@ -132,31 +141,21 @@ export const createTeacher = async (req: Request, res: Response): Promise<void> 
         const passwordHash = await bcrypt.hash(password, salt);
 
         const user = await User.create({
-            reg_number,
-            email,
-            passwordHash,
-            password, // Store plain text for admin visibility
-            role: 'teacher',
-            full_name,
-            phone,
+            reg_number, email, passwordHash, password, role: 'teacher', full_name, phone,
         });
 
         const teacher = await Teacher.create({
             user_id: user._id,
             employee_id: reg_number,
             role,
-            assigned_class: assigned_class || null,
-            assigned_subject,
-            experience,
-            address,
-            qualification,
-            specialization
+            assigned_classes: classIds,
+            assigned_class: classIds[0] || null,
+            assigned_subjects: subjectIds,
+            assigned_subject: subjectIds[0] || assigned_subject || undefined,
+            experience, address, qualification, specialization,
         });
 
-        // Link class to teacher if assigned
-        if (assigned_class) {
-            await Class.findByIdAndUpdate(assigned_class, { class_teacher_id: teacher._id });
-        }
+        await Promise.all(classIds.map(id => Class.findByIdAndUpdate(id, { class_teacher_id: teacher._id })));
 
         res.status(201).json({
             message: 'Teacher created successfully',
@@ -281,7 +280,8 @@ export const getTeacherById = async (req: Request, res: Response): Promise<void>
     try {
         const teacher = await Teacher.findById(req.params.id)
             .populate('user_id', '-passwordHash')
-            .populate('assigned_class', 'name');
+            .populate('assigned_class', 'name level')
+            .populate('assigned_classes', 'name level');
         if (!teacher) { res.status(404).json({ message: 'Teacher not found' }); return; }
         res.json(teacher);
     } catch (error) {
@@ -294,37 +294,40 @@ export const updateTeacher = async (req: Request, res: Response): Promise<void> 
         const teacher = await Teacher.findById(req.params.id);
         if (!teacher) { res.status(404).json({ message: 'Teacher not found' }); return; }
 
-        const { full_name, email, phone, role, assigned_class, assigned_subject, experience, address, qualification, specialization, status } = req.body;
+        const { full_name, email, phone, role, assigned_classes, assigned_subjects, assigned_subject, experience, address, qualification, specialization, status } = req.body;
 
-        const oldAssignedClass = teacher.assigned_class;
+        const newClassIds: string[] = Array.isArray(assigned_classes)
+            ? assigned_classes.filter(Boolean)
+            : assigned_classes ? [assigned_classes] : [];
+
+        const newSubjectIds: string[] = Array.isArray(assigned_subjects)
+            ? assigned_subjects.filter(Boolean)
+            : assigned_subject ? [assigned_subject] : [];
+
+        const oldClassIds: string[] = ((teacher as any).assigned_classes || []).map((id: any) => String(id));
 
         await User.findByIdAndUpdate(teacher.user_id, { full_name, email, phone }, { new: true });
 
         const updatedTeacher = await Teacher.findByIdAndUpdate(req.params.id, {
-            role, 
-            assigned_class: assigned_class || null, 
-            assigned_subject, 
-            experience, 
-            address, 
-            qualification, 
-            specialization, 
-            status
+            role,
+            assigned_classes: newClassIds,
+            assigned_class: newClassIds[0] || null,
+            assigned_subjects: newSubjectIds,
+            assigned_subject: newSubjectIds[0] || assigned_subject || undefined,
+            experience, address, qualification, specialization, status,
         }, { new: true })
         .populate('user_id', '-passwordHash')
-        .populate('assigned_class');
+        .populate('assigned_classes')
+        .populate('assigned_class')
+        .populate('assigned_subjects');
 
-        // Handing class synchronization
-        if (assigned_class && String(assigned_class) !== String(oldAssignedClass)) {
-            // Unlink old class
-            if (oldAssignedClass) {
-                await Class.findByIdAndUpdate(oldAssignedClass, { class_teacher_id: null });
-            }
-            // Link new class
-            await Class.findByIdAndUpdate(assigned_class, { class_teacher_id: teacher._id });
-        } else if (!assigned_class && oldAssignedClass) {
-            // Unlink if class assignment was removed
-            await Class.findByIdAndUpdate(oldAssignedClass, { class_teacher_id: null });
-        }
+        // Sync class_teacher_id on Class documents
+        const removed = oldClassIds.filter(id => !newClassIds.includes(id));
+        const added   = newClassIds.filter(id => !oldClassIds.includes(id));
+        await Promise.all([
+            ...removed.map(id => Class.findByIdAndUpdate(id, { class_teacher_id: null })),
+            ...added.map(id   => Class.findByIdAndUpdate(id, { class_teacher_id: teacher._id })),
+        ]);
 
         res.json(updatedTeacher);
     } catch (error) {
@@ -406,7 +409,7 @@ export const getMeStudent = async (req: AuthRequest, res: Response): Promise<voi
 
 export const getMeTeacher = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const teacher = await Teacher.findOne({ user_id: req.user.id }).populate('user_id', '-passwordHash').populate('assigned_class');
+        const teacher = await Teacher.findOne({ user_id: req.user.id }).populate('user_id', '-passwordHash').populate('assigned_class').populate('assigned_classes');
         if (!teacher) {
             res.status(404).json({ message: 'Teacher profile not found' });
             return;
@@ -423,7 +426,7 @@ export const getTeacherStudentsGrouped = async (req: AuthRequest, res: Response)
         let teacherProfile: any = null;
 
         if (req.user?.role === 'teacher') {
-            teacherProfile = await Teacher.findOne({ user_id: req.user.id }).populate('assigned_class');
+            teacherProfile = await Teacher.findOne({ user_id: req.user.id }).populate('assigned_class').populate('assigned_classes');
             if (!teacherProfile) {
                 res.status(404).json({ message: 'Teacher profile not found' });
                 return;
@@ -433,7 +436,7 @@ export const getTeacherStudentsGrouped = async (req: AuthRequest, res: Response)
 
         if (req.user?.role === 'admin' && req.query.teacher_id) {
             classSubjectFilter.teacher_id = req.query.teacher_id;
-            teacherProfile = await Teacher.findById(req.query.teacher_id).populate('assigned_class');
+            teacherProfile = await Teacher.findById(req.query.teacher_id).populate('assigned_class').populate('assigned_classes');
         }
 
         // Find ClassSubject records for current teacher (or all for admin)
@@ -482,11 +485,14 @@ export const getTeacherStudentsGrouped = async (req: AuthRequest, res: Response)
             .filter(Boolean)
             .map(c => c._id);
 
-        // Also include the teacher's directly assigned class, if present
-        const assignedClassId = teacherProfile?.assigned_class?._id || teacherProfile?.assigned_class;
-        if (assignedClassId) {
-            classIds.push(assignedClassId);
-        }
+        // Include all directly assigned classes (array field)
+        const assignedClassesArr: any[] = teacherProfile?.assigned_classes?.length
+            ? teacherProfile.assigned_classes
+            : teacherProfile?.assigned_class ? [teacherProfile.assigned_class] : [];
+        assignedClassesArr.forEach((cls: any) => {
+            const id = cls?._id || cls;
+            if (id) classIds.push(id);
+        });
 
         const uniqueClassIds = [...new Set(classIds.map(id => String(id)))];
 
@@ -514,22 +520,20 @@ export const getTeacherStudentsGrouped = async (req: AuthRequest, res: Response)
             addGroup(classData, subjectData, classStudents, classSubject._id);
         });
 
-        // If the teacher has a direct assigned class, add it only if not already covered by a ClassSubject group.
-        if (teacherProfile?.assigned_class) {
-            const assignedClassData = teacherProfile.assigned_class as any;
+        // For each directly assigned class not already covered by a ClassSubject group, add it
+        for (const classEntry of assignedClassesArr) {
+            const assignedClassData = classEntry as any;
             const assignedClassIdStr = String(assignedClassData?._id);
 
             const assignedStudents = validStudents.filter(
                 student => String((student.class_id as any)?._id) === assignedClassIdStr
             );
 
-            // Check if already covered by a ClassSubject group for this teacher
             const alreadyCovered = classSubjects.some(
                 cs => String((cs.class_id as any)?._id) === assignedClassIdStr
             );
 
             if (!alreadyCovered) {
-                // Look up any ClassSubject for this class (regardless of teacher)
                 const anyCs = await ClassSubject.findOne({ class_id: assignedClassData._id })
                     .populate({ path: 'subject_id', select: 'name code' });
 
