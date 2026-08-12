@@ -338,8 +338,6 @@ const TeacherDashboard = () => {
             {/* ══ HOME ══ */}
             {activeTab === "home" && (
               <div className="space-y-5">
-                <ClockInBtn hasMarked={hasMarkedToday} isPending={clockIn.isPending} hasProfile={!!teacherProfile} onMark={() => clockIn.mutate()} now={now} />
-
                 <div className="grid grid-cols-3 gap-3">
                   {[
                     { label: "Classes", value: uniqueClasses.length, bg: "bg-blue-50", num: "text-blue-800", sub: "text-blue-400", icon: Layers },
