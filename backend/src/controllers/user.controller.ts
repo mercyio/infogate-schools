@@ -244,7 +244,7 @@ export const updateStudent = async (req: Request, res: Response): Promise<void> 
 
         const {
             full_name, email, phone, class_id, parent_id, date_of_birth, gender, address, emergency_contact, status,
-            program, grade, parent_name, parent_email, parent_phone, medical_info
+            program, grade, parent_name, parent_email, parent_phone, medical_info, outstanding_carried
         } = req.body;
 
         await User.findByIdAndUpdate(student.user_id, { full_name, email, phone }, { new: true });
@@ -253,7 +253,8 @@ export const updateStudent = async (req: Request, res: Response): Promise<void> 
             class_id,
             parent_id: parent_id || undefined,
             date_of_birth, gender, address, emergency_contact, status,
-            program, grade, parent_name, parent_email, parent_phone, medical_info
+            program, grade, parent_name, parent_email, parent_phone, medical_info,
+            ...(outstanding_carried !== undefined && { outstanding_carried })
         }, { new: true }).populate('user_id', '-passwordHash').populate('class_id');
 
         res.json(updatedStudent);

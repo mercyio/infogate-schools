@@ -78,6 +78,9 @@ const StudentDetail = () => {
   const queryClient = useQueryClient();
   const [paymentDescription, setPaymentDescription] = useState("");
 
+  const [arrearsDialogOpen, setArrearsDialogOpen] = useState(false);
+  const [arrearsAmount, setArrearsAmount] = useState("");
+
   const { data: realStudent, isLoading, isError } = useQuery({
     queryKey: ['student', studentId],
     queryFn: async () => {
@@ -103,6 +106,22 @@ const StudentDetail = () => {
     },
     onError: () => {
       toast.error("Failed to record payment");
+    }
+  });
+
+  const updateArrearsMutation = useMutation({
+    mutationFn: async (data: { outstanding_carried: number }) => {
+      const res = await api.put(`/users/students/${studentId}`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['student', studentId] });
+      toast.success("Arrears updated successfully");
+      setArrearsDialogOpen(false);
+      setArrearsAmount("");
+    },
+    onError: () => {
+      toast.error("Failed to update arrears");
     }
   });
 
@@ -135,6 +154,7 @@ const StudentDetail = () => {
     attendanceHistory: Array.isArray(realStudent.attendance_history || realStudent.attendanceHistory) ? (realStudent.attendance_history || realStudent.attendanceHistory) : [],
     gpa: Number(realStudent.gpa) || 0,
     attendanceRate: Number(realStudent.attendanceRate) || 0,
+    outstanding_carried: Number(realStudent.outstanding_carried) || 0,
   } : { 
     ...defaultStudentStats, 
     id: studentId || "N/A",
@@ -202,7 +222,9 @@ const StudentDetail = () => {
 
   const totalFees = Number(student.totalFees) || 0;
   const paidFees = Number(student.paidFees) || 0;
-  const outstanding = Math.max(0, totalFees - paidFees);
+  const outstandingCarried = Number(student.outstanding_carried) || 0;
+  const currentOutstanding = Math.max(0, totalFees - paidFees);
+  const outstanding = currentOutstanding + outstandingCarried;
   const paymentProgress = totalFees > 0 ? (paidFees / totalFees) * 100 : 0;
 
   const getAttendanceColor = (rate: number) => {
@@ -217,6 +239,12 @@ const StudentDetail = () => {
       amount: Number(paymentAmount),
       method: paymentMethod,
       reference: "TRF-" + Date.now().toString().slice(-6),
+    });
+  };
+
+  const handleUpdateArrears = () => {
+    updateArrearsMutation.mutate({
+      outstanding_carried: Number(arrearsAmount),
     });
   };
 
@@ -466,7 +494,38 @@ const StudentDetail = () => {
               {/* ── Fees ── */}
               <TabsContent value="fees" className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div />
+                  <div>
+                    <Dialog open={arrearsDialogOpen} onOpenChange={setArrearsDialogOpen}>
+                      <DialogTrigger asChild>
+                        <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-orange-100 text-orange-700 text-sm font-bold hover:bg-orange-200 transition-colors shadow-sm">
+                          <Plus className="w-4 h-4" /> Update Arrears
+                        </button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-md">
+                        <DialogHeader>
+                          <div className="bg-gradient-to-br from-orange-400 to-red-500 -m-6 mb-5 p-6 rounded-t-xl">
+                            <DialogTitle className="text-white font-extrabold text-lg flex items-center gap-2">
+                              Update Outstanding Arrears
+                            </DialogTitle>
+                            <p className="text-white/80 text-xs mt-1">{student.name}</p>
+                          </div>
+                        </DialogHeader>
+                        <div className="space-y-4 pt-2">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Arrears Amount (₦)</Label>
+                            <Input type="number" placeholder="0.00" value={arrearsAmount} onChange={(e) => setArrearsAmount(e.target.value)} className="rounded-xl" />
+                          </div>
+                          <button
+                            onClick={handleUpdateArrears}
+                            disabled={!arrearsAmount || updateArrearsMutation.isPending}
+                            className="w-full py-3 rounded-xl bg-gradient-to-r from-orange-500 to-red-600 text-white font-extrabold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+                          >
+                            {updateArrearsMutation.isPending ? "Saving…" : "Confirm Arrears"}
+                          </button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                   <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
                     <DialogTrigger asChild>
                       <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#0a2342] to-[#1a5276] text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-md">
@@ -516,13 +575,17 @@ const StudentDetail = () => {
                   </Dialog>
                 </div>
 
-                <div className="grid sm:grid-cols-2 gap-4">
+                <div className="grid sm:grid-cols-3 gap-4">
                   <div className="bg-gradient-to-br from-[#0a2342] to-[#1a5276] rounded-2xl p-5 text-white">
                     <p className="text-white/50 text-xs font-bold uppercase tracking-wide mb-1">Total Paid</p>
                     <p className="text-3xl font-extrabold">₦{(Number(student.paidFees) || 0).toLocaleString()}</p>
                   </div>
+                  <div className="bg-white rounded-2xl border border-orange-100 shadow-sm p-5">
+                    <p className="text-orange-400 text-xs font-bold uppercase tracking-wide mb-1">Arrears (Prev. Terms)</p>
+                    <p className="text-3xl font-extrabold text-orange-600">₦{outstandingCarried.toLocaleString()}</p>
+                  </div>
                   <div className="bg-white rounded-2xl border border-red-100 shadow-sm p-5">
-                    <p className="text-red-400 text-xs font-bold uppercase tracking-wide mb-1">Outstanding</p>
+                    <p className="text-red-400 text-xs font-bold uppercase tracking-wide mb-1">Total Outstanding</p>
                     <p className="text-3xl font-extrabold text-red-600">₦{outstanding.toLocaleString()}</p>
                   </div>
                 </div>
