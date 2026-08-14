@@ -97,6 +97,11 @@ const sf = (student: any, field: string) =>
 const getClassName = (student: any) =>
   student.class_id?.name || student.grade || "";
 
+const getStudentSortName = (student: any) =>
+  (sf(student, "full_name") || "").trim() ||
+  (sf(student, "reg_number") || student.admission_number || "").trim() ||
+  "";
+
 // ── Student card ───────────────────────────────────────────────────────────
 const StudentCard = ({
   student,
@@ -300,15 +305,21 @@ const { toast } = useToast();
     if (window.confirm(`Deactivate ${sf(student, "full_name")}?`)) deactivateMutation.mutate(student._id);
   };
 
-  const filteredStudents = students.filter((s: any) => {
-    const name = sf(s, "full_name") || "";
-    const reg = sf(s, "reg_number") || s.admission_number || "";
-    const className = getClassName(s);
-    const matchSearch = !searchQuery || name.toLowerCase().includes(searchQuery.toLowerCase()) || reg.toLowerCase().includes(searchQuery.toLowerCase()) || className.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchGrade = filterGrade === "all" || className === filterGrade;
-    const matchProgram = filterProgram === "all" || s.program === filterProgram;
-    return matchSearch && matchGrade && matchProgram;
-  });
+  const filteredStudents = [...students]
+    .filter((s: any) => {
+      const name = sf(s, "full_name") || "";
+      const reg = sf(s, "reg_number") || s.admission_number || "";
+      const className = getClassName(s);
+      const matchSearch = !searchQuery || name.toLowerCase().includes(searchQuery.toLowerCase()) || reg.toLowerCase().includes(searchQuery.toLowerCase()) || className.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchGrade = filterGrade === "all" || className === filterGrade;
+      const matchProgram = filterProgram === "all" || s.program === filterProgram;
+      return matchSearch && matchGrade && matchProgram;
+    })
+    .sort((a: any, b: any) => {
+      const nameA = getStudentSortName(a).toLowerCase();
+      const nameB = getStudentSortName(b).toLowerCase();
+      return nameA.localeCompare(nameB, undefined, { sensitivity: "base" });
+    });
 
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
