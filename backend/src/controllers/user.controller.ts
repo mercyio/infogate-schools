@@ -634,3 +634,57 @@ export const getMyChildren = async (req: AuthRequest, res: Response): Promise<vo
         res.status(500).json({ message: 'Server error', error });
     }
 };
+
+export const graduateStudentsFromClass = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { classId } = req.params;
+        const { nextClassId } = req.body;
+
+        // Get the current class
+        const currentClass = await Class.findById(classId);
+        if (!currentClass) {
+            res.status(404).json({ message: 'Class not found' });
+            return;
+        }
+
+        // If no nextClassId provided, mark students as graduated
+        if (!nextClassId) {
+            const result = await Student.updateMany(
+                { class_id: classId },
+                { status: 'graduated', class_id: null }
+            );
+
+            res.json({
+                message: `${result.modifiedCount} students marked as graduated`,
+                studentsCount: result.modifiedCount,
+                action: 'graduated',
+                currentClass: currentClass.name
+            });
+            return;
+        }
+
+        // Get the next class
+        const nextClass = await Class.findById(nextClassId);
+        if (!nextClass) {
+            res.status(404).json({ message: 'Next class not found' });
+            return;
+        }
+
+        // Update all students in the current class to the next class
+        const result = await Student.updateMany(
+            { class_id: classId },
+            { class_id: nextClassId }
+        );
+
+        res.json({
+            message: `${result.modifiedCount} students moved from ${currentClass.name} to ${nextClass.name}`,
+            studentsCount: result.modifiedCount,
+            action: 'moved',
+            fromClass: currentClass.name,
+            toClass: nextClass.name
+        });
+    } catch (error: any) {
+        res.status(500).json({ message: 'Server error', error: error?.message });
+    }
+};
+

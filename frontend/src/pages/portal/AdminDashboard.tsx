@@ -21,6 +21,7 @@ const quickLinks = [
   { label: "Students",     icon: Users,         path: "/portal/admin/students",     gradient: "from-[#0a2342] to-[#1a5276]",      text: "text-white" },
   { label: "Teachers",     icon: GraduationCap, path: "/portal/admin/teachers",     gradient: "from-yellow-400 to-amber-500",      text: "text-gray-900" },
   { label: "Classes",      icon: BookOpen,      path: "/portal/admin/classes",      gradient: "from-[#0d3460] to-[#1a5276]",      text: "text-white" },
+  { label: "Graduate",     icon: GraduationCap, path: "/portal/admin/students/graduate/class", gradient: "from-purple-500 to-indigo-600",      text: "text-white" },
   { label: "Timetable",    icon: Calendar,      path: "/portal/admin/timetables",   gradient: "from-amber-400 to-yellow-300",      text: "text-gray-900" },
   { label: "Attendance",   icon: ClipboardCheck,path: "/portal/admin/attendance",   gradient: "from-[#0a2342] to-[#0d3460]",      text: "text-white" },
   { label: "Assignments",  icon: ClipboardList, path: "/portal/admin/assignments",  gradient: "from-yellow-500 to-amber-400",      text: "text-gray-900" },

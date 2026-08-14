@@ -62,6 +62,7 @@ import TimetableView from "./pages/portal/teacher/TimetableView";
 import ManageParents from "./pages/portal/admin/ManageParents";
 import AssignmentsPage from "./pages/portal/student/AssignmentsPage";
 import AttendanceMonitor from "./pages/portal/admin/AttendanceMonitor";
+import GraduateStudents from "./pages/portal/admin/GraduateStudents";
 import NotFound from "./pages/NotFound";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
@@ -112,6 +113,7 @@ const App = () => (
                 <Route path="/portal/admin/students" element={<ManageStudents />} />
                 <Route path="/portal/admin/students/:studentId" element={<StudentDetail />} />
                 <Route path="/portal/admin/students/register" element={<StudentRegistration />} />
+                <Route path="/portal/admin/students/graduate/class" element={<GraduateStudents />} />
                 <Route path="/portal/admin/parents" element={<ManageParents />} />
                 <Route path="/portal/admin/teachers" element={<ManageTeachers />} />
                 <Route path="/portal/admin/teachers/register" element={<TeacherRegistration />} />
