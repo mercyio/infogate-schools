@@ -617,6 +617,36 @@ export const recordStudentPayment = async (req: Request, res: Response): Promise
     }
 };
 
+const getAlumniClassName = (classLevel: string): string => {
+    if (classLevel === 'primary') return 'Primary Alumni';
+    if (classLevel === 'secondary') return 'Secondary Alumni';
+    return 'School Alumni';
+};
+
+const ensureAlumniClass = async (forClass: any) => {
+    const alumniName = getAlumniClassName(forClass.level);
+    let alumniClass = await Class.findOne({ name: alumniName });
+
+    if (!alumniClass) {
+        alumniClass = await Class.create({
+            name: alumniName,
+            level: forClass.level,
+            capacity: 9999,
+            order: 999,
+            academic_year: forClass.academic_year || new Date().getFullYear().toString(),
+            fee_structure: {
+                termly_fees: [],
+                books: [],
+                total_termly: 0,
+                total_books: 0,
+                total: 0,
+            },
+        });
+    }
+
+    return alumniClass;
+};
+
 export const graduateAllStudents = async (req: Request, res: Response): Promise<void> => {
     try {
         const levelOrder: Record<string, number> = {
@@ -648,9 +678,10 @@ export const graduateAllStudents = async (req: Request, res: Response): Promise<
                 );
                 movedStudents += result.modifiedCount;
             } else {
+                const alumniClass = await ensureAlumniClass(currentClass);
                 const result = await Student.updateMany(
                     { class_id: currentClass._id },
-                    { status: 'graduated', class_id: null }
+                    { status: 'graduated', class_id: alumniClass._id }
                 );
                 graduatedStudents += result.modifiedCount;
             }
@@ -691,37 +722,35 @@ export const graduateStudentsFromClass = async (req: Request, res: Response): Pr
         const { classId } = req.params;
         const { nextClassId } = req.body;
 
-        // Get the current class
         const currentClass = await Class.findById(classId);
         if (!currentClass) {
             res.status(404).json({ message: 'Class not found' });
             return;
         }
 
-        // If no nextClassId provided, mark students as graduated
         if (!nextClassId) {
+            const alumniClass = await ensureAlumniClass(currentClass);
             const result = await Student.updateMany(
                 { class_id: classId },
-                { status: 'graduated', class_id: null }
+                { status: 'graduated', class_id: alumniClass._id }
             );
 
             res.json({
-                message: `${result.modifiedCount} students marked as graduated`,
+                message: `${result.modifiedCount} students marked as graduated into ${getAlumniClassName(currentClass.level)}`,
                 studentsCount: result.modifiedCount,
                 action: 'graduated',
-                currentClass: currentClass.name
+                currentClass: currentClass.name,
+                destination: getAlumniClassName(currentClass.level)
             });
             return;
         }
 
-        // Get the next class
         const nextClass = await Class.findById(nextClassId);
         if (!nextClass) {
             res.status(404).json({ message: 'Next class not found' });
             return;
         }
 
-        // Update all students in the current class to the next class
         const result = await Student.updateMany(
             { class_id: classId },
             { class_id: nextClassId }
