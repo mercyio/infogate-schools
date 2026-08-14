@@ -174,275 +174,281 @@ const GraduateStudents = () => {
 
   return (
     <div className="min-h-screen bg-[#f5f7fb] p-6">
-      <div className="max-w-6xl mx-auto space-y-8">
+      <div className="max-w-6xl mx-auto space-y-6">
 
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#0a2342] via-[#0d3460] to-[#1a5276] p-8 text-white shadow-lg">
             <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
-            <div className="relative z-10 flex items-center justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-4">
+            <div className="relative z-10">
+              <div className="flex items-center gap-4 mb-4">
                 <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center shadow-lg">
                   <GraduationCap className="w-7 h-7 text-yellow-300" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-yellow-300/90">Academic Session</p>
-                  <h1 className="text-3xl font-extrabold mt-1">Graduate Students</h1>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-yellow-300/90">Academic Management</p>
+                  <h1 className="text-3xl font-extrabold">Graduate Students</h1>
                 </div>
               </div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">
-                <p className="text-xs text-white/70 uppercase tracking-[0.2em]">Mode</p>
-                <p className="font-bold text-lg">{graduateMode === 'all' ? 'Batch Promotion' : 'Single Student'}</p>
-              </div>
+              <p className="text-sm text-white/80">Promote students to the next class or move them to alumni at the end of the academic session</p>
             </div>
           </div>
         </motion.div>
 
-        {/* Main content */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-white rounded-3xl border border-gray-200 p-8 shadow-sm">
-            <div className="mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Graduation Mode</h2>
-              <div className="mt-4 flex gap-3">
-                <button
-                  onClick={() => setGraduateMode('all')}
-                  className={`flex-1 px-4 py-3 rounded-xl font-bold transition-all border ${
-                    graduateMode === 'all' ? 'bg-[#0a2342] text-white border-[#0a2342]' : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-[#0a2342]/30'
-                  }`}
-                >
-                  Graduate all classes
-                </button>
-                <button
-                  onClick={() => setGraduateMode('student')}
-                  className={`flex-1 px-4 py-3 rounded-xl font-bold transition-all border ${
-                    graduateMode === 'student' ? 'bg-[#0a2342] text-white border-[#0a2342]' : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-[#0a2342]/30'
-                  }`}
-                >
-                  Graduate single student
-                </button>
-              </div>
+        {/* Mode Selection - More Prominent */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Select Operation</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                onClick={() => {
+                  setGraduateMode('all');
+                  setSelectedStudent(null);
+                  setSelectedNextClass(null);
+                }}
+                className={`rounded-2xl p-6 border-2 transition-all text-left ${
+                  graduateMode === 'all'
+                    ? 'border-[#0a2342] bg-gradient-to-br from-blue-50 to-blue-100 shadow-md'
+                    : 'border-gray-200 bg-white hover:border-gray-400'
+                }`}
+              >
+                <div className="flex items-start gap-4">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                    graduateMode === 'all' ? 'bg-[#0a2342] text-white' : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    <GraduationCap className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-900">Batch Promotion</p>
+                    <p className="text-sm text-gray-600 mt-1">Graduate all classes at once</p>
+                  </div>
+                </div>
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                onClick={() => {
+                  setGraduateMode('student');
+                  setSelectedClass(null);
+                }}
+                className={`rounded-2xl p-6 border-2 transition-all text-left ${
+                  graduateMode === 'student'
+                    ? 'border-[#0a2342] bg-gradient-to-br from-blue-50 to-blue-100 shadow-md'
+                    : 'border-gray-200 bg-white hover:border-gray-400'
+                }`}
+              >
+                <div className="flex items-start gap-4">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                    graduateMode === 'student' ? 'bg-[#0a2342] text-white' : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    <BookOpen className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-900">Single Student</p>
+                    <p className="text-sm text-gray-600 mt-1">Move one student to a new class</p>
+                  </div>
+                </div>
+              </motion.button>
             </div>
-
-            {graduateMode === 'student' ? (
-              <>
-                <div className="flex items-center gap-2 mb-6">
-                  <div className="w-8 h-8 rounded-full bg-[#0a2342] text-white flex items-center justify-center font-bold text-sm">1</div>
-                  <h2 className="text-xl font-bold text-gray-900">Search Student</h2>
-                </div>
-
-                <input
-                  value={studentSearch}
-                  onChange={(e) => setStudentSearch(e.target.value)}
-                  placeholder="Search by student name or reg number"
-                  className="w-full mb-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-                />
-
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {studentOptions.length === 0 ? (
-                    <p className="text-gray-400 text-center py-8">No student found</p>
-                  ) : (
-                    studentOptions.map((student: any) => (
-                      <motion.button
-                        key={student._id}
-                        onClick={() => {
-                          setSelectedStudent(student);
-                          setSelectedClass(student.class_id || null);
-                          setSelectedNextClass(null);
-                        }}
-                        whileHover={{ scale: 1.02 }}
-                        className={`w-full text-left px-5 py-4 rounded-2xl border-2 transition-all ${
-                          selectedStudent?._id === student._id
-                            ? 'border-[#0a2342] bg-blue-50 shadow-md'
-                            : 'border-gray-200 hover:border-gray-300 bg-white'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="font-bold text-gray-900">{student.user_id?.full_name || "Unknown Student"}</p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {student.admission_number} • {student.class_id?.name || "No class assigned"}
-                            </p>
-                          </div>
-                          <BookOpen className={`w-5 h-5 transition-colors ${
-                            selectedStudent?._id === student._id ? 'text-[#0a2342]' : 'text-gray-300'
-                          }`} />
-                        </div>
-                      </motion.button>
-                    ))
-                  )}
-                </div>
-              </>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <GraduationCap className="w-6 h-6 text-[#0a2342]" />
-                  <h3 className="font-bold text-gray-900">Class Progression</h3>
-                </div>
-                <p className="text-sm text-gray-600 mb-4">All classes will advance in the following sequence:</p>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {promotionPlan.length === 0 ? (
-                    <p className="text-gray-400 text-sm text-center py-8">Loading classes...</p>
-                  ) : (
-                    promotionPlan.map((step: any, index: number) => (
-                      <div key={`${step.from}-${step.to}-${index}`} className="rounded-xl border border-gray-200 bg-gradient-to-r from-blue-50 to-transparent px-4 py-3 flex items-center justify-between group hover:border-[#0a2342] transition-colors">
-                        <div>
-                          <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Step {index + 1}</p>
-                          <p className="font-bold text-gray-900">{step.from}</p>
-                        </div>
-                        <ArrowRight className="w-5 h-5 text-yellow-500 mx-3" />
-                        <div className="text-right">
-                          <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Moves to</p>
-                          <p className="font-bold text-gray-900">{step.to}</p>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
           </div>
+        </motion.div>
 
-          <div className="bg-white rounded-3xl border-2 border-gray-100 p-8 shadow-lg">
-            {graduateMode === 'student' ? (
-              <>
-                <div className="flex items-center gap-2 mb-6">
-                  <div className="w-8 h-8 rounded-full bg-[#0a2342] text-white flex items-center justify-center font-bold text-sm">2</div>
-                  <h2 className="text-xl font-bold text-gray-900">Select Destination Class</h2>
+        {/* Content Area */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          {graduateMode === 'all' ? (
+            // BATCH MODE CONTENT
+            <div className="space-y-6">
+              {/* Promotion Plan - Main Content */}
+              <div className="bg-white rounded-3xl border border-gray-200 p-8 shadow-sm">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-full bg-green-600 text-white flex items-center justify-center flex-shrink-0">
+                    <ArrowRight className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900">Class Progression Plan</h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      <span className="font-semibold text-[#0a2342]">{promotionPlan.length} classes</span> will be promoted in order
+                    </p>
+                  </div>
                 </div>
 
-                {!selectedStudent ? (
-                  <div className="text-center py-12 text-gray-400">
-                    <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                    <p>Select a student first</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {classes.map((cls: any) => (
-                      <motion.button
-                        key={cls._id}
-                        onClick={() => setSelectedNextClass(cls)}
-                        whileHover={{ scale: 1.02 }}
-                        className={`w-full text-left px-5 py-4 rounded-2xl border-2 transition-all ${
-                          selectedNextClass?._id === cls._id
-                            ? 'border-green-500 bg-green-50 shadow-md'
-                            : 'border-gray-200 hover:border-gray-300 bg-white'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-bold text-gray-900">{cls.name}</p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              Level: {cls.level} • Year: {cls.academic_year}
-                            </p>
-                          </div>
-                          <ArrowRight className={`w-5 h-5 transition-colors ${
-                            selectedNextClass?._id === cls._id ? 'text-green-600' : 'text-gray-300'
-                          }`} />
-                        </div>
-                      </motion.button>
-                    ))}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <ArrowRight className="w-6 h-6 text-green-600" />
-                  <h3 className="font-bold text-gray-900">Batch Promotion Details</h3>
-                </div>
-                <p className="text-sm text-gray-600 mb-4">
-                  <span className="font-bold text-[#0a2342]">{promotionPlan.length}</span> classes will be promoted in this batch action:
-                </p>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {promotionPlan.length === 0 ? (
-                    <p className="text-gray-400 text-sm text-center py-8">Loading classes...</p>
+                    <p className="text-gray-400 text-center py-12 col-span-full">Loading classes...</p>
                   ) : (
                     promotionPlan.map((step: any, index: number) => (
                       <motion.div
                         key={`${step.from}-${step.to}-${index}`}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: index * 0.05 }}
-                        className="rounded-xl border-2 border-green-100 bg-green-50 px-4 py-3 flex items-center justify-between hover:border-green-300 transition-colors"
+                        className="rounded-2xl border-2 border-green-100 bg-gradient-to-br from-green-50 to-green-100/50 p-5 hover:shadow-md transition-shadow"
                       >
-                        <p className="font-bold text-gray-900">{step.from}</p>
-                        <ArrowRight className="w-5 h-5 text-green-600 mx-3" />
-                        <p className="font-bold text-gray-900 text-right">{step.to}</p>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex-1">
+                            <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-2">From</p>
+                            <p className="font-bold text-gray-900 text-base">{step.from}</p>
+                          </div>
+                          <ArrowRight className="w-5 h-5 text-green-600 flex-shrink-0" />
+                          <div className="flex-1 text-right">
+                            <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-2">To</p>
+                            <p className="font-bold text-gray-900 text-base">{step.to}</p>
+                          </div>
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-green-200">
+                          <p className="text-xs text-gray-600">Step {index + 1} of {promotionPlan.length}</p>
+                        </div>
                       </motion.div>
                     ))
                   )}
                 </div>
               </div>
-            )}
-          </div>
+
+              {/* Summary */}
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-3xl p-8 text-white shadow-lg">
+                <div className="flex items-start gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle2 className="w-7 h-7" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg">Ready to Graduate</h3>
+                    <p className="text-blue-100 mt-2">
+                      When you confirm, all {batchCount} students across all {promotionPlan.length} classes will be promoted to their next class level or alumni destination.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          ) : (
+            // SINGLE STUDENT MODE CONTENT
+            <div className="bg-white rounded-3xl border border-gray-200 p-8 shadow-sm">
+              <div className="space-y-6">
+                {/* Step 1: Select Student */}
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 rounded-full bg-[#0a2342] text-white flex items-center justify-center font-bold text-sm">1</div>
+                    <h3 className="font-bold text-gray-900">Find Student</h3>
+                  </div>
+
+                  <input
+                    value={studentSearch}
+                    onChange={(e) => setStudentSearch(e.target.value)}
+                    placeholder="Search by name or admission number..."
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all"
+                  />
+
+                  <div className="mt-4 space-y-2 max-h-56 overflow-y-auto">
+                    {studentOptions.length === 0 ? (
+                      <p className="text-gray-400 text-center py-6">No students found</p>
+                    ) : (
+                      studentOptions.map((student: any) => (
+                        <motion.button
+                          key={student._id}
+                          onClick={() => {
+                            setSelectedStudent(student);
+                            setSelectedClass(student.class_id || null);
+                            setSelectedNextClass(null);
+                          }}
+                          whileHover={{ scale: 1.01 }}
+                          className={`w-full text-left px-5 py-4 rounded-2xl border-2 transition-all ${
+                            selectedStudent?._id === student._id
+                              ? 'border-[#0a2342] bg-blue-50 shadow-md'
+                              : 'border-gray-200 hover:border-gray-400 bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="font-bold text-gray-900">{student.user_id?.full_name}</p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                Reg: {student.admission_number} • Class: {student.class_id?.name || 'Unassigned'}
+                              </p>
+                            </div>
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                              selectedStudent?._id === student._id ? 'border-[#0a2342] bg-[#0a2342]' : 'border-gray-300'
+                            }`}>
+                              {selectedStudent?._id === student._id && <CheckCircle2 className="w-5 h-5 text-white" />}
+                            </div>
+                          </div>
+                        </motion.button>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {selectedStudent && (
+                  <>
+                    <div className="border-t pt-6" />
+
+                    {/* Step 2: Select Destination */}
+                    <div>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-8 h-8 rounded-full bg-[#0a2342] text-white flex items-center justify-center font-bold text-sm">2</div>
+                        <h3 className="font-bold text-gray-900">Choose Destination Class</h3>
+                      </div>
+
+                      <div className="space-y-2 max-h-56 overflow-y-auto">
+                        {classes.map((cls: any) => (
+                          <motion.button
+                            key={cls._id}
+                            onClick={() => setSelectedNextClass(cls)}
+                            whileHover={{ scale: 1.01 }}
+                            className={`w-full text-left px-5 py-4 rounded-2xl border-2 transition-all ${
+                              selectedNextClass?._id === cls._id
+                                ? 'border-green-600 bg-green-50 shadow-md'
+                                : 'border-gray-200 hover:border-gray-400 bg-white'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="font-bold text-gray-900">{cls.name}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {cls.level} • Year: {cls.academic_year}
+                                </p>
+                              </div>
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                                selectedNextClass?._id === cls._id ? 'border-green-600 bg-green-600' : 'border-gray-300'
+                              }`}>
+                                {selectedNextClass?._id === cls._id && <CheckCircle2 className="w-5 h-5 text-white" />}
+                              </div>
+                            </div>
+                          </motion.button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </motion.div>
 
-        {/* Summary Card */}
-        {(graduateMode === 'student' ? selectedStudent : true) && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-3xl p-8 text-white shadow-xl">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <p className="text-blue-100 text-sm font-semibold mb-2">Current Selection</p>
-                <p className="text-2xl font-bold">{selectedClassLabel}</p>
-              </div>
-              <div className="flex items-center justify-center">
-                <ArrowRight className="w-8 h-8" />
-              </div>
-              <div>
-                <p className="text-blue-100 text-sm font-semibold mb-2">
-                  {graduateMode === 'student' ? (selectedNextClass ? "Moving To" : "Action") : "Batch Action"}
-                </p>
-                <p className="text-2xl font-bold">
-                  {graduateMode === 'student' ? (selectedNextClass ? selectedNextClass.name : "Graduate") : "All classes"}
-                </p>
-              </div>
-            </div>
-            <div className="mt-6 pt-6 border-t border-blue-400">
-              <p className="text-blue-100 text-sm">
-                <span className="font-bold text-white text-lg">{graduateMode === 'student' ? 1 : batchCount}</span> student{graduateMode === 'student' ? '' : 's'} will be {graduateMode === 'student' ? (selectedNextClass ? `moved to ${selectedNextClass.name}` : "graduated") : "promoted in the batch"}
-              </p>
-            </div>
-          </motion.div>
-        )}
-
-        {promotionPlan.length > 0 && graduateMode === 'all' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-3xl border-2 border-gray-100 p-6 shadow-lg">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Promotion Path</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {promotionPlan.map((step: any, index: number) => (
-                <div key={`${step.from}-${step.to}-${index}`} className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
-                  <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Move</p>
-                  <p className="font-bold text-gray-900">{step.from} → {step.to}</p>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        {/* Action Button */}
+        {/* Action Button - Prominent */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <Button
             onClick={handleGraduate}
             disabled={graduateMode === 'student' ? (!selectedStudent || !selectedNextClass || graduateMutation.isPending) : graduateMutation.isPending}
             size="lg"
-            className="w-full bg-gradient-to-r from-[#0a2342] to-[#1a5276] hover:opacity-90 text-white font-bold h-14 rounded-2xl text-lg shadow-lg"
+            className="w-full bg-gradient-to-r from-[#0a2342] to-[#1a5276] hover:opacity-90 text-white font-bold h-14 rounded-2xl text-lg shadow-lg disabled:opacity-50"
           >
             {graduateMutation.isPending ? (
               <><Loader className="w-5 h-5 animate-spin mr-2" /> Processing...</>
+            ) : graduateMode === 'all' ? (
+              <><GraduationCap className="w-5 h-5 mr-2" /> Graduate All {batchCount} Students</>
             ) : (
-              <><GraduationCap className="w-5 h-5 mr-2" /> {graduateMode === 'all' ? `Graduate all ${batchCount} students` : `Graduate selected student`}</>
+              <><GraduationCap className="w-5 h-5 mr-2" /> Graduate {selectedStudent?.user_id?.full_name || 'Student'}</>
             )}
           </Button>
         </motion.div>
 
-        {/* Info Banner */}
+        {/* Important Notice */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6">
           <div className="flex gap-4">
-            <AlertTriangle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-1" />
+            <AlertTriangle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-bold text-amber-900 mb-2">⚠️ Important</p>
-              <p className="text-amber-800 text-sm">
-                This action will move all students from the selected class to the next class. This is typically done at the end of an academic session. Make sure you have a backup of your data before proceeding.
+              <p className="font-bold text-amber-900">Important Notice</p>
+              <p className="text-amber-800 text-sm mt-2">
+                This action moves students to their next class or alumni designation. It is typically performed at the end of an academic session and cannot be easily reversed. Please ensure data is backed up before proceeding.
               </p>
             </div>
           </div>
