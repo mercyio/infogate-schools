@@ -173,40 +173,49 @@ const GraduateStudents = () => {
   const batchCount = totalStudentsAcrossAllClasses;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-6">
+    <div className="min-h-screen bg-[#f5f7fb] p-6">
       <div className="max-w-6xl mx-auto space-y-8">
 
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#0a2342] to-[#1a5276] flex items-center justify-center text-white shadow-lg">
-              <GraduationCap className="w-6 h-6" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-extrabold text-gray-900">Graduate Students</h1>
-              <p className="text-gray-600 text-sm mt-1">Promote all students from one class to the next</p>
+          <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#0a2342] via-[#0d3460] to-[#1a5276] p-8 text-white shadow-lg">
+            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
+            <div className="relative z-10 flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center shadow-lg">
+                  <GraduationCap className="w-7 h-7 text-yellow-300" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-yellow-300/90">Academic Session</p>
+                  <h1 className="text-3xl font-extrabold mt-1">Graduate Students</h1>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">
+                <p className="text-xs text-white/70 uppercase tracking-[0.2em]">Mode</p>
+                <p className="font-bold text-lg">{graduateMode === 'all' ? 'Batch Promotion' : 'Single Student'}</p>
+              </div>
             </div>
           </div>
         </motion.div>
 
         {/* Main content */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-white rounded-3xl border-2 border-gray-100 p-8 shadow-lg">
+          <div className="bg-white rounded-3xl border border-gray-200 p-8 shadow-sm">
             <div className="mb-6">
               <h2 className="text-xl font-bold text-gray-900">Graduation Mode</h2>
               <div className="mt-4 flex gap-3">
                 <button
                   onClick={() => setGraduateMode('all')}
-                  className={`flex-1 px-4 py-3 rounded-xl font-bold transition-all ${
-                    graduateMode === 'all' ? 'bg-[#0a2342] text-white' : 'bg-gray-100 text-gray-700'
+                  className={`flex-1 px-4 py-3 rounded-xl font-bold transition-all border ${
+                    graduateMode === 'all' ? 'bg-[#0a2342] text-white border-[#0a2342]' : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-[#0a2342]/30'
                   }`}
                 >
                   Graduate all classes
                 </button>
                 <button
                   onClick={() => setGraduateMode('student')}
-                  className={`flex-1 px-4 py-3 rounded-xl font-bold transition-all ${
-                    graduateMode === 'student' ? 'bg-[#0a2342] text-white' : 'bg-gray-100 text-gray-700'
+                  className={`flex-1 px-4 py-3 rounded-xl font-bold transition-all border ${
+                    graduateMode === 'student' ? 'bg-[#0a2342] text-white border-[#0a2342]' : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-[#0a2342]/30'
                   }`}
                 >
                   Graduate single student
@@ -264,11 +273,30 @@ const GraduateStudents = () => {
                 </div>
               </>
             ) : (
-              <div className="flex h-full min-h-[220px] items-center justify-center text-center">
-                <div>
-                  <GraduationCap className="w-16 h-16 mx-auto text-[#0a2342] opacity-70 mb-4" />
-                  <p className="text-lg font-bold text-gray-900">All classes will advance in sequence</p>
-                  <p className="text-sm text-gray-500 mt-2">Prep → KG1 → Nursery → Basic 1… and the final class will move into the alumni class such as Primary Alumni or Secondary Alumni.</p>
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <GraduationCap className="w-6 h-6 text-[#0a2342]" />
+                  <h3 className="font-bold text-gray-900">Class Progression</h3>
+                </div>
+                <p className="text-sm text-gray-600 mb-4">All classes will advance in the following sequence:</p>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {promotionPlan.length === 0 ? (
+                    <p className="text-gray-400 text-sm text-center py-8">Loading classes...</p>
+                  ) : (
+                    promotionPlan.map((step: any, index: number) => (
+                      <div key={`${step.from}-${step.to}-${index}`} className="rounded-xl border border-gray-200 bg-gradient-to-r from-blue-50 to-transparent px-4 py-3 flex items-center justify-between group hover:border-[#0a2342] transition-colors">
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Step {index + 1}</p>
+                          <p className="font-bold text-gray-900">{step.from}</p>
+                        </div>
+                        <ArrowRight className="w-5 h-5 text-yellow-500 mx-3" />
+                        <div className="text-right">
+                          <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Moves to</p>
+                          <p className="font-bold text-gray-900">{step.to}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             )}
@@ -317,11 +345,32 @@ const GraduateStudents = () => {
                 )}
               </>
             ) : (
-              <div className="flex h-full min-h-[220px] items-center justify-center text-center">
-                <div>
-                  <ArrowRight className="w-16 h-16 mx-auto text-green-600 opacity-80 mb-4" />
-                  <p className="text-lg font-bold text-gray-900">Each class will advance to the next class in sequence</p>
-                  <p className="text-sm text-gray-500 mt-2">Example: Prep → KG1, Basic 4 → Basic 5, and the last class moves to Primary Alumni or Secondary Alumni.</p>
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <ArrowRight className="w-6 h-6 text-green-600" />
+                  <h3 className="font-bold text-gray-900">Batch Promotion Details</h3>
+                </div>
+                <p className="text-sm text-gray-600 mb-4">
+                  <span className="font-bold text-[#0a2342]">{promotionPlan.length}</span> classes will be promoted in this batch action:
+                </p>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {promotionPlan.length === 0 ? (
+                    <p className="text-gray-400 text-sm text-center py-8">Loading classes...</p>
+                  ) : (
+                    promotionPlan.map((step: any, index: number) => (
+                      <motion.div
+                        key={`${step.from}-${step.to}-${index}`}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="rounded-xl border-2 border-green-100 bg-green-50 px-4 py-3 flex items-center justify-between hover:border-green-300 transition-colors"
+                      >
+                        <p className="font-bold text-gray-900">{step.from}</p>
+                        <ArrowRight className="w-5 h-5 text-green-600 mx-3" />
+                        <p className="font-bold text-gray-900 text-right">{step.to}</p>
+                      </motion.div>
+                    ))
+                  )}
                 </div>
               </div>
             )}
@@ -374,7 +423,7 @@ const GraduateStudents = () => {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <Button
             onClick={handleGraduate}
-            disabled={graduateMode === 'single' ? (!selectedClass || studentsCount === 0 || graduateMutation.isPending) : graduateMutation.isPending}
+            disabled={graduateMode === 'student' ? (!selectedStudent || !selectedNextClass || graduateMutation.isPending) : graduateMutation.isPending}
             size="lg"
             className="w-full bg-gradient-to-r from-[#0a2342] to-[#1a5276] hover:opacity-90 text-white font-bold h-14 rounded-2xl text-lg shadow-lg"
           >
