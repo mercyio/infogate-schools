@@ -447,7 +447,7 @@ const ClassDetail = () => {
                                 whileHover={{ scale: 1.15, rotate: 5 }}
                                 className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-[#0a2342] to-[#1a5276] rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-lg"
                               >
-                                {(sf(student, 'full_name') || 'N A').split(" ").slice(0, 2).map((n: string) => n[0].toUpperCase()).join("")}
+                                {(sf(student, 'full_name') || 'N A').split(" ").slice(0, 2).map((n: string) => n[0]?.toUpperCase()).filter(Boolean).join("")}
                               </motion.div>
                               <div className="min-w-0 flex-1">
                                 <h3 className="font-bold text-base leading-tight truncate transition-colors duration-200 group-hover:text-[#0a2342]">
