@@ -5,7 +5,7 @@ import {
     getStudentById, updateStudent, deleteStudent,
     getTeacherById, updateTeacher, deleteTeacher,
     getParentById, updateParent, deleteParent,
-    getMeTeacher, getMeStudent, recordStudentPayment, getTeacherStudentsGrouped, getMyChildren, graduateStudentsFromClass
+    getMeTeacher, getMeStudent, recordStudentPayment, getTeacherStudentsGrouped, getMyChildren, graduateStudentsFromClass, graduateAllStudents
 } from '../controllers/user.controller';
 import { protect, authorize } from '../middleware/auth.middleware';
 
@@ -18,6 +18,7 @@ router.get('/students/:id', protect, getStudentById);
 router.put('/students/:id', protect, authorize('admin'), updateStudent);
 router.delete('/students/:id', protect, authorize('admin'), deleteStudent);
 router.post('/students/:id/payments', protect, authorize('admin'), recordStudentPayment);
+router.post('/students/graduate/all', protect, authorize('admin'), graduateAllStudents);
 router.post('/students/graduate/class/:classId', protect, authorize('admin'), graduateStudentsFromClass);
 
 // Teachers

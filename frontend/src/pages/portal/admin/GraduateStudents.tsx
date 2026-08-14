@@ -14,12 +14,12 @@ import { useToast } from "@/components/ui/use-toast";
 const GraduateStudents = () => {
   const [selectedClass, setSelectedClass] = useState<any>(null);
   const [selectedNextClass, setSelectedNextClass] = useState<any>(null);
+  const [graduateMode, setGraduateMode] = useState<'single' | 'all'>('all');
   const [confirmDialog, setConfirmDialog] = useState(false);
   const [isGraduating, setIsGraduating] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch all classes
   const { data: classes = [] } = useQuery({
     queryKey: ["all-classes"],
     queryFn: async () => {
@@ -28,7 +28,14 @@ const GraduateStudents = () => {
     },
   });
 
-  // Fetch students in selected class
+  const { data: allStudents = [] } = useQuery({
+    queryKey: ["all-students"],
+    queryFn: async () => {
+      const res = await api.get("/users/students");
+      return res.data || [];
+    },
+  });
+
   const { data: studentsCount = 0 } = useQuery({
     queryKey: ["class-students-count", selectedClass?._id],
     queryFn: async () => {
@@ -36,10 +43,11 @@ const GraduateStudents = () => {
       const res = await api.get(`/users/students?class_id=${selectedClass._id}`);
       return (res.data || []).length;
     },
-    enabled: !!selectedClass?._id,
+    enabled: !!selectedClass?._id && graduateMode === 'single',
   });
 
-  // Define class progression levels
+  const totalStudentsAcrossAllClasses = allStudents.length;
+
   const getNextClasses = (currentClass: any): any[] => {
     const levelOrder: Record<string, number> = {
       'creche': 0,
@@ -50,11 +58,10 @@ const GraduateStudents = () => {
     };
 
     const currentLevelNum = levelOrder[currentClass.level] || 0;
-    
+
     return classes.filter((c: any) => {
       const classLevelNum = levelOrder[c.level] || 0;
-      // Classes in next level or same level with higher order
-      return classLevelNum > currentLevelNum || 
+      return classLevelNum > currentLevelNum ||
              (classLevelNum === currentLevelNum && (c.order || 99) > (currentClass.order || 99));
     });
   };
@@ -63,6 +70,11 @@ const GraduateStudents = () => {
 
   const graduateMutation = useMutation({
     mutationFn: async () => {
+      if (graduateMode === 'all') {
+        const res = await api.post('/users/students/graduate/all');
+        return res.data;
+      }
+
       const res = await api.post(`/users/students/graduate/class/${selectedClass._id}`, {
         nextClassId: selectedNextClass?._id || null,
       });
@@ -71,13 +83,16 @@ const GraduateStudents = () => {
     onSuccess: (data) => {
       toast({
         title: "Success! ✅",
-        description: `${data.studentsCount} students have been ${data.action} successfully.`,
+        description: graduateMode === 'all'
+          ? `${data.totalAffected || 0} students were promoted in the batch.`
+          : `${data.studentsCount} students have been ${data.action} successfully.`,
       });
       setConfirmDialog(false);
       setSelectedClass(null);
       setSelectedNextClass(null);
       queryClient.invalidateQueries({ queryKey: ["all-classes"] });
       queryClient.invalidateQueries({ queryKey: ["class-students-count"] });
+      queryClient.invalidateQueries({ queryKey: ["students"] });
     },
     onError: (error: any) => {
       toast({
@@ -89,13 +104,15 @@ const GraduateStudents = () => {
   });
 
   const handleGraduate = () => {
-    if (!selectedClass) {
-      toast({ title: "Error", description: "Please select a class", variant: "destructive" });
-      return;
-    }
-    if (!selectedNextClass && studentsCount > 0) {
-      toast({ title: "Error", description: "Please select a destination class", variant: "destructive" });
-      return;
+    if (graduateMode === 'single') {
+      if (!selectedClass) {
+        toast({ title: "Error", description: "Please select a class", variant: "destructive" });
+        return;
+      }
+      if (!selectedNextClass && studentsCount > 0) {
+        toast({ title: "Error", description: "Please select a destination class", variant: "destructive" });
+        return;
+      }
     }
     setConfirmDialog(true);
   };
@@ -105,6 +122,9 @@ const GraduateStudents = () => {
     graduateMutation.mutate();
     setIsGraduating(false);
   };
+
+  const selectedClassLabel = graduateMode === 'all' ? 'All classes' : selectedClass?.name || 'Select a class';
+  const batchCount = totalStudentsAcrossAllClasses;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-6">
@@ -125,117 +145,160 @@ const GraduateStudents = () => {
 
         {/* Main content */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
-          {/* Step 1: Select Current Class */}
           <div className="bg-white rounded-3xl border-2 border-gray-100 p-8 shadow-lg">
-            <div className="flex items-center gap-2 mb-6">
-              <div className="w-8 h-8 rounded-full bg-[#0a2342] text-white flex items-center justify-center font-bold text-sm">1</div>
-              <h2 className="text-xl font-bold text-gray-900">Select Current Class</h2>
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Graduation Mode</h2>
+              <div className="mt-4 flex gap-3">
+                <button
+                  onClick={() => setGraduateMode('all')}
+                  className={`flex-1 px-4 py-3 rounded-xl font-bold transition-all ${
+                    graduateMode === 'all' ? 'bg-[#0a2342] text-white' : 'bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  Graduate all classes
+                </button>
+                <button
+                  onClick={() => setGraduateMode('single')}
+                  className={`flex-1 px-4 py-3 rounded-xl font-bold transition-all ${
+                    graduateMode === 'single' ? 'bg-[#0a2342] text-white' : 'bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  One class only
+                </button>
+              </div>
             </div>
 
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {classes.length === 0 ? (
-                <p className="text-gray-400 text-center py-8">No classes available</p>
-              ) : (
-                classes.map((cls: any) => (
-                  <motion.button
-                    key={cls._id}
-                    onClick={() => setSelectedClass(cls)}
-                    whileHover={{ scale: 1.02 }}
-                    className={`w-full text-left px-5 py-4 rounded-2xl border-2 transition-all ${
-                      selectedClass?._id === cls._id
-                        ? 'border-[#0a2342] bg-blue-50 shadow-md'
-                        : 'border-gray-200 hover:border-gray-300 bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-bold text-gray-900">{cls.name}</p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Level: {cls.level} • Year: {cls.academic_year}
-                        </p>
-                      </div>
-                      <BookOpen className={`w-5 h-5 transition-colors ${
-                        selectedClass?._id === cls._id ? 'text-[#0a2342]' : 'text-gray-300'
-                      }`} />
-                    </div>
-                  </motion.button>
-                ))
-              )}
-            </div>
+            {graduateMode === 'single' ? (
+              <>
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="w-8 h-8 rounded-full bg-[#0a2342] text-white flex items-center justify-center font-bold text-sm">1</div>
+                  <h2 className="text-xl font-bold text-gray-900">Select Current Class</h2>
+                </div>
+
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {classes.length === 0 ? (
+                    <p className="text-gray-400 text-center py-8">No classes available</p>
+                  ) : (
+                    classes.map((cls: any) => (
+                      <motion.button
+                        key={cls._id}
+                        onClick={() => setSelectedClass(cls)}
+                        whileHover={{ scale: 1.02 }}
+                        className={`w-full text-left px-5 py-4 rounded-2xl border-2 transition-all ${
+                          selectedClass?._id === cls._id
+                            ? 'border-[#0a2342] bg-blue-50 shadow-md'
+                            : 'border-gray-200 hover:border-gray-300 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-bold text-gray-900">{cls.name}</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Level: {cls.level} • Year: {cls.academic_year}
+                            </p>
+                          </div>
+                          <BookOpen className={`w-5 h-5 transition-colors ${
+                            selectedClass?._id === cls._id ? 'text-[#0a2342]' : 'text-gray-300'
+                          }`} />
+                        </div>
+                      </motion.button>
+                    ))
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="flex h-full min-h-[220px] items-center justify-center text-center">
+                <div>
+                  <GraduationCap className="w-16 h-16 mx-auto text-[#0a2342] opacity-70 mb-4" />
+                  <p className="text-lg font-bold text-gray-900">All classes will be promoted together</p>
+                  <p className="text-sm text-gray-500 mt-2">The system will move each class to its next class automatically.</p>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Step 2: Select Next Class */}
           <div className="bg-white rounded-3xl border-2 border-gray-100 p-8 shadow-lg">
-            <div className="flex items-center gap-2 mb-6">
-              <div className="w-8 h-8 rounded-full bg-[#0a2342] text-white flex items-center justify-center font-bold text-sm">2</div>
-              <h2 className="text-xl font-bold text-gray-900">Select Next Class</h2>
-            </div>
+            {graduateMode === 'single' ? (
+              <>
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="w-8 h-8 rounded-full bg-[#0a2342] text-white flex items-center justify-center font-bold text-sm">2</div>
+                  <h2 className="text-xl font-bold text-gray-900">Select Next Class</h2>
+                </div>
 
-            {!selectedClass ? (
-              <div className="text-center py-12 text-gray-400">
-                <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p>Select a class first</p>
-              </div>
-            ) : nextClasses.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">
-                <AlertTriangle className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p>No advancement available for this class</p>
-              </div>
+                {!selectedClass ? (
+                  <div className="text-center py-12 text-gray-400">
+                    <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                    <p>Select a class first</p>
+                  </div>
+                ) : nextClasses.length === 0 ? (
+                  <div className="text-center py-12 text-gray-400">
+                    <AlertTriangle className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                    <p>No advancement available for this class</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {nextClasses.map((cls: any) => (
+                      <motion.button
+                        key={cls._id}
+                        onClick={() => setSelectedNextClass(cls)}
+                        whileHover={{ scale: 1.02 }}
+                        className={`w-full text-left px-5 py-4 rounded-2xl border-2 transition-all ${
+                          selectedNextClass?._id === cls._id
+                            ? 'border-green-500 bg-green-50 shadow-md'
+                            : 'border-gray-200 hover:border-gray-300 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-bold text-gray-900">{cls.name}</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Level: {cls.level} • Year: {cls.academic_year}
+                            </p>
+                          </div>
+                          <ArrowRight className={`w-5 h-5 transition-colors ${
+                            selectedNextClass?._id === cls._id ? 'text-green-600' : 'text-gray-300'
+                          }`} />
+                        </div>
+                      </motion.button>
+                    ))}
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {nextClasses.map((cls: any) => (
-                  <motion.button
-                    key={cls._id}
-                    onClick={() => setSelectedNextClass(cls)}
-                    whileHover={{ scale: 1.02 }}
-                    className={`w-full text-left px-5 py-4 rounded-2xl border-2 transition-all ${
-                      selectedNextClass?._id === cls._id
-                        ? 'border-green-500 bg-green-50 shadow-md'
-                        : 'border-gray-200 hover:border-gray-300 bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-bold text-gray-900">{cls.name}</p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Level: {cls.level} • Year: {cls.academic_year}
-                        </p>
-                      </div>
-                      <ArrowRight className={`w-5 h-5 transition-colors ${
-                        selectedNextClass?._id === cls._id ? 'text-green-600' : 'text-gray-300'
-                      }`} />
-                    </div>
-                  </motion.button>
-                ))}
+              <div className="flex h-full min-h-[220px] items-center justify-center text-center">
+                <div>
+                  <ArrowRight className="w-16 h-16 mx-auto text-green-600 opacity-80 mb-4" />
+                  <p className="text-lg font-bold text-gray-900">Each class will advance to the next class in sequence</p>
+                  <p className="text-sm text-gray-500 mt-2">This is the ideal end-of-session promotion flow.</p>
+                </div>
               </div>
             )}
           </div>
         </motion.div>
 
         {/* Summary Card */}
-        {selectedClass && (
+        {(graduateMode === 'single' ? selectedClass : true) && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-3xl p-8 text-white shadow-xl">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <p className="text-blue-100 text-sm font-semibold mb-2">Current Class</p>
-                <p className="text-2xl font-bold">{selectedClass.name}</p>
+                <p className="text-blue-100 text-sm font-semibold mb-2">Current Selection</p>
+                <p className="text-2xl font-bold">{selectedClassLabel}</p>
               </div>
               <div className="flex items-center justify-center">
                 <ArrowRight className="w-8 h-8" />
               </div>
               <div>
                 <p className="text-blue-100 text-sm font-semibold mb-2">
-                  {selectedNextClass ? "Moving To" : "Action"}
+                  {graduateMode === 'single' ? (selectedNextClass ? "Moving To" : "Action") : "Batch Action"}
                 </p>
                 <p className="text-2xl font-bold">
-                  {selectedNextClass ? selectedNextClass.name : "Graduate"}
+                  {graduateMode === 'single' ? (selectedNextClass ? selectedNextClass.name : "Graduate") : "All classes"}
                 </p>
               </div>
             </div>
             <div className="mt-6 pt-6 border-t border-blue-400">
               <p className="text-blue-100 text-sm">
-                <span className="font-bold text-white text-lg">{studentsCount}</span> students will be {selectedNextClass ? `moved to ${selectedNextClass.name}` : "marked as graduated"}
+                <span className="font-bold text-white text-lg">{graduateMode === 'single' ? studentsCount : batchCount}</span> students will be {graduateMode === 'single' ? (selectedNextClass ? `moved to ${selectedNextClass.name}` : "marked as graduated") : "promoted in the batch"}
               </p>
             </div>
           </motion.div>
@@ -245,14 +308,14 @@ const GraduateStudents = () => {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <Button
             onClick={handleGraduate}
-            disabled={!selectedClass || studentsCount === 0 || graduateMutation.isPending}
+            disabled={graduateMode === 'single' ? (!selectedClass || studentsCount === 0 || graduateMutation.isPending) : graduateMutation.isPending}
             size="lg"
             className="w-full bg-gradient-to-r from-[#0a2342] to-[#1a5276] hover:opacity-90 text-white font-bold h-14 rounded-2xl text-lg shadow-lg"
           >
             {graduateMutation.isPending ? (
               <><Loader className="w-5 h-5 animate-spin mr-2" /> Processing...</>
             ) : (
-              <><GraduationCap className="w-5 h-5 mr-2" /> Graduate {studentsCount} Student{studentsCount !== 1 ? 's' : ''}</>
+              <><GraduationCap className="w-5 h-5 mr-2" /> {graduateMode === 'all' ? `Graduate all ${batchCount} students` : `Graduate ${studentsCount} Student${studentsCount !== 1 ? 's' : ''}`}</>
             )}
           </Button>
         </motion.div>
@@ -281,9 +344,15 @@ const GraduateStudents = () => {
             </DialogTitle>
             <DialogDescription className="pt-4">
               <div className="space-y-4">
-                <p className="text-gray-900 font-semibold">
-                  Move <span className="text-[#0a2342]">{studentsCount} student{studentsCount !== 1 ? 's' : ''}</span> from <span className="text-[#0a2342]">{selectedClass?.name}</span> to <span className="text-green-600">{selectedNextClass?.name || "Alumni"}</span>?
-                </p>
+                {graduateMode === 'all' ? (
+                  <p className="text-gray-900 font-semibold">
+                    Promote all students across all classes in the current session?
+                  </p>
+                ) : (
+                  <p className="text-gray-900 font-semibold">
+                    Move <span className="text-[#0a2342]">{studentsCount} student{studentsCount !== 1 ? 's' : ''}</span> from <span className="text-[#0a2342]">{selectedClass?.name}</span> to <span className="text-green-600">{selectedNextClass?.name || "Alumni"}</span>?
+                  </p>
+                )}
                 <p className="text-gray-600 text-sm">
                   This action cannot be undone. All selected students will be moved immediately.
                 </p>

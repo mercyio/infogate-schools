@@ -617,6 +617,57 @@ export const recordStudentPayment = async (req: Request, res: Response): Promise
     }
 };
 
+export const graduateAllStudents = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const levelOrder: Record<string, number> = {
+            creche: 0,
+            nursery: 1,
+            primary: 2,
+            secondary: 3,
+            vocational: 4,
+        };
+
+        const classes = await Class.find().sort({ order: 1, name: 1 });
+        const orderedClasses = [...classes].sort((a: any, b: any) => {
+            const levelDiff = (levelOrder[a.level] ?? 99) - (levelOrder[b.level] ?? 99);
+            if (levelDiff !== 0) return levelDiff;
+            return (a.order ?? 99) - (b.order ?? 99);
+        });
+
+        let movedStudents = 0;
+        let graduatedStudents = 0;
+
+        for (let i = 0; i < orderedClasses.length; i++) {
+            const currentClass = orderedClasses[i];
+            const nextClass = orderedClasses[i + 1];
+
+            if (nextClass) {
+                const result = await Student.updateMany(
+                    { class_id: currentClass._id },
+                    { class_id: nextClass._id }
+                );
+                movedStudents += result.modifiedCount;
+            } else {
+                const result = await Student.updateMany(
+                    { class_id: currentClass._id },
+                    { status: 'graduated', class_id: null }
+                );
+                graduatedStudents += result.modifiedCount;
+            }
+        }
+
+        res.json({
+            message: `Graduation complete. ${movedStudents} students moved and ${graduatedStudents} students marked as graduated.`,
+            movedStudents,
+            graduatedStudents,
+            totalAffected: movedStudents + graduatedStudents,
+            action: 'bulk-graduate'
+        });
+    } catch (error: any) {
+        res.status(500).json({ message: 'Server error', error: error?.message });
+    }
+};
+
 export const getMyChildren = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const parentProfile = await Parent.findOne({ user_id: req.user?.id });
