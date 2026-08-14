@@ -97,6 +97,18 @@ const sf = (student: any, field: string) =>
 const getClassName = (student: any) =>
   student.class_id?.name || student.grade || "";
 
+const getOutstandingValue = (student: any) => {
+  const value = Number(
+    student.total_outstanding ??
+    student.totalOutstanding ??
+    student.outstanding_carried ??
+    student.outstanding ??
+    0
+  );
+
+  return Number.isFinite(value) ? value : 0;
+};
+
 const getStudentSortName = (student: any) =>
   (sf(student, "full_name") || "").trim() ||
   (sf(student, "reg_number") || student.admission_number || "").trim() ||
@@ -164,8 +176,10 @@ const StudentCard = ({
             <p className="text-sm font-bold text-primary mt-1">{getClassName(student) || "N/A"}</p>
           </div>
           <div className="p-3 bg-secondary/10 rounded-lg">
-            <p className="text-xs text-muted-foreground font-medium">Program</p>
-            <p className="text-sm font-bold text-secondary mt-1">{student.program || "N/A"}</p>
+            <p className="text-xs text-muted-foreground font-medium">Outstanding</p>
+            <p className="text-sm font-bold text-red-600 mt-1">
+              {`₦${getOutstandingValue(student).toLocaleString()}`}
+            </p>
           </div>
           <div className="p-3 bg-accent/10 rounded-lg col-span-2">
             <p className="text-xs text-muted-foreground font-medium">Admission No.</p>
