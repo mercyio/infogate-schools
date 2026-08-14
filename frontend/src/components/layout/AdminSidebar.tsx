@@ -26,6 +26,7 @@ const navGroups = [
     label: "Academics",
     items: [
       { title: "Classes", url: "/portal/admin/classes", icon: BookOpen },
+      { title: "Graduate Students", url: "/portal/admin/students/graduate/class", icon: GraduationCap },
       { title: "Timetable", url: "/portal/admin/timetables", icon: Calendar },
       { title: "Assignments", url: "/portal/admin/assignments", icon: ClipboardList },
       { title: "Attendance", url: "/portal/admin/attendance", icon: ClipboardCheck },
