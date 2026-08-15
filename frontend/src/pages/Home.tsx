@@ -383,10 +383,10 @@ const Home = () => {
             <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Moments of Joy 📸</h2>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {["/moment1.jpeg", "/moment2.jpeg", "/moment3.jpeg", "/moment4.jpeg", "/moment5.jpeg", 
-              "/moment6.jpeg", "/moment7.jpeg", "/moment8.jpeg", "/moment9.jpeg", "/moment10.jpeg",
-              "/moment11.jpeg", "/moment12.jpeg", "/moment13.jpeg", "/moment1.jpeg", "/moment2.jpeg",
-              "/moment3.jpeg", "/moment4.jpeg", "/moment5.jpeg", "/moment6.jpeg", "/moment7.jpeg"].map((img, i) => (
+            {["/moment1.jpeg", "/moment3.jpeg", "/moment4.jpeg", "/moment5.jpeg", "/moment6.jpeg", 
+              "/moment7.jpeg", "/moment8.jpeg", "/moment9.jpeg", "/moment10.jpeg", "/moment11.jpeg",
+              "/moment12.jpeg", "/moment13.jpeg", "/moment14.jpeg", "/moment15.jpeg", "/moment16.jpeg",
+              "/moment17.jpeg", "/moment18.jpeg", "/moment19.jpeg", "/moment20.jpeg", "/moment21.jpeg"].map((img, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, scale: 0.9 }}
