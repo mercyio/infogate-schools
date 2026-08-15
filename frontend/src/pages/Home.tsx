@@ -373,21 +373,28 @@ const Home = () => {
         </div>
       </section>
 
-      {/* ── GALLERY STRIP ── */}
+      {/* ── GALLERY GRID ── */}
       <section className="py-16 bg-sky-100">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-8">
+          <div className="text-center mb-12">
             <span className="inline-block px-4 py-1.5 bg-emerald-100 text-emerald-700 text-sm font-bold rounded-full mb-3">
               Life at Infogate
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Moments of Joy 📸</h2>
           </div>
-          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
-            {["/moment13.jpeg", "/moment12.jpeg", "/moment11.jpeg", "/moment8.jpeg", "/moment3.jpeg", "/moment1.jpeg"].map((img, i) => (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {["/moment1.jpeg", "/moment2.jpeg", "/moment3.jpeg", "/moment4.jpeg", "/moment5.jpeg", 
+              "/moment6.jpeg", "/moment7.jpeg", "/moment8.jpeg", "/moment9.jpeg", "/moment10.jpeg",
+              "/moment11.jpeg", "/moment12.jpeg", "/moment13.jpeg", "/moment1.jpeg", "/moment2.jpeg",
+              "/moment3.jpeg", "/moment4.jpeg", "/moment5.jpeg", "/moment6.jpeg", "/moment7.jpeg"].map((img, i) => (
               <motion.div
                 key={i}
-                whileHover={{ scale: 1.03 }}
-                className="rounded-2xl overflow-hidden shrink-0 w-64 h-44 snap-start shadow-md"
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.05 }}
+                whileHover={{ scale: 1.05 }}
+                className="rounded-2xl overflow-hidden shadow-md h-40"
               >
                 <img src={img} alt="School life" className="w-full h-full object-cover" />
               </motion.div>
