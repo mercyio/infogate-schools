@@ -522,7 +522,7 @@ const ParentChildDetail = () => {
                             <p className="text-gray-500 text-xs mt-0.5">Arrears + Current Fees</p>
                           </div>
                           <div className="text-right">
-                            <p className="font-extrabold text-2xl text-[#0a2342]">₦{totalOutstanding.toLocaleString()}</p>
+                            <p className="font-extrabold text-2xl text-[#0a2342]">₦{(outstandingCarried + currentTermTotal).toLocaleString()}</p>
                           </div>
                         </div>
                       </div>
