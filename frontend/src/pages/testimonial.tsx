@@ -6,7 +6,7 @@ import { Star } from "lucide-react"
 export default function TestimonialsSection() {
   const [hoveredCard, setHoveredCard] = useState<number | null>(null)
 
-  const images = ["/image4.jpeg", "/image5.jpeg", "/image6.jpeg"]
+  const images = ["/image4.jpeg", "/image5.jpeg", "/image6.jpeg", "/image7.jpeg", "/image8.jpeg"]
 
   const testimonials = [
     {
@@ -23,7 +23,7 @@ export default function TestimonialsSection() {
         "The academic preparation here is exceptional. My son was well-prepared for university challenges and received multiple scholarship offers.",
       author: "Michael T.",
       role: "Parent of Graduate",
-      image: images[1],
+      image: images[4],
       stars: 5,
       rotation: "rotate-6",
     },
@@ -41,7 +41,7 @@ export default function TestimonialsSection() {
         "Outstanding faculty and curriculum. Our daughter developed leadership skills and confidence that will serve her throughout life.",
       author: "David R.",
       role: "Parent of Graduate",
-      image: images[0],
+      image: images[3],
       stars: 5,
       rotation: "rotate-8",
     },
@@ -50,7 +50,7 @@ export default function TestimonialsSection() {
         "The spiritual foundation combined with academic excellence creates well-rounded students. Highly recommend Infogate to any family.",
       author: "Maria G.",
       role: "Parent of 6th Grader",
-      image: images[1],
+      image: images[4],
       stars: 5,
       rotation: "-rotate-6",
     },
