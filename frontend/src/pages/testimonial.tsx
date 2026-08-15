@@ -6,7 +6,7 @@ import { Star } from "lucide-react"
 export default function TestimonialsSection() {
   const [hoveredCard, setHoveredCard] = useState<number | null>(null)
 
-  const images = ["/image4.jpeg", "/image5.jpeg", "/image6.jpeg", "/image7.jpeg", "/image8.jpeg"]
+  const images = ["/image4.jpeg", "/image9.jpeg", "/image6.jpeg", "/image7.jpeg", "/image8.jpeg"]
 
   const testimonials = [
     {
