@@ -23,7 +23,7 @@ export default function TestimonialsSection() {
         "The academic preparation here is exceptional. My son was well-prepared for university challenges and received multiple scholarship offers.",
       author: "Michael T.",
       role: "Parent of Graduate",
-      image: images[4],
+      image: images[1],
       stars: 5,
       rotation: "rotate-6",
     },
