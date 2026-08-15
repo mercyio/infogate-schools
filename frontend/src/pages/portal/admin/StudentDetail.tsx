@@ -575,18 +575,71 @@ const StudentDetail = () => {
                   </Dialog>
                 </div>
 
-                <div className="grid sm:grid-cols-3 gap-4">
-                  <div className="bg-gradient-to-br from-[#0a2342] to-[#1a5276] rounded-2xl p-5 text-white">
-                    <p className="text-white/50 text-xs font-bold uppercase tracking-wide mb-1">Total Paid</p>
-                    <p className="text-3xl font-extrabold">₦{(Number(student.paidFees) || 0).toLocaleString()}</p>
+                {/* TOP SECTION: Fee Details Cards */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Current Term School Fees Card */}
+                  <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-200 rounded-2xl p-6">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className="text-amber-600 text-xs font-bold uppercase tracking-wide">Current Term Fees</p>
+                        <p className="text-amber-900 text-2xl font-extrabold mt-2">₦{totalFees.toLocaleString()}</p>
+                      </div>
+                      <div className="w-10 h-10 rounded-xl bg-amber-200 flex items-center justify-center">
+                        <CreditCard className="w-5 h-5 text-amber-700" />
+                      </div>
+                    </div>
+                    <p className="text-amber-600/70 text-[11px] mt-2">Full school fees for this term</p>
                   </div>
-                  <div className="bg-white rounded-2xl border border-orange-100 shadow-sm p-5">
-                    <p className="text-orange-400 text-xs font-bold uppercase tracking-wide mb-1">Arrears (Prev. Terms)</p>
-                    <p className="text-3xl font-extrabold text-orange-600">₦{outstandingCarried.toLocaleString()}</p>
+
+                  {/* Previous Term Arrears Card */}
+                  <div className={`border-2 rounded-2xl p-6 ${outstandingCarried > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className={`text-xs font-bold uppercase tracking-wide ${outstandingCarried > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          Previous Term Arrears
+                        </p>
+                        <p className={`text-2xl font-extrabold mt-2 ${outstandingCarried > 0 ? 'text-red-900' : 'text-green-900'}`}>
+                          ₦{outstandingCarried.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${outstandingCarried > 0 ? 'bg-red-200' : 'bg-green-200'}`}>
+                        <AlertCircle className={`w-5 h-5 ${outstandingCarried > 0 ? 'text-red-700' : 'text-green-700'}`} />
+                      </div>
+                    </div>
+                    <p className={`text-[11px] mt-2 ${outstandingCarried > 0 ? 'text-red-600/70' : 'text-green-600/70'}`}>
+                      {outstandingCarried > 0 ? 'Amount carried over from previous term' : 'No outstanding arrears'}
+                    </p>
                   </div>
-                  <div className="bg-white rounded-2xl border border-red-100 shadow-sm p-5">
-                    <p className="text-red-400 text-xs font-bold uppercase tracking-wide mb-1">Total Outstanding</p>
-                    <p className="text-3xl font-extrabold text-red-600">₦{outstanding.toLocaleString()}</p>
+                </div>
+
+                {/* BOTTOM SECTION: Payment Summary Cards */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Total Paid Card */}
+                  <div className="bg-gradient-to-br from-[#0a2342] to-[#1a5276] rounded-2xl p-6 text-white">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className="text-white/60 text-xs font-bold uppercase tracking-wide">Total Paid</p>
+                        <p className="text-white text-2xl font-extrabold mt-2">₦{(Number(student.paidFees) || 0).toLocaleString()}</p>
+                      </div>
+                      <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                        <Check className="w-5 h-5 text-green-300" />
+                      </div>
+                    </div>
+                    <p className="text-white/50 text-[11px] mt-2">Payments received this term</p>
+                  </div>
+
+                  {/* Total Outstanding Card */}
+                  <div className="bg-gradient-to-br from-red-50 to-red-100/50 border-2 border-red-200 rounded-2xl p-6">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className="text-red-600 text-xs font-bold uppercase tracking-wide">Total Outstanding</p>
+                        <p className="text-red-900 text-2xl font-extrabold mt-2">₦{outstanding.toLocaleString()}</p>
+                      </div>
+                      <div className="w-10 h-10 rounded-xl bg-red-200 flex items-center justify-center">
+                        <AlertCircle className="w-5 h-5 text-red-700" />
+                      </div>
+                    </div>
+                    <p className="text-red-600/70 text-[11px] mt-2">Current + previous term outstanding</p>
                   </div>
                 </div>
 
@@ -616,7 +669,7 @@ const StudentDetail = () => {
                     <TableHeader>
                       <TableRow className="bg-gray-50">
                         <TableHead className="font-extrabold text-gray-500 text-xs uppercase">Date</TableHead>
-                        <TableHead className="font-extrabold text-gray-500 text-xs uppercase">Reference</TableHead>
+                        <TableHead className="font-extrabold text-gray-500 text-xs uppercase">Description</TableHead>
                         <TableHead className="text-right font-extrabold text-gray-500 text-xs uppercase">Amount</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -625,7 +678,7 @@ const StudentDetail = () => {
                         paymentHistory.map((payment: any, index: number) => (
                           <TableRow key={index} className="hover:bg-gray-50/70">
                             <TableCell className="text-gray-700 text-sm">{payment.date ? new Date(payment.date).toLocaleDateString() : "N/A"}</TableCell>
-                            <TableCell className="font-mono text-xs text-gray-500">{payment.reference || "N/A"}</TableCell>
+                            <TableCell className="font-mono text-xs text-gray-500">{payment.description || payment.reference || "N/A"}</TableCell>
                             <TableCell className="text-right font-extrabold text-[#0a2342]">₦{(Number(payment.amount) || 0).toLocaleString()}</TableCell>
                           </TableRow>
                         ))
