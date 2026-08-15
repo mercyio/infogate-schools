@@ -6,7 +6,7 @@ import { Star } from "lucide-react"
 export default function TestimonialsSection() {
   const [hoveredCard, setHoveredCard] = useState<number | null>(null)
 
-  const defaultImage = "https://i.postimg.cc/nLgfW2c6/mercy-profile.jpg"
+  const defaultImage = "/image6.jpeg"
 
   const testimonials = [
     {
