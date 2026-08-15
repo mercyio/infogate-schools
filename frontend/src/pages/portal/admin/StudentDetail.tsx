@@ -577,20 +577,6 @@ const StudentDetail = () => {
 
                 {/* TOP SECTION: Fee Details Cards */}
                 <div className="grid grid-cols-2 gap-4">
-                  {/* Current Term School Fees Card */}
-                  <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-200 rounded-2xl p-6">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <p className="text-amber-600 text-xs font-bold uppercase tracking-wide">Current Term Fees</p>
-                        <p className="text-amber-900 text-2xl font-extrabold mt-2">₦{totalFees.toLocaleString()}</p>
-                      </div>
-                      <div className="w-10 h-10 rounded-xl bg-amber-200 flex items-center justify-center">
-                        <CreditCard className="w-5 h-5 text-amber-700" />
-                      </div>
-                    </div>
-                    <p className="text-amber-600/70 text-[11px] mt-2">Full school fees for this term</p>
-                  </div>
-
                   {/* Previous Term Arrears Card */}
                   <div className={`border-2 rounded-2xl p-6 ${outstandingCarried > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
                     <div className="flex items-start justify-between mb-3">
@@ -609,6 +595,20 @@ const StudentDetail = () => {
                     <p className={`text-[11px] mt-2 ${outstandingCarried > 0 ? 'text-red-600/70' : 'text-green-600/70'}`}>
                       {outstandingCarried > 0 ? 'Amount carried over from previous term' : 'No outstanding arrears'}
                     </p>
+                  </div>
+
+                  {/* Current Term School Fees Card */}
+                  <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-200 rounded-2xl p-6">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className="text-amber-600 text-xs font-bold uppercase tracking-wide">Current Term Fees</p>
+                        <p className="text-amber-900 text-2xl font-extrabold mt-2">₦{totalFees.toLocaleString()}</p>
+                      </div>
+                      <div className="w-10 h-10 rounded-xl bg-amber-200 flex items-center justify-center">
+                        <CreditCard className="w-5 h-5 text-amber-700" />
+                      </div>
+                    </div>
+                    <p className="text-amber-600/70 text-[11px] mt-2">Full school fees for this term</p>
                   </div>
                 </div>
 
