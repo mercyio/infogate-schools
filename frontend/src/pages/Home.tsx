@@ -61,10 +61,10 @@ const whyUs = [
 ];
 
 const highlights = [
-  { emoji: "🛡️", label: "Safe Environment", desc: "A secure, welcoming space for every child" },
-  { emoji: "🎓", label: "Certified Teachers", desc: "Qualified, passionate educators" },
-  { emoji: "🎨", label: "Holistic Growth", desc: "Academics, arts, sports & more" },
-  { emoji: "❤️", label: "Caring Community", desc: "Where every child is known & valued" },
+  { label: "Safe Environment", desc: "A secure, welcoming space for every child" },
+  { label: "Certified Teachers", desc: "Qualified, passionate educators" },
+  { label: "Holistic Growth", desc: "Academics, arts, sports & more" },
+  { label: "Caring Community", desc: "Where every child is known & valued" },
 ];
 
 const events = [
@@ -174,7 +174,6 @@ const Home = () => {
                 viewport={{ once: true }}
                 className="flex flex-col items-center text-center p-5 rounded-2xl bg-white hover:bg-primary/5 transition-colors"
               >
-                <div className="text-3xl mb-2">{item.emoji}</div>
                 <div className="font-extrabold text-gray-900 text-base">{item.label}</div>
                 <div className="text-xs text-muted-foreground mt-1 leading-relaxed">{item.desc}</div>
               </motion.div>
