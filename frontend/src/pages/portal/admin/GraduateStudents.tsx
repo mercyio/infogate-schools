@@ -49,6 +49,8 @@ const GraduateStudents = () => {
   const [studentSearch, setStudentSearch] = useState("");
   const [graduateMode, setGraduateMode] = useState<'all' | 'student'>('all');
   const [confirmDialog, setConfirmDialog] = useState(false);
+  const [resultDialogOpen, setResultDialogOpen] = useState(false);
+  const [resultData, setResultData] = useState<any>(null);
   const [isGraduating, setIsGraduating] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -131,6 +133,9 @@ const GraduateStudents = () => {
           : `${selectedStudent?.user_id?.full_name || 'Student'} was moved to ${selectedNextClass?.name}.`,
       });
       setConfirmDialog(false);
+      // show detailed result modal when available
+      setResultData(data);
+      setResultDialogOpen(true);
       setSelectedClass(null);
       setSelectedNextClass(null);
       setSelectedStudent(null);
@@ -499,6 +504,46 @@ const GraduateStudents = () => {
                 <><CheckCircle2 className="w-4 h-4 mr-2" /> Confirm</>
               )}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Result Dialog */}
+      <Dialog open={resultDialogOpen} onOpenChange={setResultDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-green-600" />
+              Graduation Result
+            </DialogTitle>
+            <DialogDescription className="pt-4">
+              <div className="space-y-4">
+                {resultData ? (
+                  <div>
+                    {resultData.action === 'bulk-graduate' || resultData.totalAffected ? (
+                      <>
+                        <p className="text-gray-900 font-semibold">Batch graduation completed.</p>
+                        <p className="text-sm text-gray-600 mt-2">{resultData.movedStudents || 0} students moved to next classes.</p>
+                        <p className="text-sm text-gray-600">{resultData.graduatedStudents || 0} students marked as graduated (moved to alumni).</p>
+                        <p className="text-sm text-gray-600 mt-2 font-bold">Total affected: {resultData.totalAffected || (resultData.movedStudents || 0) + (resultData.graduatedStudents || 0)}</p>
+                      </>
+                    ) : resultData.action === 'moved' ? (
+                      <>
+                        <p className="text-gray-900 font-semibold">Student moved successfully.</p>
+                        <p className="text-sm text-gray-600 mt-2">{resultData.student?.user_id?.full_name || 'Student'} was moved.</p>
+                      </>
+                    ) : (
+                      <p className="text-gray-900">Operation completed.</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-gray-600">No result data available.</p>
+                )}
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 pt-6">
+            <Button onClick={() => setResultDialogOpen(false)} className="flex-1 rounded-xl">Close</Button>
           </div>
         </DialogContent>
       </Dialog>

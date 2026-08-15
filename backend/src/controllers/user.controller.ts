@@ -657,48 +657,114 @@ export const graduateAllStudents = async (req: Request, res: Response): Promise<
             vocational: 4,
         };
 
-        const classes = await Class.find().sort({ order: 1, name: 1 });
-        const orderedClasses = [...classes].sort((a: any, b: any) => {
+        // Fetch all non-alumni classes only
+        const allClasses = await Class.find({ name: { $not: /Alumni/i } });
+
+        // Sort by level then by order within level
+        const orderedClasses = [...allClasses].sort((a: any, b: any) => {
             const levelDiff = (levelOrder[a.level] ?? 99) - (levelOrder[b.level] ?? 99);
             if (levelDiff !== 0) return levelDiff;
             return (a.order ?? 99) - (b.order ?? 99);
         });
 
-        let movedStudents = 0;
-        let graduatedStudents = 0;
+        if (orderedClasses.length === 0) {
+            res.status(400).json({ message: 'No classes found to process.' });
+            return;
+        }
 
-        for (let i = 0; i < orderedClasses.length; i++) {
-            const currentClass = orderedClasses[i];
-            const nextClass = orderedClasses[i + 1];
+        // Build a Set of all valid class IDs (non-alumni) for safety check
+        const validClassIds = new Set(orderedClasses.map((c: any) => String(c._id)));
 
-            if (nextClass) {
-                const result = await Student.updateMany(
-                    { class_id: currentClass._id },
-                    { class_id: nextClass._id }
-                );
-                movedStudents += result.modifiedCount;
+        // Snapshot: fetch all active (non-graduated) students once
+        // This is key — we work from a fixed snapshot so no student
+        // is processed more than once in this run
+        const activeStudents = await Student.find(
+            { status: { $ne: 'graduated' } },
+            { _id: 1, class_id: 1 }
+        ).lean();
+
+        // Only process students who are actually in a known non-alumni class
+        const eligibleStudents = activeStudents.filter(s =>
+            validClassIds.has(String(s.class_id))
+        );
+
+        if (eligibleStudents.length === 0) {
+            res.json({
+                message: 'No eligible students to graduate.',
+                movedStudents: 0,
+                graduatedStudents: 0,
+                totalAffected: 0,
+                action: 'bulk-graduate'
+            });
+            return;
+        }
+
+        // Map each class._id → index in orderedClasses for O(1) lookup
+        const classIndexMap = new Map<string, number>();
+        orderedClasses.forEach((cls: any, idx: number) => {
+            classIndexMap.set(String(cls._id), idx);
+        });
+
+        const lastIndex = orderedClasses.length - 1;
+
+        // Group students: those moving to next class vs those graduating
+        const toMove: Map<string, string[]> = new Map();   // nextClassId → [studentIds]
+        const toGraduate: string[] = [];                   // studentIds
+
+        for (const student of eligibleStudents) {
+            const currentIndex = classIndexMap.get(String(student.class_id));
+
+            if (currentIndex === undefined) {
+                // Student is in an unknown/alumni class — skip
+                continue;
+            }
+
+            if (currentIndex === lastIndex) {
+                // Last class → graduate
+                toGraduate.push(String(student._id));
             } else {
-                const alumniClass = await ensureAlumniClass(currentClass);
-                const result = await Student.updateMany(
-                    { class_id: currentClass._id },
-                    { status: 'graduated', class_id: alumniClass._id }
-                );
-                graduatedStudents += result.modifiedCount;
+                // Move to next class
+                const nextClass = orderedClasses[currentIndex + 1];
+                const nextClassId = String(nextClass._id);
+                if (!toMove.has(nextClassId)) toMove.set(nextClassId, []);
+                toMove.get(nextClassId)!.push(String(student._id));
             }
         }
 
+        let movedStudents = 0;
+        let graduatedStudents = 0;
+
+        // Execute moves — each student ID appears in exactly one group
+        for (const [nextClassId, studentIds] of toMove.entries()) {
+            const result = await Student.updateMany(
+                { _id: { $in: studentIds } },   // target by ID, not class_id
+                { $set: { class_id: nextClassId } }
+            );
+            movedStudents += result.modifiedCount;
+        }
+
+        // Execute graduations
+        if (toGraduate.length > 0) {
+            const alumniClass = await ensureAlumniClass(orderedClasses[lastIndex]);
+            const result = await Student.updateMany(
+                { _id: { $in: toGraduate } },   // target by ID, not class_id
+                { $set: { status: 'graduated', class_id: alumniClass._id } }
+            );
+            graduatedStudents += result.modifiedCount;
+        }
+
         res.json({
-            message: `Graduation complete. ${movedStudents} students moved and ${graduatedStudents} students marked as graduated.`,
+            message: `Graduation complete. ${movedStudents} students moved, ${graduatedStudents} students graduated.`,
             movedStudents,
             graduatedStudents,
             totalAffected: movedStudents + graduatedStudents,
             action: 'bulk-graduate'
         });
+
     } catch (error: any) {
         res.status(500).json({ message: 'Server error', error: error?.message });
     }
 };
-
 export const getMyChildren = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const parentProfile = await Parent.findOne({ user_id: req.user?.id });

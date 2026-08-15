@@ -142,7 +142,6 @@ const ParentChildDetail = () => {
         <td>${p.date ? format(new Date(p.date), "dd MMM yyyy") : "—"}</td>
         <td>${p.description || "Payment"}</td>
         <td style="text-transform:capitalize">${p.method || "—"}</td>
-        <td>${p.reference || "—"}</td>
         <td class="amount green">₦${(Number(p.amount) || 0).toLocaleString()}</td>
         <td class="amount ${(Number(p.outstanding_after) || 0) > 0 ? "red" : "green"}">₦${(Number(p.outstanding_after) || 0).toLocaleString()}</td>
       </tr>`).join("");
@@ -380,16 +379,14 @@ const ParentChildDetail = () => {
           <th>Date</th>
           <th>Description</th>
           <th>Method</th>
-          <th>Reference</th>
           <th>Amount Paid</th>
           <th>Outstanding After</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
       <tr class="totals-row">
-        <td colspan="5">Total Amount Paid</td>
+        <td colspan="4">Total Amount Paid</td>
         <td class="amount">₦${total.toLocaleString()}</td>
-        <td></td>
       </tr>
     </table>
 
@@ -488,17 +485,97 @@ const ParentChildDetail = () => {
                   <Card><Empty text="No fee structure set for this class yet" /></Card>
                 ) : (
                   <>
-                    {/* Summary row */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-gradient-to-br from-[#0a2342] to-[#1a5276] rounded-2xl p-5 text-white">
-                        <p className="text-white/50 text-xs font-bold uppercase tracking-wide">Total Paid</p>
-                        <p className="text-3xl font-extrabold mt-1">₦{totalPaid.toLocaleString()}</p>
-                        <p className="text-white/30 text-[10px] mt-1">Current term only</p>
+                    {/* TOP SECTION: Fee Details Cards */}
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Current Term School Fees Card */}
+                      <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-200 rounded-2xl p-6">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <p className="text-amber-600 text-xs font-bold uppercase tracking-wide">Current Term Fees</p>
+                            <p className="text-amber-900 text-2xl font-extrabold mt-2">₦{currentTermTotal.toLocaleString()}</p>
+                          </div>
+                          <div className="w-10 h-10 rounded-xl bg-amber-200 flex items-center justify-center">
+                            <Banknote className="w-5 h-5 text-amber-700" />
+                          </div>
+                        </div>
+                        <p className="text-amber-600/70 text-[11px] mt-2">Full school fees for this term</p>
                       </div>
-                      <div className="bg-red-50 border border-red-100 rounded-2xl p-5">
-                        <p className="text-red-400 text-xs font-bold uppercase tracking-wide">Outstanding</p>
-                        <p className="text-3xl font-extrabold text-red-600 mt-1">₦{totalOutstanding.toLocaleString()}</p>
-                        <p className="text-red-300 text-[10px] mt-1">Current + previous term</p>
+
+                      {/* Previous Term Arrears Card */}
+                      <div className={`border-2 rounded-2xl p-6 ${outstandingCarried > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <p className={`text-xs font-bold uppercase tracking-wide ${outstandingCarried > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                              Previous Term Arrears
+                            </p>
+                            <p className={`text-2xl font-extrabold mt-2 ${outstandingCarried > 0 ? 'text-red-900' : 'text-green-900'}`}>
+                              ₦{outstandingCarried.toLocaleString()}
+                            </p>
+                          </div>
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${outstandingCarried > 0 ? 'bg-red-200' : 'bg-green-200'}`}>
+                            <AlertCircle className={`w-5 h-5 ${outstandingCarried > 0 ? 'text-red-700' : 'text-green-700'}`} />
+                          </div>
+                        </div>
+                        <p className={`text-[11px] mt-2 ${outstandingCarried > 0 ? 'text-red-600/70' : 'text-green-600/70'}`}>
+                          {outstandingCarried > 0 ? 'Amount carried over from previous term' : 'No outstanding arrears'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Current Term Bill */}
+                    <Card title="Fee Breakdown">
+                      <div className="space-y-0.5">
+                        {classFeeStructure.termly_fees?.length > 0 && (
+                          <>
+                            <SectionLabel>Termly Components</SectionLabel>
+                            {classFeeStructure.termly_fees.map((f: any, i: number) => (
+                              <BillRow key={i} label={f.name} amount={Number(f.amount) || 0} />
+                            ))}
+                          </>
+                        )}
+                        {classFeeStructure.books?.length > 0 && (
+                          <>
+                            <SectionLabel className="mt-3">Books &amp; Stationery</SectionLabel>
+                            {classFeeStructure.books.map((b: any, i: number) => (
+                              <BillRow key={i} label={b.name} amount={Number(b.price) || 0} />
+                            ))}
+                          </>
+                        )}
+                        <div className="mt-4 pt-3 border-t-2 border-gray-100 flex justify-between items-center">
+                          <span className="font-extrabold text-gray-900">Total Termly Fee</span>
+                          <span className="font-extrabold text-[#0a2342] text-lg">₦{(Number(classFeeStructure.total) || 0).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </Card>
+
+                    {/* BOTTOM SECTION: Payment Summary Cards */}
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Total Paid Card */}
+                      <div className="bg-gradient-to-br from-[#0a2342] to-[#1a5276] rounded-2xl p-6 text-white">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <p className="text-white/60 text-xs font-bold uppercase tracking-wide">Total Paid</p>
+                            <p className="text-white text-2xl font-extrabold mt-2">₦{totalPaid.toLocaleString()}</p>
+                          </div>
+                          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                            <CheckCircle className="w-5 h-5 text-green-300" />
+                          </div>
+                        </div>
+                        <p className="text-white/50 text-[11px] mt-2">Payments received this term</p>
+                      </div>
+
+                      {/* Total Outstanding Card */}
+                      <div className="bg-gradient-to-br from-red-50 to-red-100/50 border-2 border-red-200 rounded-2xl p-6">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <p className="text-red-600 text-xs font-bold uppercase tracking-wide">Total Outstanding</p>
+                            <p className="text-red-900 text-2xl font-extrabold mt-2">₦{totalOutstanding.toLocaleString()}</p>
+                          </div>
+                          <div className="w-10 h-10 rounded-xl bg-red-200 flex items-center justify-center">
+                            <AlertCircle className="w-5 h-5 text-red-700" />
+                          </div>
+                        </div>
+                        <p className="text-red-600/70 text-[11px] mt-2">Current + previous term outstanding</p>
                       </div>
                     </div>
 
@@ -522,39 +599,6 @@ const ParentChildDetail = () => {
                       <div className="flex justify-between mt-2">
                         <span className="text-xs text-gray-400">₦{totalPaid.toLocaleString()} paid</span>
                         <span className="text-xs text-gray-400">₦{currentTermTotal.toLocaleString()} total</span>
-                      </div>
-                    </Card>
-
-                    {/* Current Term Bill */}
-                    <Card title="Current Term Bill">
-                      <div className="space-y-0.5">
-                        {classFeeStructure.termly_fees?.length > 0 && (
-                          <>
-                            <SectionLabel>Termly Components</SectionLabel>
-                            {classFeeStructure.termly_fees.map((f: any, i: number) => (
-                              <BillRow key={i} label={f.name} amount={Number(f.amount) || 0} />
-                            ))}
-                          </>
-                        )}
-                        {classFeeStructure.books?.length > 0 && (
-                          <>
-                            <SectionLabel className="mt-3">Books &amp; Stationery</SectionLabel>
-                            {classFeeStructure.books.map((b: any, i: number) => (
-                              <BillRow key={i} label={b.name} amount={Number(b.price) || 0} />
-                            ))}
-                          </>
-                        )}
-                        {/* Total + Previous Outstanding in one card */}
-                        <div className="mt-3 bg-[#0a2342] rounded-2xl overflow-hidden">
-                          <div className="flex justify-between items-center px-4 py-3.5">
-                            <span className="font-extrabold text-white">Total Termly Fee</span>
-                            <span className="font-extrabold text-yellow-400 text-lg">₦{(Number(classFeeStructure.total) || 0).toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between items-center px-4 py-3 bg-red-600/20 border-t border-white/10">
-                            <span className="font-bold text-red-300 text-sm">Previous Term Outstanding</span>
-                            <span className="font-extrabold text-red-300">₦{outstandingCarried.toLocaleString()}</span>
-                          </div>
-                        </div>
                       </div>
                     </Card>
 
