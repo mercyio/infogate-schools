@@ -13,7 +13,7 @@ export default function TestimonialsSection() {
       quote:
         "Infogate transformed my daughter's confidence and character. The teachers truly care about each student's growth and development.",
       author: "Jennifer K.",
-      role: "Parent of 8th Grader",
+      role: "Parent",
       image: images[0],
       stars: 5,
       rotation: "-rotate-12",
@@ -49,7 +49,7 @@ export default function TestimonialsSection() {
       quote:
         "The spiritual foundation combined with academic excellence creates well-rounded students. Highly recommend Infogate to any family.",
       author: "Maria G.",
-      role: "Parent of 6th Grader",
+      role: "Parent",
       image: images[4],
       stars: 5,
       rotation: "-rotate-6",
