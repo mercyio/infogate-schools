@@ -383,7 +383,7 @@ const Home = () => {
             <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Moments of Joy 📸</h2>
           </div>
           <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
-            {[heroSchool, kidsLearning, teacherClass, kidsArt, kidsLearning, teacherClass].map((img, i) => (
+            {["/moment1.jpeg", "/moment2.jpeg", "/moment3.jpeg", "/moment4.jpeg", "/moment5.jpeg", "/moment6.jpeg", "/moment7.jpeg"].map((img, i) => (
               <motion.div
                 key={i}
                 whileHover={{ scale: 1.03 }}
