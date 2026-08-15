@@ -6,7 +6,7 @@ import { Star } from "lucide-react"
 export default function TestimonialsSection() {
   const [hoveredCard, setHoveredCard] = useState<number | null>(null)
 
-  const defaultImage = "/image6.jpeg"
+  const images = ["/image4.jpeg", "/image5.jpeg", "/image6.jpeg"]
 
   const testimonials = [
     {
@@ -14,7 +14,7 @@ export default function TestimonialsSection() {
         "Infogate transformed my daughter's confidence and character. The teachers truly care about each student's growth and development.",
       author: "Jennifer K.",
       role: "Parent of 8th Grader",
-      image: defaultImage,
+      image: images[0],
       stars: 5,
       rotation: "-rotate-12",
     },
@@ -23,7 +23,7 @@ export default function TestimonialsSection() {
         "The academic preparation here is exceptional. My son was well-prepared for university challenges and received multiple scholarship offers.",
       author: "Michael T.",
       role: "Parent of Graduate",
-      image: defaultImage,
+      image: images[1],
       stars: 5,
       rotation: "rotate-6",
     },
@@ -32,7 +32,7 @@ export default function TestimonialsSection() {
         "The values-based education at Infogate has shaped our children into compassionate, responsible young adults. Worth every investment.",
       author: "Sarah L.",
       role: "Parent of Two Students",
-      image: defaultImage,
+      image: images[2],
       stars: 5,
       rotation: "-rotate-3",
     },
@@ -41,7 +41,7 @@ export default function TestimonialsSection() {
         "Outstanding faculty and curriculum. Our daughter developed leadership skills and confidence that will serve her throughout life.",
       author: "David R.",
       role: "Parent of Graduate",
-      image: defaultImage,
+      image: images[0],
       stars: 5,
       rotation: "rotate-8",
     },
@@ -50,7 +50,7 @@ export default function TestimonialsSection() {
         "The spiritual foundation combined with academic excellence creates well-rounded students. Highly recommend Infogate to any family.",
       author: "Maria G.",
       role: "Parent of 6th Grader",
-      image: defaultImage,
+      image: images[1],
       stars: 5,
       rotation: "-rotate-6",
     },
