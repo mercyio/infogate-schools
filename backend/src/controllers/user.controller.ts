@@ -775,9 +775,27 @@ export const getMyChildren = async (req: AuthRequest, res: Response): Promise<vo
 
         const children = await Student.find({ parent_id: parentProfile._id })
             .populate({ path: 'user_id', select: 'full_name email reg_number' })
-            .populate({ path: 'class_id', select: 'name level academic_year' });
+            .populate({ path: 'class_id', select: 'name level academic_year fee_structure' });
 
-        res.json(children);
+        const enrichedChildren = children.map((child: any) => {
+            const plainChild = child.toObject ? child.toObject() : child;
+            const classDoc = plainChild.class_id as any;
+            const currentTermTotal = Number(classDoc?.fee_structure?.total) || 0;
+            const paidFees = Number(plainChild.paid_fees) || 0;
+            const outstandingCarried = Number(plainChild.outstanding_carried) || 0;
+            const currentOutstanding = Math.max(0, currentTermTotal - paidFees);
+            const totalOutstanding = currentOutstanding + outstandingCarried;
+
+            return {
+                ...plainChild,
+                current_term_total: currentTermTotal,
+                paid_fees: paidFees,
+                outstanding_carried: outstandingCarried,
+                total_outstanding: totalOutstanding,
+            };
+        });
+
+        res.json(enrichedChildren);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error });
     }

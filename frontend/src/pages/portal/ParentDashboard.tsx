@@ -179,6 +179,7 @@ const ParentDashboard = () => {
               const level = child?.class_id?.level ?? "";
               const admNo = child?.admission_number ?? "—";
               const status = child?.status ?? "active";
+              const outstanding = Number(child?.total_outstanding ?? child?.outstanding_carried ?? 0) || 0;
               const ini = initials(name);
               // Alternate card accent colours so multiple children look distinct
               const accents = [
@@ -227,6 +228,11 @@ const ParentDashboard = () => {
                         {/* Name & class */}
                         <h2 className="text-white font-extrabold text-xl leading-tight">{name}</h2>
                         <p className="text-white/50 text-sm mt-1">{cls}</p>
+
+                        <div className="mt-4 rounded-2xl bg-white/10 border border-white/10 px-3 py-2 backdrop-blur-sm">
+                          <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/55">Outstanding</p>
+                          <p className="mt-1 text-xl font-extrabold text-red-400">₦{outstanding.toLocaleString()}</p>
+                        </div>
 
                         {/* Divider */}
                         <div className="my-4 border-t border-white/10" />
