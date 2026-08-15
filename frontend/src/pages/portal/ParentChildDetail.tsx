@@ -485,40 +485,46 @@ const ParentChildDetail = () => {
                   <Card><Empty text="No fee structure set for this class yet" /></Card>
                 ) : (
                   <>
-                    {/* TOP SECTION: Fee Details Cards */}
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Previous Term Arrears Card */}
-                      <div className={`border-2 rounded-2xl p-6 ${outstandingCarried > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <p className={`text-xs font-bold uppercase tracking-wide ${outstandingCarried > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                              Previous Term Arrears
-                            </p>
-                            <p className={`text-2xl font-extrabold mt-2 ${outstandingCarried > 0 ? 'text-red-900' : 'text-green-900'}`}>
-                              ₦{outstandingCarried.toLocaleString()}
-                            </p>
-                          </div>
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${outstandingCarried > 0 ? 'bg-red-200' : 'bg-green-200'}`}>
-                            <AlertCircle className={`w-5 h-5 ${outstandingCarried > 0 ? 'text-red-700' : 'text-green-700'}`} />
-                          </div>
-                        </div>
-                        <p className={`text-[11px] mt-2 ${outstandingCarried > 0 ? 'text-red-600/70' : 'text-green-600/70'}`}>
-                          {outstandingCarried > 0 ? 'Amount carried over from previous term' : 'No outstanding arrears'}
-                        </p>
+                    {/* TOP SECTION: Fee Breakdown Summary */}
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                      <div className="bg-gradient-to-r from-[#0a2342] to-[#1a5276] px-6 py-4">
+                        <h3 className="font-extrabold text-white text-base">Payment Breakdown This Term</h3>
+                        <p className="text-white/50 text-xs mt-1">Track what you owe this term</p>
                       </div>
-
-                      {/* Current Term School Fees Card */}
-                      <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-200 rounded-2xl p-6">
-                        <div className="flex items-start justify-between mb-3">
+                      
+                      <div className="p-6 space-y-4">
+                        {/* Previous Term Arrears */}
+                        <div className="flex justify-between items-center pb-4 border-b border-gray-100">
                           <div>
-                            <p className="text-amber-600 text-xs font-bold uppercase tracking-wide">Current Term Fees</p>
-                            <p className="text-amber-900 text-2xl font-extrabold mt-2">₦{currentTermTotal.toLocaleString()}</p>
+                            <p className="text-gray-600 text-sm font-semibold">Previous Term Arrears</p>
+                            <p className="text-gray-400 text-xs mt-0.5">Amount carried over</p>
                           </div>
-                          <div className="w-10 h-10 rounded-xl bg-amber-200 flex items-center justify-center">
-                            <Banknote className="w-5 h-5 text-amber-700" />
+                          <div className={`text-right ${outstandingCarried > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            <p className="font-extrabold text-lg">₦{outstandingCarried.toLocaleString()}</p>
                           </div>
                         </div>
-                        <p className="text-amber-600/70 text-[11px] mt-2">Full school fees for this term</p>
+
+                        {/* Current Term Fees */}
+                        <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+                          <div>
+                            <p className="text-gray-600 text-sm font-semibold">Current Term Fees</p>
+                            <p className="text-gray-400 text-xs mt-0.5">School fees for this term</p>
+                          </div>
+                          <div className="text-right text-amber-600">
+                            <p className="font-extrabold text-lg">₦{currentTermTotal.toLocaleString()}</p>
+                          </div>
+                        </div>
+
+                        {/* Total to Pay */}
+                        <div className="flex justify-between items-center pt-2 bg-gradient-to-br from-[#0a2342]/5 to-[#1a5276]/5 rounded-xl p-4">
+                          <div>
+                            <p className="text-[#0a2342] text-sm font-extrabold">TOTAL TO PAY THIS TERM</p>
+                            <p className="text-gray-500 text-xs mt-0.5">Arrears + Current Fees</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-extrabold text-2xl text-[#0a2342]">₦{totalOutstanding.toLocaleString()}</p>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
