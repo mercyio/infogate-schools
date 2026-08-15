@@ -194,7 +194,7 @@ const Home = () => {
               transition={{ duration: 0.6 }}
               className="grid grid-cols-2 gap-4"
             >
-              <img src={kidsLearning} alt="Kids learning" className="rounded-2xl shadow-lg w-full h-48 object-cover" />
+              <img src="/image3.jpeg" alt="School building" className="rounded-2xl shadow-lg w-full h-48 object-cover" />
               <img src="/image(1).jpg" alt="School building" className="rounded-2xl shadow-lg w-full h-48 object-cover mt-8" />
               <img src="/image.jpg" alt="School exterior" className="rounded-2xl shadow-lg w-full h-48 object-cover -mt-8" />
               <img src="/image2.jpeg" alt="School front view" className="rounded-2xl shadow-lg w-full h-48 object-cover" />
