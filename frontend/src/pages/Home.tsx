@@ -196,8 +196,8 @@ const Home = () => {
               className="grid grid-cols-2 gap-4"
             >
               <img src={kidsLearning} alt="Kids learning" className="rounded-2xl shadow-lg w-full h-48 object-cover" />
-              <img src={teacherClass} alt="Teacher with students" className="rounded-2xl shadow-lg w-full h-48 object-cover mt-8" />
-              <img src={kidsArt} alt="Kids doing art" className="rounded-2xl shadow-lg w-full h-48 object-cover -mt-8" />
+              <img src="/image(1).jpg" alt="School building" className="rounded-2xl shadow-lg w-full h-48 object-cover mt-8" />
+              <img src="/image.jpg" alt="School exterior" className="rounded-2xl shadow-lg w-full h-48 object-cover -mt-8" />
               <img src={heroSchool} alt="School" className="rounded-2xl shadow-lg w-full h-48 object-cover" />
 
             </motion.div>
