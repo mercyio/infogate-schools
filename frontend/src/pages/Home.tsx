@@ -10,7 +10,7 @@ import kidsLearning from "@/assets/kids-learning.png";
 import teacherClass from "@/assets/teacher-class.png";
 import kidsArt from "@/assets/kids-art.png";
 
-const heroSchool = "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=1200&q=80";
+const heroSchool = "/school-building.jpg";
 
 const programs = [
   {
